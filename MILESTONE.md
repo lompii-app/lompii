@@ -1,93 +1,167 @@
-# M1 — Capture (done)
+# Milestones
 
-Scope: references get into the library, look good in a grid, and open in a detail panel.
-Everything beyond that follows `project.md`'s milestone order. See [Deferred](#deferred).
+Where Tessera stands against `project.md`'s milestone order, and the decisions behind it.
+For setup and features, see [README.md](README.md).
+
+| Milestone | State |
+| --- | --- |
+| **M1 Capture** | Done. Saving now happens from the web (extension), not a watched folder. |
+| **M2 Understanding** | Done, with free-form tags instead of the Creative DNA vocabulary. |
+| **M3 Retrieval** | Partly: keyword search with combinable chips, kind filters, tag/colour "same vibe". No embeddings yet. |
+| **M4 Collections** | Manual collections done (stacks). Smart collections not started. |
+| Browser extension | Done (was "later, not MVP"). |
+
+---
 
 ## Built
 
-**Scaffold** — Electron + electron-vite (React, TS, Tailwind v4). `contextIsolation` on,
-`nodeIntegration` off, preload sandboxed. All disk and DB work in main, exposed through
-one typed API in `src/shared/api.ts`.
+**Scaffold.** Electron + electron-vite (React, TS, Tailwind v4). `contextIsolation` on,
+`nodeIntegration` off, preload sandboxed. All disk, DB and network work happens in main,
+exposed through one typed API in `src/shared/api.ts`. `npm run dev` runs with `--watch`, so
+main and preload changes restart Electron instead of leaving a stale main process behind a
+hot-reloaded renderer.
 
-**Native modules** — better-sqlite3 and sharp rebuilt for Electron's ABI via
+**Native modules.** better-sqlite3 and sharp rebuilt for Electron's ABI via
 `electron-builder install-app-deps` (postinstall). `asarUnpack` covers both plus `@img`.
 
-**Database** — `items`, `tags`, `item_tags`. Migrations are a `MIGRATIONS` array indexed by
-`user_version`; each runs in a transaction. Tag tables exist and are empty.
+**Database.** `items`, `tags`, `item_tags`, `stacks`, `stack_items`. Migrations are a
+`MIGRATIONS` array indexed by `user_version`, each in a transaction:
 
-**Ingest** — chokidar watches the screenshots folder (`awaitWriteFinish`). On a new image:
-sha256 dedupe, copy to `userData/library`, 480px webp thumb to `userData/thumbs`, read
-dimensions and dominant colour, insert. Same path serves drag-drop and clipboard paste.
-New items reach the grid live over `item:added`.
+| v | Change |
+| --- | --- |
+| 1 | items, tags, item_tags |
+| 2 | `kind` and `body` on items (text saves) |
+| 3 | auto `quotes` tag, backfilled (undone in v5) |
+| 4 | `stack_colors` (tag-based stacks, replaced in v5) |
+| 5 | real `stacks` / `stack_items`; old coloured tag-stacks carried over; quotes split into quotes and snippets; `quotes` tag dropped |
+| 6 | `note`, `palette` |
+| 7 | palette cache cleared (three colours became four) |
+| 8 | `tldr`, `visible_text`, `ai_error` |
 
-**Images** — served through the `tessera://` protocol, registered as privileged, with a
-containment check against `userData`. Never `file://`.
+**Ingest.** sha256 dedupe, copy to `userData/library`, 480 px WebP thumb to
+`userData/thumbs`, dimensions and dominant colour, insert; a duplicate returns the existing
+item. Paths: drag-drop, clipboard paste, and the extension's local server. Text goes through
+`ingestText`, which classifies it (see decisions). New items reach the grid over
+`item:added`, then join the AI queue.
 
-**Grid** — sidebar (Library / Inbox / count / settings), centred search with Cmd/Ctrl+K,
-virtualised masonry (TanStack Virtual `lanes`), dominant-colour placeholder, hover outline,
-selection, arrow-key navigation, Delete with confirm, empty state, settings dialog as a
-native `<dialog>`.
+**Extension server.** `node:http` on `127.0.0.1:47821`. `GET /ping`, `POST /image`
+(`kind=image|capture`), `POST /text`, `POST /items/:id/tags`. Every request carries a bearer
+key, compared with `timingSafeEqual`. Body cap 50 MB, text cap 10,000 characters, titles and
+URLs trimmed, non-http(s) sources dropped.
 
-**Detail panel** — 420px, grid reflows beside it. Full image (click for a lightbox),
-editable title and source URL saved on blur, meta row with date / dimensions / file size,
-and an ATTRIBUTES section that groups chips by dimension. Opens on click or Enter. Esc
-layers: lightbox, then panel, then selection.
+**Chrome extension** (`extension/`, MV3, plain JS). Context menu for images and selected
+text, page captures (area, visible, full page, delayed), a toolbar popup, `Alt+Shift+S`, an
+in-page toast with an *Add tags* field (shadow DOM, so page CSS can't touch it), and an
+options page holding the key.
+
+**AI** (`src/main/ai.ts`). One call per item returns title, TLDR, tags and visible text,
+two items in flight at a time. Providers: Anthropic through `@anthropic-ai/sdk` with
+structured JSON output and server-side refusal fallback; OpenAI and OpenRouter with
+`json_schema` response format; Gemini with `responseSchema`; any OpenAI-compatible base URL
+with a plain JSON instruction. `status` moves `pending → analysing → tagged | failed`; the
+overlay reads it.
+
+**Window.** No native title bar; a 40 px drag strip and macOS-style traffic lights drawn in
+the renderer. Light theme, serif display type, masonry grid of cards, a floating search pill
+once the header scrolls away.
+
+**Detail overlay.** The item on its dominant colour (images fit; only captures taller than
+2:1 scroll), a four-colour palette, title, relative time and source link, TLDR (with an
+analysing state), kind chip plus removable tags, notes, and Download / Add to stack / Copy /
+Delete. Esc and outside clicks close it; arrow keys still move the selection underneath.
+
+**Stacks.** User-made, named, coloured. Shown as fanned piles of their newest three items;
+created and edited from the Stacks page or the overlay's picker.
+
+**Search.** Words, word chips (all must match), one active filter (kind, stack, or same
+vibe), across title, body, note, TLDR, visible text, file path and tags.
 
 ## Decisions worth remembering
 
-**Existing screenshots are not imported** (`ignoreInitial: true`). Only captures taken after
-the app starts. A first launch that swallowed an entire Screenshots folder would be a
-surprise, not a feature. Back-filling should be an explicit action if it's ever wanted.
+**No watched folder.** M1 imported new screenshots automatically. In practice most
+screenshots are taken for something else (chat, bug reports), so the library filled with
+noise and file names like "Screenshot 2026-10-22 015330". Saving moved to the extension,
+where each save is deliberate and arrives with its page title and URL. Drag-drop and paste
+remain for local files.
 
-**Inbox equals Library right now.** Nothing sets `status` to `'tagged'`, so every item is
-pending. The two views diverge in M2.
+**Quotes reuse the image columns.** Text items store `''` paths, `0×0` and `#ffffff` rather
+than a table rebuild (which, with `foreign_keys` on, would cascade-delete `item_tags`).
+Marked `ponytail:` in `db.ts`; split into per-kind tables if a kind with its own fields
+arrives. `remove` and `fileSize` skip empty paths.
 
-**`pathForFile` was added to the preload API.** Electron 44 removed `File.path`; a dropped
-file's path is only reachable through `webUtils.getPathForFile`. Without it, drag-drop would
-push whole image buffers across IPC.
+**Quote or snippet is a mechanical rule.** Text with a quoted span (`"…"`, `“…”`, `«…»`) is a
+quote and is stored without its outer marks; anything else is a snippet. Same rule in
+`textKind` and in migration 5's SQL. The hash keeps a `quote:` prefix so text saved before
+the split still dedupes.
 
-**Edits propagate by broadcast, not return value.** `update()` returns `void` and main sends
-`item:updated` to every window, so the grid picks up title changes through the same path as
-`item:added`. One mechanism, not two.
+**Stacks are not tags.** The first version made every tag a stack, which meant stacks
+couldn't be empty, couldn't hold arbitrary items, and filled up with AI tags. Stacks are now
+their own tables, added to by hand; tags stay for search.
 
-**No `size` column.** File size comes from a `statSync` when the panel opens. A migration
-would default existing rows to 0 and need an fs backfill to un-lie; one stat per panel open
-costs nothing.
+**User and AI tags share one dimension (`tag`).** They look and behave the same, and either
+can be removed. A tag left on no item is deleted, so it doesn't linger as an empty filter.
+Kind words (image, quote, snippet…) are kept out of tags; the kind has its own chip.
 
-**Source URL is validated in both processes.** `isHttpUrl` lives in `src/shared/api.ts`. The
-renderer uses it to gate the field and the OPEN button; main rejects non-http(s) on both
-write and `openExternal`, so a compromised renderer cannot store or launch a `file:` or
-`javascript:` URL.
+**AI tags are free-form, not Creative DNA.** `project.md` specifies a closed vocabulary with
+cardinality limits. Free-form tags searched better in practice and match how mymind-style
+libraries are used. The DNA dimensions remain a candidate for structured facets (see
+deferred); `tags` is still `(dimension, value)`, so they have somewhere to live.
 
-**Search covers `title` and `file_path` only.** `title` holds the original filename, since
-`file_path` is a hash. There is no index on either — filtering happens in the renderer over
-the full array. Fine at this size; server-side when it isn't. M3 replaces this entirely.
+**The AI key never reaches the renderer.** It's encrypted with `safeStorage` in
+`settings.json`; the renderer only sees `hasKey`. The extension key is in the same file,
+plain, since it only guards a localhost port.
 
-**Arrow keys are index arithmetic**, not geometric nearest-neighbour. Up/down steps by column
-count and can land a column off on uneven masonry. Marked `ponytail:` in `Grid.tsx`.
+**Provider is guessed, not required.** `detectProvider` reads the key prefix (`sk-ant-`,
+`sk-or-`, `AIza`, `sk-`); the user can override provider, model and base URL. Default models
+are starting values only.
 
-**Dominant colour is approximate.** sharp bins a histogram, so `#2e6ad1` comes back `#2868d8`.
-It is a placeholder swatch, not colour metadata — M2's local colour extraction is a separate
-job.
+**Edits propagate by broadcast, not return value.** Main sends `item:updated` to every
+window after any change (title, note, tags from the overlay, the extension or the AI), and
+the renderer re-reads what it needs. One mechanism.
+
+**Palettes are lazy.** Four colours per image, bucketed from the 48 px thumb and cached in
+`palette` the first time an item is opened (or when same vibe needs them). The dominant
+colour stays a placeholder swatch; it's approximate.
+
+**Same vibe is a heuristic.** 60% tag Jaccard, 30% palette distance, 10% same broad kind,
+scored against every item per click, threshold 0.2, top 40. Marked `ponytail:`; embeddings
+replace it.
+
+**Search runs in the renderer** over the full array, no index. Fine at thousands of items.
+
+**`pathForFile` is in the preload API.** Electron 44 removed `File.path`; a dropped file's
+path is only reachable through `webUtils.getPathForFile`.
+
+**Source URLs are validated in main.** `isHttpUrl` rejects non-http(s) on write and on
+`openExternal`, so a compromised renderer can't store or launch a `file:` or `javascript:`
+URL. The source is set by the extension; it's no longer editable in the overlay.
+
+**No `size` column.** File size comes from a `statSync` when the overlay opens.
+
+**Arrow keys are index arithmetic**, not geometric nearest-neighbour. Marked `ponytail:` in
+`Grid.tsx`.
+
+**Full-page capture scrolls and stitches.** The debugger API would capture beyond the
+viewport cleanly but shows a "being debugged" bar. Fixed and sticky elements are hidden after
+the first strip, captures are spaced for Chrome's two-per-second limit, and every wait for a
+repaint has a timeout. Marked `ponytail:` in `extension/background.js`.
 
 ## Known gaps
 
-- **Packaged build unverified.** `asarUnpack` is configured but only matters outside dev;
-  `npm run pack` has not been run. This is the last untested part of M1.
-- **`source_url` is only ever set by hand.** A watched screenshot has no URL. Automatic
-  source capture needs the browser extension, which `project.md` puts in "Later, not MVP".
-- **ATTRIBUTES always reads "Not analysed yet."** Nothing writes `item_tags` until M2.
+- **Packaged build unverified.** `npm run pack` / `dist` have never been run. `asarUnpack`
+  covers the native modules; `@anthropic-ai/sdk` is a runtime dependency and must ship too.
+- **macOS.** `titleBarStyle: 'hidden'` keeps the native traffic lights there, so the custom
+  ones would duplicate them. Untested on macOS and Linux.
+- **Full page** misses pages that scroll an inner element, and stops at about 20,000 CSS px.
+- **The OpenAI default model** (`gpt-4o-mini`) may be outdated.
+- **No end-to-end test of the AI providers** beyond real use; only Anthropic's request shape
+  is checked against the SDK's types.
+- **Tags can't be renamed or removed library-wide**, and stacks can't be merged.
 
 ## Deferred
 
-Per `project.md`'s milestone order: M2 understanding (one vision-model call per reference —
-Creative DNA enums, description, visible text; colours extracted locally), M3 retrieval
-(embeddings, natural-language search, attribute chips as filters, find-similar), M4
-collections (manual, and smart collections as saved searches).
-
-Later, not MVP: browser extension, prompt generation, copy metadata, moodboards, sync.
-
-The schema already anticipates M2. `tags` is `(dimension, value)` with a uniqueness
-constraint rather than a flat string, so the controlled vocabulary has somewhere to live
-without a migration reshaping it. `status` flips to `'tagged'` there, and `source_url` is
-already a column.
+- **M3:** image embeddings (visual similarity and natural-language search), so "dark websites
+  with huge typography" works without the exact words.
+- **Creative DNA** as structured, filterable facets alongside free-form tags.
+- **M4:** smart collections as saved searches.
+- Later: prompt generation, copying metadata, moodboards, sync across devices.

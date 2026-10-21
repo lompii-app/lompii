@@ -239,7 +239,7 @@ src/
   shared/api.ts  types and helpers shared by main and renderer
 extension/       Chrome extension (Manifest V3, plain JS)
 project.md       product spec, including the AI vocabulary ideas
-MILESTONE.md     notes from the first milestone (partly outdated)
+MILESTONE.md     milestone status and the decisions behind the design
 ```
 
 ## Data and privacy
