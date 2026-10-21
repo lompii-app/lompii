@@ -81,18 +81,54 @@ export default function App() {
   // the row under the search offers only the kinds; tags are found by typing, stacks from Stacks
   const kindFilters = useMemo(() => filters.filter((f) => f.key.startsWith('kind:')), [filters])
 
+  // Natural-language search: the whole phrase (chips + typing) goes to CLIP after a short
+  // pause, and images that match the description join the keyword results.
+  const phrase = [...terms, query].map((t) => t.trim()).filter(Boolean).join(' ')
+  const [visual, setVisual] = useState<{ phrase: string; scores: Map<number, number> } | null>(null)
+  useEffect(() => {
+    if (phrase.length < 3 || vibe) return setVisual(null)
+    let live = true
+    const timer = setTimeout(
+      () =>
+        window.tessera.searchVisual(phrase).then((hits) => {
+          if (live) setVisual({ phrase, scores: new Map(hits.map((h) => [h.id, h.score])) })
+        }),
+      250
+    )
+    return () => {
+      live = false
+      clearTimeout(timer)
+    }
+  }, [phrase, vibe])
+  // results for an older phrase would flash wrong matches while the new ones load
+  const scores = visual?.phrase === phrase ? visual.scores : null
+
   const visible = useMemo(() => {
     const words = [...terms, query].map((t) => t.trim().toLowerCase()).filter(Boolean)
+    const hit = new Set<number>() // matched the words, not only the description
     const matches = items.filter((i) => {
       const tags = tagIndex.get(i.id)
       if (active && !active.test(i, tags)) return false
       const fields = [i.title, i.body, i.note, i.tldr, i.visible_text, i.file_path, ...(tags ?? [])]
-      return words.every((w) => fields.some((s) => s?.toLowerCase().includes(w)))
+      if (words.every((w) => fields.some((s) => s?.toLowerCase().includes(w)))) {
+        hit.add(i.id)
+        return true
+      }
+      return !!scores?.has(i.id)
     })
-    if (!vibe) return matches
-    const rank = new Map(vibe.map((id, n) => [id, n]))
-    return matches.sort((a, b) => rank.get(a.id)! - rank.get(b.id)!)
-  }, [items, tagIndex, active, terms, query, vibe])
+    if (vibe) {
+      const rank = new Map(vibe.map((id, n) => [id, n]))
+      return matches.sort((a, b) => rank.get(a.id)! - rank.get(b.id)!)
+    }
+    if (!scores?.size) return matches
+    // word matches first, then by how well the image fits the description; newest breaks ties
+    return matches.sort(
+      (a, b) =>
+        Number(hit.has(b.id)) - Number(hit.has(a.id)) ||
+        (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0) ||
+        b.created_at - a.created_at
+    )
+  }, [items, tagIndex, active, terms, query, vibe, scores])
 
   const pickFilter = (key: string | null) => {
     setFilterKey(key)
@@ -282,7 +318,7 @@ export default function App() {
           <div className="grid place-items-center py-32 pr-20">
             <div className="max-w-md text-center">
               <p className="font-serif text-[32px] italic text-dim">
-                {items.length ? 'Nothing matches that.' : 'Nothing here yet.'}
+                {!items.length ? 'Nothing here yet.' : phrase.length >= 3 && !scores && !vibe ? 'Looking…' : 'Nothing matches that.'}
               </p>
               <p className="mt-3 text-[14px] leading-relaxed text-dim">
                 {items.length

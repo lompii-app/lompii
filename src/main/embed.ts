@@ -1,5 +1,12 @@
 import { join } from 'node:path'
-import { AutoProcessor, CLIPVisionModelWithProjection, RawImage, env } from '@huggingface/transformers'
+import {
+  AutoProcessor,
+  AutoTokenizer,
+  CLIPTextModelWithProjection,
+  CLIPVisionModelWithProjection,
+  RawImage,
+  env
+} from '@huggingface/transformers'
 import type { EmbeddingStatus, Item } from '@shared/api'
 import { DATA, db } from './db'
 
@@ -87,6 +94,47 @@ export function embeddingStatus(): EmbeddingStatus {
     )
     .get() as { total: number; done: number }
   return { state, done, total, error }
+}
+
+/* ---------- natural-language search ---------- */
+
+// CLIP's text half maps a phrase into the same space as the image vectors. Loaded on the first
+// search (~60 MB download, once), separately from the vision model.
+type ClipText = {
+  tokenizer: Awaited<ReturnType<typeof AutoTokenizer.from_pretrained>>
+  text: Awaited<ReturnType<typeof CLIPTextModelWithProjection.from_pretrained>>
+}
+let clipText: Promise<ClipText> | null = null
+const loadText = (): Promise<ClipText> =>
+  (clipText ??= Promise.all([
+    AutoTokenizer.from_pretrained(MODEL),
+    CLIPTextModelWithProjection.from_pretrained(MODEL, { dtype: 'q8' })
+  ])
+    .then(([tokenizer, text]) => ({ tokenizer, text }))
+    .catch((e) => {
+      clipText = null
+      throw e
+    }))
+
+// Text-to-image cosines sit in a narrow band: on a real library, matches scored ~0.26-0.30
+// and the rest ~0.18-0.23. Keep images that clear an absolute floor and sit close to the best.
+const FLOOR = 0.25
+const NEAR_BEST = 0.03
+
+export async function searchImages(query: string): Promise<{ id: number; score: number }[]> {
+  const { tokenizer, text } = await loadText()
+  const { text_embeds } = await text(tokenizer([query], { padding: true, truncation: true }))
+  const q = text_embeds.data as Float32Array
+  const norm = Math.hypot(...q)
+  const scored: { id: number; score: number }[] = []
+  for (const [id, v] of allVectors()) {
+    let dot = 0
+    for (let i = 0; i < v.length; i++) dot += v[i] * q[i]
+    scored.push({ id, score: dot / norm })
+  }
+  scored.sort((a, b) => b.score - a.score)
+  const cut = Math.max(FLOOR, (scored[0]?.score ?? 0) - NEAR_BEST)
+  return scored.filter((s) => s.score >= cut).slice(0, 30)
 }
 
 // vectors for every embedded item; empty blobs (failed files) are left out

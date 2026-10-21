@@ -7,7 +7,7 @@ For setup and features, see [README.md](README.md).
 | --- | --- |
 | **M1 Capture** | Done. Saving now happens from the web (extension), not a watched folder. |
 | **M2 Understanding** | Done, with free-form tags instead of the Creative DNA vocabulary. |
-| **M3 Retrieval** | Partly: keyword search with combinable chips, kind filters, "same vibe" on local CLIP image embeddings. No natural-language search yet. |
+| **M3 Retrieval** | Done: keyword search with combinable chips, kind filters, natural-language image search and "same vibe", both on local CLIP. |
 | **M4 Collections** | Manual collections done (stacks). Smart collections not started. |
 | Browser extension | Done (was "later, not MVP"). |
 
@@ -134,6 +134,12 @@ vector index as the upgrade.
 
 **Search runs in the renderer** over the full array, no index. Fine at thousands of items.
 
+**Natural-language search is CLIP text-to-image.** The phrase (chips and typing together)
+goes to CLIP's text encoder after a 250 ms pause; images scoring at least 0.25, and within
+0.03 of the best, join the word matches. Those numbers come from calibrating on a real
+library: matches landed at 0.26–0.30, everything else at 0.18–0.23. Word matches rank
+first. Quotes and snippets are found by words only; their text isn't embedded.
+
 **`pathForFile` is in the preload API.** Electron 44 removed `File.path`; a dropped file's
 path is only reachable through `webUtils.getPathForFile`.
 
@@ -166,8 +172,7 @@ repaint has a timeout. Marked `ponytail:` in `extension/background.js`.
 
 ## Deferred
 
-- **M3:** natural-language search with CLIP's text encoder, so "dark websites with huge
-  typography" works without the exact words. The image vectors are already there.
+- **Semantic search for quotes and snippets** (embedding their text too).
 - **Creative DNA** as structured, filterable facets alongside free-form tags.
 - **M4:** smart collections as saved searches.
 - Later: prompt generation, copying metadata, moodboards, sync across devices.

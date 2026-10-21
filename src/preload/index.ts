@@ -43,7 +43,8 @@ const api: TesseraAPI = {
   setAi: (patch) => ipcRenderer.invoke('settings:setAi', patch),
   analyse: (id) => ipcRenderer.invoke('ai:analyse', id),
   analyseAll: () => ipcRenderer.invoke('ai:analyseAll'),
-  embeddingStatus: () => ipcRenderer.invoke('embeddings:status')
+  embeddingStatus: () => ipcRenderer.invoke('embeddings:status'),
+  searchVisual: (query) => ipcRenderer.invoke('search:visual', query)
 }
 
 contextBridge.exposeInMainWorld('tessera', api)

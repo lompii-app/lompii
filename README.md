@@ -54,6 +54,8 @@ the item you ask the AI provider of your choice to describe.
 - **Search** across titles, tags, TLDRs, notes, quote and snippet text, and text inside
   images. Press `Enter` to turn a word into a chip; chips combine, so `natively` + `dark`
   shows only items matching both.
+- **Describe what you remember**: "mountains landscape" or "grainy portrait in shadow" also
+  finds images by what they look like, even when no tag says so (local CLIP, no API calls).
 - **Type filters** (Images, Captures, Quotes, Snippets) appear under the search.
 - **Same vibe**: from any item, see the items that look most like it. Images are compared
   with a local CLIP model (free, offline after a one-time ~90 MB download); tags and palette
@@ -215,7 +217,10 @@ other providers are called over their HTTP APIs.
   `POST /items/:id/tags`.
 - **Images in the window** load through a private `tessera://` protocol with a path check,
   never `file://`.
-- **Search and filters** run in the renderer over the loaded library.
+- **Search and filters** run in the renderer over the loaded library. The search phrase also
+  goes, after a 250 ms pause, to CLIP's text encoder in main; images scoring at least 0.25 and
+  within 0.03 of the best match join the results. Word matches rank first, then by how well
+  the image fits the description.
 - **Same vibe** uses CLIP image embeddings (`Xenova/clip-vit-base-patch32`, quantised, run with
   onnxruntime in the main process; `src/main/embed.ts`). Each image's vector is computed in the
   background when it's saved and stored in the `embeddings` table. Two images score 65% visual
@@ -259,7 +264,7 @@ Everything is stored in Electron's user-data folder, on Windows
 | `library/` | original files, named by hash |
 | `thumbs/` | 480 px WebP thumbnails |
 | `settings.json` | extension key, AI provider and model, AI key (encrypted) |
-| `models/` | the CLIP model used for same vibe, downloaded on first run |
+| `models/` | the CLIP models (image ~85 MB, text ~60 MB) used for same vibe and search, downloaded on first use |
 
 - The **AI key** is encrypted with the operating system's secure storage (Electron
   `safeStorage`) and never reaches the renderer.
@@ -281,7 +286,6 @@ Everything is stored in Electron's user-data folder, on Windows
 
 ## Roadmap
 
-- Natural-language search with CLIP's text encoder ("dark websites with huge typography")
 - Creative DNA attributes from `project.md` as structured, filterable facets
 - Verified installers for Windows and macOS
 - Removing tags across the whole library, and merging stacks

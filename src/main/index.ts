@@ -6,7 +6,7 @@ import sharp from 'sharp'
 import { isHttpUrl, isText, type Item, type Stack, type WindowAction } from '@shared/api'
 import { addTags, DATA, db, removeTag } from './db'
 import { enqueue, enqueueUnanalysed, resumeAnalysis } from './ai'
-import { allVectors, embeddingStatus, indexImages } from './embed'
+import { allVectors, embeddingStatus, indexImages, searchImages } from './embed'
 import { ingestBuffer, ingestFile } from './ingest'
 import { getSettings, setAi } from './settings'
 import { serve } from './server'
@@ -285,6 +285,16 @@ ipcMain.handle('settings:setAi', (_e, patch: Parameters<typeof setAi>[0]) => set
 ipcMain.handle('ai:analyse', (_e, id: number) => void enqueue(id))
 ipcMain.handle('ai:analyseAll', () => enqueueUnanalysed())
 ipcMain.handle('embeddings:status', () => embeddingStatus())
+ipcMain.handle('search:visual', async (_e, query: string) => {
+  const q = typeof query === 'string' ? query.trim().slice(0, 300) : ''
+  if (q.length < 3) return []
+  try {
+    return await searchImages(q)
+  } catch (e) {
+    console.error('[tessera] visual search failed', e instanceof Error ? e.message : e)
+    return [] // keyword search still works
+  }
+})
 
 /* ---------- window ---------- */
 
