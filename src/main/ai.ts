@@ -57,7 +57,8 @@ async function imageData(item: Item): Promise<string> {
 /* ---------- providers ---------- */
 
 async function viaAnthropic(cfg: AiConfig, text: string, image: string | null): Promise<string> {
-  const client = new Anthropic({ apiKey: cfg.key })
+  // the SDK retries 408/409/429/5xx and dropped connections itself, honouring retry-after
+  const client = new Anthropic({ apiKey: cfg.key, maxRetries: 4 })
   const opus5 = /^claude-(opus-5|fable-5)/.test(cfg.model)
   const res = await client.beta.messages.create({
     model: cfg.model,
@@ -93,7 +94,25 @@ async function apiError(res: Response): Promise<Error> {
     const j = JSON.parse(body)
     message = j.error?.message ?? j.error ?? j.message ?? message
   } catch {}
-  return new Error(`${res.status}: ${message}`)
+  return Object.assign(new Error(`${res.status}: ${message}`), { status: res.status })
+}
+
+// Rate limits, overloads ("503: high demand") and dropped connections usually pass; wait and
+// try again (2 s, 6 s, 18 s) before marking the item failed. Bad keys and bad requests don't.
+const RETRYABLE = new Set([408, 409, 425, 429, 500, 502, 503, 504, 529])
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+async function withRetry<T>(call: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await call()
+    } catch (e) {
+      const status = (e as { status?: number }).status
+      const retryable = status ? RETRYABLE.has(status) : e instanceof TypeError // fetch: network failure
+      if (!retryable || attempt === 3) throw e
+      await sleep(2000 * 3 ** attempt)
+    }
+  }
 }
 
 const OPENAI_BASE: Partial<Record<AiConfig['provider'], string>> = {
@@ -194,8 +213,11 @@ async function analyse(id: number): Promise<void> {
   try {
     const text = prompt(item)
     const image = isText(item.kind) ? null : await imageData(item)
-    const call = cfg.provider === 'anthropic' ? viaAnthropic : cfg.provider === 'gemini' ? viaGemini : viaOpenAICompatible
-    const r = parse(await call(cfg, text, image))
+    const raw =
+      cfg.provider === 'anthropic'
+        ? await viaAnthropic(cfg, text, image)
+        : await withRetry(() => (cfg.provider === 'gemini' ? viaGemini : viaOpenAICompatible)(cfg, text, image))
+    const r = parse(raw)
     if (!byId(id)) return // deleted while the model was working
     db.prepare(
       `update items set title = coalesce(nullif(?, ''), title), tldr = ?, visible_text = ?,
