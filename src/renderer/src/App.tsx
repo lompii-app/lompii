@@ -462,9 +462,30 @@ function SettingsDialog({
     <dialog
       ref={ref}
       onClose={() => setStatus('')}
-      className="m-auto w-[480px] rounded-lg bg-card p-8 text-fg shadow-lift backdrop:bg-ink/70 backdrop:backdrop-blur-sm"
+      className="m-auto max-h-[85vh] w-[480px] overflow-y-auto rounded-lg bg-card p-8 text-fg shadow-lift backdrop:bg-ink/70 backdrop:backdrop-blur-sm"
     >
       <h2 className="font-serif text-[32px] italic leading-none">Settings</h2>
+
+      <section className="mt-7">
+        <h3 className={LABEL}>General</h3>
+        <label className={`mt-3 flex items-center gap-3 text-[14px] ${settings?.openAtLogin == null ? 'opacity-50' : ''}`}>
+          <input
+            type="checkbox"
+            checked={!!settings?.openAtLogin}
+            disabled={settings?.openAtLogin == null}
+            onChange={async (e) => onChange(await window.tessera.setOpenAtLogin(e.target.checked))}
+            className="size-4 accent-[var(--color-accent)]"
+          />
+          Start Tessera when you sign in
+        </label>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-dim">
+          {settings?.openAtLogin == null
+            ? 'Available in the installed app. '
+            : ''}
+          Closing the window keeps Tessera running in the tray, so the extension can always save. Quit
+          from the tray icon.
+        </p>
+      </section>
 
       <section className="mt-7">
         <h3 className={LABEL}>AI</h3>

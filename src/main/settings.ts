@@ -4,11 +4,13 @@ import { join } from 'node:path'
 import { safeStorage } from 'electron'
 import { DEFAULT_MODELS, type AiProvider, type Settings } from '@shared/api'
 import { DATA } from './db'
+import { openAtLogin } from './tray'
 
 // settings.json. The AI key is encrypted with the OS keychain (safeStorage) and never
 // leaves the main process; the renderer only learns whether one is set.
 type Stored = {
   token?: string
+  trayHintShown?: boolean
   ai?: { provider: AiProvider; model: string; baseUrl: string; key: string }
 }
 
@@ -32,7 +34,15 @@ export function getSettings(): Settings {
     write(s)
   }
   const ai = s.ai && { provider: s.ai.provider, model: s.ai.model, baseUrl: s.ai.baseUrl, hasKey: !!s.ai.key }
-  return { token: s.token, ai: ai ?? null }
+  return { token: s.token, ai: ai ?? null, openAtLogin: openAtLogin() }
+}
+
+// true only the first time the window is closed, for the "still running in the tray" note
+export function firstClose(): boolean {
+  const s = read()
+  if (s.trayHintShown) return false
+  write({ ...s, trayHintShown: true })
+  return true
 }
 
 export type AiConfig = { provider: AiProvider; model: string; baseUrl: string; key: string }

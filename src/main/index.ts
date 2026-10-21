@@ -8,7 +8,8 @@ import { addTags, DATA, db, removeTag } from './db'
 import { enqueue, enqueueUnanalysed, resumeAnalysis } from './ai'
 import { allVectors, embeddingStatus, indexImages, searchImages } from './embed'
 import { ingestBuffer, ingestFile } from './ingest'
-import { getSettings, setAi } from './settings'
+import { firstClose, getSettings, setAi } from './settings'
+import { createTray, setOpenAtLogin, startedHidden, trayHint } from './tray'
 import { serve } from './server'
 
 protocol.registerSchemesAsPrivileged([
@@ -282,6 +283,10 @@ ipcMain.handle('ingest:buffer', (_e, data: ArrayBuffer) => ingestBuffer(data))
 
 ipcMain.handle('settings:get', () => getSettings())
 ipcMain.handle('settings:setAi', (_e, patch: Parameters<typeof setAi>[0]) => setAi(patch))
+ipcMain.handle('settings:setOpenAtLogin', (_e, on: boolean) => {
+  setOpenAtLogin(!!on)
+  return getSettings()
+})
 ipcMain.handle('ai:analyse', (_e, id: number) => void enqueue(id))
 ipcMain.handle('ai:analyseAll', () => enqueueUnanalysed())
 ipcMain.handle('embeddings:status', () => embeddingStatus())
@@ -298,42 +303,78 @@ ipcMain.handle('search:visual', async (_e, query: string) => {
 
 /* ---------- window ---------- */
 
-function createWindow(): void {
-  const win = new BrowserWindow({
+let win: BrowserWindow | null = null
+let quitting = false
+
+function show(): void {
+  if (!win) return createWindow(true)
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+}
+
+function createWindow(visible: boolean): void {
+  win = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 720,
+    show: false,
     backgroundColor: '#eef0f4',
     // no native title bar or buttons; the renderer draws a drag strip and its own controls
     titleBarStyle: 'hidden',
     autoHideMenuBar: true, // menu still answers its shortcuts (reload, devtools) and Alt
     webPreferences: { preload: join(__dirname, '../preload/index.js') }
   })
+  if (visible) win.once('ready-to-show', () => win?.show())
+
+  // closing hides to the tray, so the extension server and the AI queue keep running
+  win.on('close', (e) => {
+    if (quitting) return
+    e.preventDefault()
+    win?.hide()
+    if (firstClose()) trayHint()
+  })
+  win.on('closed', () => (win = null))
 
   if (process.env.ELECTRON_RENDERER_URL) win.loadURL(process.env.ELECTRON_RENDERER_URL)
   else win.loadFile(join(__dirname, '../renderer/index.html'))
 }
 
-app.whenReady().then(() => {
-  // tessera://library/<hash>.png  ->  <userData>/library/<hash>.png
-  protocol.handle('tessera', (req) => {
-    const { host, pathname } = new URL(req.url)
-    const file = resolve(DATA, host + decodeURIComponent(pathname))
-    if (file !== DATA && !file.startsWith(DATA + sep)) return new Response(null, { status: 403 })
-    return net.fetch(pathToFileURL(file).toString())
+function quit(): void {
+  quitting = true
+  app.quit()
+}
+
+// One Tessera at a time: a second copy would fight over the database and port 47821.
+// Launching it again just brings the running one forward.
+if (!app.requestSingleInstanceLock()) app.quit()
+else {
+  app.on('second-instance', show)
+  app.on('before-quit', () => (quitting = true))
+
+  app.whenReady().then(() => {
+    // tessera://library/<hash>.png  ->  <userData>/library/<hash>.png
+    protocol.handle('tessera', (req) => {
+      const { host, pathname } = new URL(req.url)
+      const file = resolve(DATA, host + decodeURIComponent(pathname))
+      if (file !== DATA && !file.startsWith(DATA + sep)) return new Response(null, { status: 403 })
+      return net.fetch(pathToFileURL(file).toString())
+    })
+
+    console.log(
+      '[tessera] db v%d, %d items',
+      db.pragma('user_version', { simple: true }),
+      (db.prepare('select count(*) as n from items').get() as { n: number }).n
+    )
+
+    serve()
+    resumeAnalysis()
+    void indexImages() // backfill same-vibe vectors; downloads the model on first run
+    createTray(show, quit)
+    createWindow(!startedHidden())
+    app.on('activate', show)
   })
+}
 
-  console.log(
-    '[tessera] db v%d, %d items',
-    db.pragma('user_version', { simple: true }),
-    (db.prepare('select count(*) as n from items').get() as { n: number }).n
-  )
-
-  serve()
-  resumeAnalysis()
-  void indexImages() // backfill same-vibe vectors; downloads the model on first run
-  createWindow()
-  app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())
-})
-
-app.on('window-all-closed', () => process.platform !== 'darwin' && app.quit())
+// the tray keeps the app alive; quitting goes through quit()
+app.on('window-all-closed', () => {})

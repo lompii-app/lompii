@@ -83,6 +83,7 @@ export type EmbeddingStatus = {
 export type Settings = {
   token: string
   ai: { provider: AiProvider; model: string; baseUrl: string; hasKey: boolean } | null
+  openAtLogin: boolean | null // null: not available (development build)
 }
 
 // the browser extension talks to Tessera on this port, 127.0.0.1 only
@@ -120,6 +121,7 @@ export type TesseraAPI = {
 
   getSettings(): Promise<Settings>
   setAi(patch: { provider: AiProvider; model: string; baseUrl: string; key?: string }): Promise<Settings>
+  setOpenAtLogin(on: boolean): Promise<Settings>
   analyse(id: number): Promise<void> // queue one item for AI analysis
   analyseAll(): Promise<number> // queue everything not yet analysed; returns how many
   embeddingStatus(): Promise<EmbeddingStatus>
