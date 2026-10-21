@@ -7,7 +7,7 @@ For setup and features, see [README.md](README.md).
 | --- | --- |
 | **M1 Capture** | Done. Saving now happens from the web (extension), not a watched folder. |
 | **M2 Understanding** | Done, with free-form tags instead of the Creative DNA vocabulary. |
-| **M3 Retrieval** | Partly: keyword search with combinable chips, kind filters, tag/colour "same vibe". No embeddings yet. |
+| **M3 Retrieval** | Partly: keyword search with combinable chips, kind filters, "same vibe" on local CLIP image embeddings. No natural-language search yet. |
 | **M4 Collections** | Manual collections done (stacks). Smart collections not started. |
 | Browser extension | Done (was "later, not MVP"). |
 
@@ -37,6 +37,7 @@ hot-reloaded renderer.
 | 6 | `note`, `palette` |
 | 7 | palette cache cleared (three colours became four) |
 | 8 | `tldr`, `visible_text`, `ai_error` |
+| 9 | `embeddings` (CLIP vectors, own table) |
 
 **Ingest.** sha256 dedupe, copy to `userData/library`, 480 px WebP thumb to
 `userData/thumbs`, dimensions and dominant colour, insert; a duplicate returns the existing
@@ -123,9 +124,13 @@ the renderer re-reads what it needs. One mechanism.
 `palette` the first time an item is opened (or when same vibe needs them). The dominant
 colour stays a placeholder swatch; it's approximate.
 
-**Same vibe is a heuristic.** 60% tag Jaccard, 30% palette distance, 10% same broad kind,
-scored against every item per click, threshold 0.2, top 40. Marked `ponytail:`; embeddings
-replace it.
+**Same vibe runs on local CLIP embeddings.** ViT-B/32, quantised, through
+`@huggingface/transformers` and onnxruntime in main; no provider has image embeddings in
+common (Anthropic has none), and local is free and offline. Vectors are normalised and kept
+in their own `embeddings` table so they never travel with items over IPC. Image pairs score
+65% visual (cosine mapped from 0.5–0.9 onto 0–1), 25% tags, 10% palette; text items keep the
+older tags/palette heuristic. Scored against every item per click; marked `ponytail:` with a
+vector index as the upgrade.
 
 **Search runs in the renderer** over the full array, no index. Fine at thousands of items.
 
@@ -149,7 +154,8 @@ repaint has a timeout. Marked `ponytail:` in `extension/background.js`.
 ## Known gaps
 
 - **Packaged build unverified.** `npm run pack` / `dist` have never been run. `asarUnpack`
-  covers the native modules; `@anthropic-ai/sdk` is a runtime dependency and must ship too.
+  covers the native modules and onnxruntime; `@anthropic-ai/sdk` and
+  `@huggingface/transformers` are runtime dependencies and must ship too.
 - **macOS.** `titleBarStyle: 'hidden'` keeps the native traffic lights there, so the custom
   ones would duplicate them. Untested on macOS and Linux.
 - **Full page** misses pages that scroll an inner element, and stops at about 20,000 CSS px.
@@ -160,8 +166,8 @@ repaint has a timeout. Marked `ponytail:` in `extension/background.js`.
 
 ## Deferred
 
-- **M3:** image embeddings (visual similarity and natural-language search), so "dark websites
-  with huge typography" works without the exact words.
+- **M3:** natural-language search with CLIP's text encoder, so "dark websites with huge
+  typography" works without the exact words. The image vectors are already there.
 - **Creative DNA** as structured, filterable facets alongside free-form tags.
 - **M4:** smart collections as saved searches.
 - Later: prompt generation, copying metadata, moodboards, sync across devices.

@@ -86,7 +86,14 @@ const MIGRATIONS = [
   // AI analysis results (title and tags go in their usual places)
   `alter table items add column tldr text;
    alter table items add column visible_text text;
-   alter table items add column ai_error text;`
+   alter table items add column ai_error text;`,
+
+  // CLIP image vectors for same vibe (embed.ts). Their own table, so the 2 KB blobs never
+  // ride along on items sent to the window. An empty vector marks a file that failed.
+  `create table embeddings (
+     item_id integer primary key references items (id) on delete cascade,
+     vector blob not null
+   );`
 ]
 
 export const db = new Database(join(DATA, 'tessera.db'))

@@ -73,6 +73,13 @@ export const detectProvider = (key: string): AiProvider | null => {
   return null
 }
 
+export type EmbeddingStatus = {
+  state: 'idle' | 'loading' | 'ready' | 'failed' // loading includes the first-run model download
+  done: number
+  total: number
+  error: string | null
+}
+
 export type Settings = {
   token: string
   ai: { provider: AiProvider; model: string; baseUrl: string; hasKey: boolean } | null
@@ -115,6 +122,7 @@ export type TesseraAPI = {
   setAi(patch: { provider: AiProvider; model: string; baseUrl: string; key?: string }): Promise<Settings>
   analyse(id: number): Promise<void> // queue one item for AI analysis
   analyseAll(): Promise<number> // queue everything not yet analysed; returns how many
+  embeddingStatus(): Promise<EmbeddingStatus>
 }
 
 declare global {

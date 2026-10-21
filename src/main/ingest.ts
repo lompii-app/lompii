@@ -5,6 +5,7 @@ import { BrowserWindow } from 'electron'
 import sharp from 'sharp'
 import { textKind, type Item } from '@shared/api'
 import { enqueue } from './ai'
+import { indexImages } from './embed'
 import { DATA, db } from './db'
 
 const IMAGE = /\.(png|jpe?g|webp|gif|avif|bmp|tiff?)$/i
@@ -24,6 +25,7 @@ function added(id: number | bigint): Item {
   const item = db.prepare('select * from items where id = ?').get(id) as Item
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send('item:added', item)
   enqueue(item.id) // AI analysis, when a key is set
+  if (item.kind === 'image' || item.kind === 'capture') void indexImages() // same-vibe vector
   return item
 }
 

@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Detail from './Detail'
-import { AI_PROVIDERS, DEFAULT_MODELS, detectProvider, type AiProvider, type Settings, type Stack } from '@shared/api'
+import {
+  AI_PROVIDERS,
+  DEFAULT_MODELS,
+  detectProvider,
+  type AiProvider,
+  type EmbeddingStatus,
+  type Settings,
+  type Stack
+} from '@shared/api'
 import { ActiveFilter, buildFilters, FilterRow, TermChip, type Filter, type TagIndex } from './Filters'
 import Grid from './Grid'
 import Sidebar from './Sidebar'
@@ -360,6 +368,14 @@ function SettingsDialog({
   const [model, setModel] = useState(DEFAULT_MODELS.anthropic)
   const [baseUrl, setBaseUrl] = useState('')
   const [status, setStatus] = useState('')
+  const [vision, setVision] = useState<EmbeddingStatus | null>(null)
+
+  // same-vibe indexing progress, refreshed while the dialog is open
+  useEffect(() => {
+    const tick = () => ref.current?.open && window.tessera.embeddingStatus().then(setVision)
+    const timer = setInterval(tick, 2000)
+    return () => clearInterval(timer)
+  }, [ref])
 
   // load the saved AI choice whenever settings arrive or change
   useEffect(() => {
@@ -480,6 +496,25 @@ function SettingsDialog({
           )}
         </div>
         {status && <p className="mt-2 text-[12px] text-dim">{status}</p>}
+      </section>
+
+      <section className="mt-7">
+        <h3 className={LABEL}>Same vibe</h3>
+        <p className="mt-1 text-[13px] leading-relaxed text-dim">
+          Finds images that look alike with a small model that runs on this computer, downloaded once
+          (about 90 MB). Free, and nothing is sent anywhere.
+        </p>
+        <p className="mt-2 text-[13px] text-fg/80">
+          {!vision
+            ? 'Checking…'
+            : vision.state === 'failed'
+              ? `Couldn't load the model: ${vision.error ?? 'unknown error'}. It will retry next time Tessera starts.`
+              : vision.done >= vision.total
+                ? `All ${vision.total} images indexed.`
+                : vision.state === 'loading' && vision.done === 0
+                  ? 'Downloading the model…'
+                  : `Indexing images: ${vision.done} of ${vision.total}`}
+        </p>
       </section>
 
       <section className="mt-7">

@@ -55,7 +55,9 @@ the item you ask the AI provider of your choice to describe.
   images. Press `Enter` to turn a word into a chip; chips combine, so `natively` + `dark`
   shows only items matching both.
 - **Type filters** (Images, Captures, Quotes, Snippets) appear under the search.
-- **Same vibe**: from any item, see the items most like it (shared tags and palette).
+- **Same vibe**: from any item, see the items that look most like it. Images are compared
+  with a local CLIP model (free, offline after a one-time ~90 MB download); tags and palette
+  add to the score.
 - A **floating search pill** takes over once you scroll past the header.
 
 **Organising**
@@ -214,8 +216,11 @@ other providers are called over their HTTP APIs.
 - **Images in the window** load through a private `tessera://` protocol with a path check,
   never `file://`.
 - **Search and filters** run in the renderer over the loaded library.
-- **Same vibe** scores every other item: 60% shared tags (Jaccard), 30% palette similarity,
-  10% same broad kind; it keeps matches above 20%, up to 40.
+- **Same vibe** uses CLIP image embeddings (`Xenova/clip-vit-base-patch32`, quantised, run with
+  onnxruntime in the main process; `src/main/embed.ts`). Each image's vector is computed in the
+  background when it's saved and stored in the `embeddings` table. Two images score 65% visual
+  similarity, 25% shared tags, 10% palette; anything involving text or an unindexed image falls
+  back to 60% tags, 30% palette, 10% same broad kind. Matches above 20% are kept, up to 40.
 - **Migrations** are an ordered list in `db.ts`, applied by SQLite `user_version`.
 
 ## Project structure
@@ -228,6 +233,7 @@ src/
     ingest.ts      saving images and text
     server.ts      local API for the extension
     ai.ts          AI analysis queue and provider adapters
+    embed.ts       local CLIP image embeddings for same vibe
     settings.ts    settings.json, extension key, encrypted AI key
   preload/       the typed bridge between main and renderer
   renderer/      React app
@@ -253,6 +259,7 @@ Everything is stored in Electron's user-data folder, on Windows
 | `library/` | original files, named by hash |
 | `thumbs/` | 480 px WebP thumbnails |
 | `settings.json` | extension key, AI provider and model, AI key (encrypted) |
+| `models/` | the CLIP model used for same vibe, downloaded on first run |
 
 - The **AI key** is encrypted with the operating system's secure storage (Electron
   `safeStorage`) and never reaches the renderer.
@@ -268,13 +275,13 @@ Everything is stored in Electron's user-data folder, on Windows
   `dist` are configured but not yet verified.
 - **Full-page capture** scrolls and stitches screenshots. Pages that scroll an inner element
   come out as one screen, and very long pages are cut at about 20,000 px.
-- **Same vibe** compares tags and colours, not image content, so it works best on analysed items.
+- **Same vibe** for quotes and snippets still relies on tags; only images have visual vectors.
 - **One filter at a time** (a kind, a stack or same vibe), plus any number of word chips.
 - The default OpenAI model name may need updating to a current one.
 
 ## Roadmap
 
-- Image embeddings for true visual similarity and natural-language search
+- Natural-language search with CLIP's text encoder ("dark websites with huge typography")
 - Creative DNA attributes from `project.md` as structured, filterable facets
 - Verified installers for Windows and macOS
 - Removing tags across the whole library, and merging stacks

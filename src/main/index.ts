@@ -6,6 +6,7 @@ import sharp from 'sharp'
 import { isHttpUrl, isText, type Item, type Stack, type WindowAction } from '@shared/api'
 import { addTags, DATA, db, removeTag } from './db'
 import { enqueue, enqueueUnanalysed, resumeAnalysis } from './ai'
+import { allVectors, embeddingStatus, indexImages } from './embed'
 import { ingestBuffer, ingestFile } from './ingest'
 import { getSettings, setAi } from './settings'
 import { serve } from './server'
@@ -159,8 +160,15 @@ function jaccard(a: Set<string> | undefined, b: Set<string> | undefined): number
   return shared / (a.size + b.size - shared)
 }
 
-// ponytail: tags + palette, scored against every item on each click. Fine for thousands of
-// items; true visual similarity needs image embeddings (CLIP-style), stored per item.
+// CLIP cosine between two unrelated images sits around 0.5; near-duplicates reach ~0.9.
+const visualSimilarity = (a: Float32Array, b: Float32Array): number => {
+  let dot = 0
+  for (let i = 0; i < a.length; i++) dot += a[i] * b[i]
+  return Math.min(1, Math.max(0, (dot - 0.5) / 0.4))
+}
+
+// ponytail: scored against every item on each click (a dot product per image pair is cheap).
+// Fine for tens of thousands; a vector index (sqlite-vec, HNSW) if the library outgrows that.
 ipcMain.handle('items:similar', async (_e, id: number) => {
   const all = db.prepare('select * from items').all() as Item[]
   const me = all.find((i) => i.id === id)
@@ -187,15 +195,24 @@ ipcMain.handle('items:similar', async (_e, id: number) => {
     palettes.set(i.id, colors.map(rgb))
   }
 
+  const vectors = allVectors()
+  const mine = vectors.get(id)
   const scored = all
     .filter((i) => i.id !== id)
-    .map((i) => ({
-      id: i.id,
-      score:
-        0.6 * jaccard(tags.get(id), tags.get(i.id)) +
-        0.3 * paletteSimilarity(palettes.get(id) ?? [], palettes.get(i.id) ?? []) +
-        0.1 * (isText(i.kind) === isText(me.kind) ? 1 : 0)
-    }))
+    .map((i) => {
+      const tagScore = jaccard(tags.get(id), tags.get(i.id))
+      const colour = paletteSimilarity(palettes.get(id) ?? [], palettes.get(i.id) ?? [])
+      const theirs = vectors.get(i.id)
+      return {
+        id: i.id,
+        // both images embedded: how they look leads. Otherwise (text, or not indexed yet):
+        // tags and colour, as before.
+        score:
+          mine && theirs
+            ? 0.65 * visualSimilarity(mine, theirs) + 0.25 * tagScore + 0.1 * colour
+            : 0.6 * tagScore + 0.3 * colour + 0.1 * (isText(i.kind) === isText(me.kind) ? 1 : 0)
+      }
+    })
     .filter((s) => s.score >= 0.2)
     .sort((a, b) => b.score - a.score)
     .slice(0, 40)
@@ -267,6 +284,7 @@ ipcMain.handle('settings:get', () => getSettings())
 ipcMain.handle('settings:setAi', (_e, patch: Parameters<typeof setAi>[0]) => setAi(patch))
 ipcMain.handle('ai:analyse', (_e, id: number) => void enqueue(id))
 ipcMain.handle('ai:analyseAll', () => enqueueUnanalysed())
+ipcMain.handle('embeddings:status', () => embeddingStatus())
 
 /* ---------- window ---------- */
 
@@ -303,6 +321,7 @@ app.whenReady().then(() => {
 
   serve()
   resumeAnalysis()
+  void indexImages() // backfill same-vibe vectors; downloads the model on first run
   createWindow()
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())
 })
