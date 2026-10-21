@@ -1,0 +1,66 @@
+@import 'tailwindcss';
+
+@font-face {
+  font-family: Geist;
+  src: url('./fonts/Geist-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('./fonts/GeistMono-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: block;
+}
+
+@theme {
+  --font-sans: Geist, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+  --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --color-ink: #eef0f4;
+  --color-card: #ffffff;
+  --color-line: #d5d9e0;
+  --color-faint: #c3c8d1;
+  --color-dim: #858b96;
+  --color-fg: #1d2026;
+  --color-accent: #ff5a1f;
+  --shadow-card: 0 1px 2px rgb(30 40 60 / 0.04), 0 6px 20px rgb(30 40 60 / 0.06);
+  --shadow-lift: 0 2px 4px rgb(30 40 60 / 0.06), 0 14px 32px rgb(30 40 60 / 0.12);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--color-ink);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-faint) transparent;
+}
+
+/* AI "analysing" state in the detail overlay */
+@keyframes tessera-glow {
+  0%,
+  100% {
+    transform: scale(0.85);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+@keyframes tessera-trace {
+  to {
+    stroke-dashoffset: -100;
+  }
+}

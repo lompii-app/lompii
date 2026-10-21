@@ -1,0 +1,310 @@
+import { extname, join, resolve, sep } from 'node:path'
+import { copyFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
+import { app, BrowserWindow, clipboard, ClipboardItem, dialog, ipcMain, net, protocol, shell } from 'electron'
+import sharp from 'sharp'
+import { isHttpUrl, isText, type Item, type Stack, type WindowAction } from '@shared/api'
+import { addTags, DATA, db, removeTag } from './db'
+import { enqueue, enqueueUnanalysed, resumeAnalysis } from './ai'
+import { ingestBuffer, ingestFile } from './ingest'
+import { getSettings, setAi } from './settings'
+import { serve } from './server'
+
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'tessera', privileges: { standard: true, secure: true, supportFetchAPI: true } }
+])
+
+/* ---------- ipc ---------- */
+
+const EDITABLE = ['source_url', 'title', 'note'] as const
+
+ipcMain.handle('items:list', () => db.prepare('select * from items order by created_at desc').all())
+
+ipcMain.handle('items:tags', (_e, id: number) =>
+  db
+    .prepare(
+      'select t.* from tags t join item_tags it on it.tag_id = t.id where it.item_id = ? order by t.dimension, t.value'
+    )
+    .all(id)
+)
+
+ipcMain.handle('items:update', (_e, id: number, patch: Record<string, string | null>) => {
+  if (patch.source_url && !isHttpUrl(patch.source_url)) throw new Error('source_url must be http or https')
+  for (const key of EDITABLE) {
+    if (key in patch) db.prepare(`update items set ${key} = ? where id = ?`).run(patch[key] || null, id)
+  }
+  const item = db.prepare('select * from items where id = ?').get(id) as Item | undefined
+  if (item) for (const w of BrowserWindow.getAllWindows()) w.webContents.send('item:updated', item)
+})
+
+// every user tag in the library, for filtering in the renderer
+ipcMain.handle('tags:index', () =>
+  db
+    .prepare(
+      `select it.item_id as item, t.value from item_tags it
+       join tags t on t.id = it.tag_id where t.dimension = 'tag'`
+    )
+    .all()
+)
+
+/* stacks: made by the user, items added to them by hand */
+
+const COLOR = /^#[0-9a-f]{6}$/i
+const stackName = (v: unknown): string => (typeof v === 'string' ? v.trim().slice(0, 50) : '')
+const broadcastItem = (id: number) => {
+  const item = db.prepare('select * from items where id = ?').get(id) as Item | undefined
+  if (item) for (const w of BrowserWindow.getAllWindows()) w.webContents.send('item:updated', item)
+}
+
+ipcMain.handle('stacks:list', () =>
+  (db.prepare('select id, name, color from stacks order by created_at').all() as Omit<Stack, 'items'>[]).map(
+    (s) => ({
+      ...s,
+      items: db
+        .prepare('select item_id from stack_items where stack_id = ? order by added_at desc')
+        .pluck()
+        .all(s.id) as number[]
+    })
+  )
+)
+
+ipcMain.handle('stacks:create', (_e, name: string, color: string) => {
+  const n = stackName(name)
+  if (!n) throw new Error('stack needs a name')
+  if (!COLOR.test(color)) throw new Error('bad stack colour')
+  if (db.prepare('select 1 from stacks where name = ?').get(n)) throw new Error('stack exists')
+  return Number(db.prepare('insert into stacks (name, color, created_at) values (?, ?, ?)').run(n, color, Date.now()).lastInsertRowid)
+})
+
+ipcMain.handle('stacks:update', (_e, id: number, patch: { name?: string; color?: string }) => {
+  if (patch.color !== undefined) {
+    if (!COLOR.test(patch.color)) throw new Error('bad stack colour')
+    db.prepare('update stacks set color = ? where id = ?').run(patch.color, id)
+  }
+  if (patch.name !== undefined) {
+    const n = stackName(patch.name)
+    if (!n) throw new Error('stack needs a name')
+    if (db.prepare('select 1 from stacks where name = ? and id != ?').get(n, id)) throw new Error('stack exists')
+    db.prepare('update stacks set name = ? where id = ?').run(n, id)
+  }
+})
+
+ipcMain.handle('stacks:delete', (_e, id: number) => db.prepare('delete from stacks where id = ?').run(id))
+
+ipcMain.handle('stacks:setItem', (_e, stackId: number, itemId: number, member: boolean) => {
+  if (member)
+    db.prepare('insert or ignore into stack_items (stack_id, item_id, added_at) values (?, ?, ?)').run(stackId, itemId, Date.now())
+  else db.prepare('delete from stack_items where stack_id = ? and item_id = ?').run(stackId, itemId)
+})
+
+ipcMain.handle('items:addTags', (_e, id: number, tags: string[]) => {
+  addTags(id, Array.isArray(tags) ? tags : [])
+  broadcastItem(id)
+})
+
+ipcMain.handle('items:removeTag', (_e, id: number, tag: string) => {
+  removeTag(id, tag)
+  broadcastItem(id)
+})
+
+const byId = (id: number) => db.prepare('select * from items where id = ?').get(id) as Item | undefined
+
+const hex = (...rgb: number[]): string =>
+  '#' + rgb.map((n) => Math.round(n).toString(16).padStart(2, '0')).join('')
+
+// Up to four colours that each cover a lot of the image and differ visibly from one another.
+// Pixels are bucketed at 4 bits a channel; each bucket reports its average colour.
+async function extractPalette(thumb: string): Promise<string[]> {
+  const data = await sharp(join(DATA, thumb)).resize(48, 48, { fit: 'inside' }).removeAlpha().raw().toBuffer()
+  const buckets = new Map<number, [n: number, r: number, g: number, b: number]>()
+  for (let i = 0; i < data.length; i += 3) {
+    const key = ((data[i] >> 4) << 8) | ((data[i + 1] >> 4) << 4) | (data[i + 2] >> 4)
+    const c = buckets.get(key) ?? [0, 0, 0, 0]
+    buckets.set(key, [c[0] + 1, c[1] + data[i], c[2] + data[i + 1], c[3] + data[i + 2]])
+  }
+  const picked: number[][] = []
+  for (const [n, r, g, b] of [...buckets.values()].sort((a, z) => z[0] - a[0])) {
+    const rgb = [r / n, g / n, b / n]
+    if (picked.every((p) => Math.hypot(p[0] - rgb[0], p[1] - rgb[1], p[2] - rgb[2]) > 60)) picked.push(rgb)
+    if (picked.length === 4) break
+  }
+  return picked.map((p) => hex(...p))
+}
+
+ipcMain.handle('items:palette', async (_e, id: number) => {
+  const item = byId(id)
+  if (!item || isText(item.kind)) return []
+  if (item.palette) return JSON.parse(item.palette)
+  const colors = await extractPalette(item.thumb_path)
+  db.prepare('update items set palette = ? where id = ?').run(JSON.stringify(colors), id)
+  return colors
+})
+
+/* same vibe */
+
+const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+
+// How close two palettes look: each colour of one matched to its nearest in the other.
+// Unrelated palettes still average ~150 apart in RGB, so that distance maps to zero.
+function paletteSimilarity(a: number[][], b: number[][]): number {
+  if (!a.length || !b.length) return 0
+  const nearest = a.map((p) => Math.min(...b.map((q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]))))
+  return Math.max(0, 1 - nearest.reduce((s, d) => s + d, 0) / nearest.length / 150)
+}
+
+function jaccard(a: Set<string> | undefined, b: Set<string> | undefined): number {
+  if (!a?.size || !b?.size) return 0
+  let shared = 0
+  for (const t of a) if (b.has(t)) shared++
+  return shared / (a.size + b.size - shared)
+}
+
+// ponytail: tags + palette, scored against every item on each click. Fine for thousands of
+// items; true visual similarity needs image embeddings (CLIP-style), stored per item.
+ipcMain.handle('items:similar', async (_e, id: number) => {
+  const all = db.prepare('select * from items').all() as Item[]
+  const me = all.find((i) => i.id === id)
+  if (!me) return []
+
+  const tags = new Map<number, Set<string>>()
+  for (const { item, value } of db
+    .prepare('select it.item_id as item, t.value from item_tags it join tags t on t.id = it.tag_id')
+    .all() as { item: number; value: string }[]) {
+    tags.set(item, (tags.get(item) ?? new Set<string>()).add(value))
+  }
+
+  // palettes are otherwise made on first open; fill in the missing ones (48 px thumbs, quick)
+  const palettes = new Map<number, number[][]>()
+  for (const i of all) {
+    if (isText(i.kind)) continue
+    let colors: string[] = i.palette ? JSON.parse(i.palette) : []
+    if (!i.palette) {
+      try {
+        colors = await extractPalette(i.thumb_path)
+        db.prepare('update items set palette = ? where id = ?').run(JSON.stringify(colors), i.id)
+      } catch {}
+    }
+    palettes.set(i.id, colors.map(rgb))
+  }
+
+  const scored = all
+    .filter((i) => i.id !== id)
+    .map((i) => ({
+      id: i.id,
+      score:
+        0.6 * jaccard(tags.get(id), tags.get(i.id)) +
+        0.3 * paletteSimilarity(palettes.get(id) ?? [], palettes.get(i.id) ?? []) +
+        0.1 * (isText(i.kind) === isText(me.kind) ? 1 : 0)
+    }))
+    .filter((s) => s.score >= 0.2)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 40)
+  return [id, ...scored.map((s) => s.id)]
+})
+
+ipcMain.handle('items:saveAs', async (e, id: number) => {
+  const item = byId(id)
+  if (!item) return false
+  const ext = isText(item.kind) ? '.txt' : extname(item.file_path)
+  const name = (item.title ?? 'tessera').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 80) || 'tessera'
+  const win = BrowserWindow.fromWebContents(e.sender)!
+  const { canceled, filePath } = await dialog.showSaveDialog(win, { defaultPath: name + ext })
+  if (canceled || !filePath) return false
+  if (isText(item.kind)) writeFileSync(filePath, item.body ?? '')
+  else copyFileSync(join(DATA, item.file_path), filePath)
+  return true
+})
+
+ipcMain.handle('items:copy', async (_e, id: number) => {
+  const item = byId(id)
+  if (!item) return
+  if (isText(item.kind)) return clipboard.writeText(item.body ?? '')
+  // the clipboard takes PNG; library files can be JPEG or WebP, so convert
+  const png = await sharp(join(DATA, item.file_path)).png().toBuffer()
+  await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(png)], { type: 'image/png' }) })])
+})
+
+ipcMain.handle('items:fileSize', (_e, id: number) => {
+  const row = db.prepare('select file_path from items where id = ?').get(id) as
+    | Pick<Item, 'file_path'>
+    | undefined
+  try {
+    return row?.file_path ? statSync(join(DATA, row.file_path)).size : 0
+  } catch {
+    return 0
+  }
+})
+
+// the window has no native controls; the renderer draws its own (WindowControls.tsx)
+ipcMain.handle('window:control', (e, action: WindowAction) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  if (action === 'close') win?.close()
+  else if (action === 'minimize') win?.minimize()
+  else if (action === 'maximize') win?.isMaximized() ? win.unmaximize() : win?.maximize()
+})
+
+ipcMain.handle('shell:openExternal', (_e, url: string) => {
+  if (!isHttpUrl(url)) throw new Error('refusing to open non-http url')
+  return shell.openExternal(url)
+})
+
+ipcMain.handle('items:remove', (_e, id: number) => {
+  const row = db.prepare('select file_path, thumb_path from items where id = ?').get(id) as
+    | Pick<Item, 'file_path' | 'thumb_path'>
+    | undefined
+  if (!row) return
+  db.prepare('delete from items where id = ?').run(id)
+  for (const p of [row.file_path, row.thumb_path]) if (p) rmSync(join(DATA, p), { force: true }) // quotes have no files
+})
+
+ipcMain.handle('ingest:paths', async (_e, paths: string[]) => {
+  const added = await Promise.all(paths.map(ingestFile))
+  return added.filter(Boolean).length
+})
+ipcMain.handle('ingest:buffer', (_e, data: ArrayBuffer) => ingestBuffer(data))
+
+ipcMain.handle('settings:get', () => getSettings())
+ipcMain.handle('settings:setAi', (_e, patch: Parameters<typeof setAi>[0]) => setAi(patch))
+ipcMain.handle('ai:analyse', (_e, id: number) => void enqueue(id))
+ipcMain.handle('ai:analyseAll', () => enqueueUnanalysed())
+
+/* ---------- window ---------- */
+
+function createWindow(): void {
+  const win = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 720,
+    backgroundColor: '#eef0f4',
+    // no native title bar or buttons; the renderer draws a drag strip and its own controls
+    titleBarStyle: 'hidden',
+    autoHideMenuBar: true, // menu still answers its shortcuts (reload, devtools) and Alt
+    webPreferences: { preload: join(__dirname, '../preload/index.js') }
+  })
+
+  if (process.env.ELECTRON_RENDERER_URL) win.loadURL(process.env.ELECTRON_RENDERER_URL)
+  else win.loadFile(join(__dirname, '../renderer/index.html'))
+}
+
+app.whenReady().then(() => {
+  // tessera://library/<hash>.png  ->  <userData>/library/<hash>.png
+  protocol.handle('tessera', (req) => {
+    const { host, pathname } = new URL(req.url)
+    const file = resolve(DATA, host + decodeURIComponent(pathname))
+    if (file !== DATA && !file.startsWith(DATA + sep)) return new Response(null, { status: 403 })
+    return net.fetch(pathToFileURL(file).toString())
+  })
+
+  console.log(
+    '[tessera] db v%d, %d items',
+    db.pragma('user_version', { simple: true }),
+    (db.prepare('select count(*) as n from items').get() as { n: number }).n
+  )
+
+  serve()
+  resumeAnalysis()
+  createWindow()
+  app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())
+})
+
+app.on('window-all-closed', () => process.platform !== 'darwin' && app.quit())

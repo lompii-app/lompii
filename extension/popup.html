@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * { box-sizing: border-box }
+      body { margin: 0; width: 340px; background: #fff; color: #1d2026;
+        font: 14px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif }
+      svg { flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round }
+      button { font: inherit; color: inherit; border: 0; cursor: pointer }
+      button:focus-visible { outline: 2px solid #ff5a1f; outline-offset: 2px }
+
+      header { display: flex; align-items: center; gap: 10px; padding: 16px 18px 6px }
+      header span { font: italic 22px/1 'Iowan Old Style', 'Palatino Linotype', Georgia, serif }
+
+      main { padding: 10px 14px 14px }
+      .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px }
+      .tile { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 4px 12px;
+        border-radius: 10px; background: #eef0f4; font-size: 13px; transition: background .15s, transform .15s }
+      .tile svg { width: 30px; height: 30px; color: #1d2026 }
+      .tile svg .accent { stroke: #ff5a1f }
+      .tile:hover { background: #e4e7ed; transform: translateY(-1px) }
+
+      .rows { display: flex; flex-direction: column; gap: 6px; margin-top: 8px }
+      .row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 14px;
+        border-radius: 10px; background: #eef0f4; text-align: left; transition: background .15s }
+      .row svg { width: 18px; height: 18px; color: #858b96 }
+      .row:hover { background: #e4e7ed }
+      .row small { margin-left: auto; color: #858b96; font-size: 12px }
+
+      footer { display: flex; align-items: center; gap: 8px; padding: 12px 18px;
+        border-top: 1px solid #e4e7ed; background: #f6f7f9; font-size: 13px; color: #858b96 }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: #c3c8d1 }
+      .dot.ok { background: #2fb36c }
+      .dot.bad { background: #e5484d }
+      #settings { margin-left: auto; display: grid; place-items: center; width: 28px; height: 28px;
+        border-radius: 50%; background: transparent; color: #858b96 }
+      #settings:hover { background: #e4e7ed; color: #1d2026 }
+      #settings svg { width: 17px; height: 17px }
+    </style>
+  </head>
+  <body>
+    <header>
+      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style="stroke: none">
+        <rect x="2" y="2" width="9" height="9" rx="2.2" fill="#1d2026" /><rect x="13" y="2" width="9" height="9" rx="2.2" fill="#ff5a1f" />
+        <rect x="2" y="13" width="9" height="9" rx="2.2" fill="#1d2026" /><rect x="13" y="13" width="9" height="9" rx="2.2" fill="#1d2026" />
+      </svg>
+      <span>tessera</span>
+    </header>
+
+    <main>
+      <div class="tiles">
+        <button class="tile" data-mode="view">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path class="accent" d="M3 9h18" /></svg>
+          Visible area
+        </button>
+        <button class="tile" data-mode="page">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l4 4v16H6z" /><path d="M15 2v4h4" /><path class="accent" d="M9 12h7M9 16h7" /></svg>
+          Full page
+        </button>
+        <button class="tile" data-mode="area">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14" /><path d="M18 22V8a2 2 0 0 0-2-2H2" /><path class="accent" d="M10 10h4v4h-4z" /></svg>
+          Selected area
+        </button>
+      </div>
+
+      <div class="rows">
+        <button class="row" data-mode="delay">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2M9 2h6" /></svg>
+          Visible area in 3 seconds
+          <small>for menus</small>
+        </button>
+        <button class="row" data-mode="text">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M8 12a2 2 0 0 0 2-2V8H8M14 12a2 2 0 0 0 2-2V8h-2" /></svg>
+          Save selected text
+          <small>quote or snippet</small>
+        </button>
+      </div>
+    </main>
+
+    <footer>
+      <span class="dot" id="dot"></span>
+      <span id="status">Checking connection…</span>
+      <button id="settings" aria-label="Extension settings" title="Settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>
+      </button>
+    </footer>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

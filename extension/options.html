@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Tessera extension</title>
+    <style>
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #eef0f4;
+        color: #1d2026; font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif }
+      main { width: 420px; padding: 32px; border-radius: 10px; background: #fff;
+        box-shadow: 0 1px 2px rgb(30 40 60 / .04), 0 6px 20px rgb(30 40 60 / .06) }
+      h1 { margin: 0 0 4px; font: italic 32px/1.2 'Iowan Old Style', 'Palatino Linotype', Georgia, serif }
+      p { margin: 0 0 24px; color: #858b96; font-size: 14px }
+      label { display: block; margin-bottom: 8px; color: #858b96; font-size: 11px; letter-spacing: .08em; text-transform: uppercase }
+      .row { display: flex; gap: 8px }
+      input { flex: 1; min-width: 0; padding: 10px 12px; border: 0; border-radius: 6px; background: #eef0f4;
+        font: 13px ui-monospace, monospace; color: inherit }
+      input:focus, button:focus-visible { outline: 2px solid #ff5a1f }
+      button { padding: 0 16px; border: 0; border-radius: 6px; background: #1d2026; color: #fff; font: inherit; cursor: pointer }
+      #status { min-height: 1.5em; margin-top: 12px; font-size: 14px; color: #858b96 }
+      #status[data-ok='true'] { color: #1a7f4b }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>tessera</h1>
+      <p>Right-click an image or selected text and choose “Add to Tessera”. To capture part of a page, click the Tessera button or press Alt+Shift+S.</p>
+      <form>
+        <label for="key">Key — Tessera › Settings › Browser extension key</label>
+        <div class="row">
+          <input id="key" autocomplete="off" spellcheck="false" placeholder="Paste key" />
+          <button>Save</button>
+        </div>
+      </form>
+      <div id="status" role="status"></div>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>
