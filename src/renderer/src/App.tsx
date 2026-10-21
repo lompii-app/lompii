@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Detail from './Detail'
 import { AI_PROVIDERS, DEFAULT_MODELS, detectProvider, type AiProvider, type Settings, type Stack } from '@shared/api'
-import { ActiveFilter, buildFilters, FilterRow, type Filter, type TagIndex } from './Filters'
+import { ActiveFilter, buildFilters, FilterRow, TermChip, type Filter, type TagIndex } from './Filters'
 import Grid from './Grid'
 import Sidebar from './Sidebar'
 import Stacks from './Stacks'
@@ -20,6 +20,7 @@ export default function App() {
   const [items, setItems] = useItems()
   const [view, setView] = useState<View>('everything')
   const [query, setQuery] = useState('')
+  const [terms, setTerms] = useState<string[]>([]) // search words turned into chips with Enter; all must match
   const [filterKey, setFilterKey] = useState<string | null>(null)
   const [vibe, setVibe] = useState<number[] | null>(null) // same-vibe results: the item, then its matches
   const [focused, setFocused] = useState<'big' | 'pill' | null>(null)
@@ -73,16 +74,17 @@ export default function App() {
   const kindFilters = useMemo(() => filters.filter((f) => f.key.startsWith('kind:')), [filters])
 
   const visible = useMemo(() => {
-    const q = query.trim().toLowerCase()
+    const words = [...terms, query].map((t) => t.trim().toLowerCase()).filter(Boolean)
     const matches = items.filter((i) => {
       const tags = tagIndex.get(i.id)
       if (active && !active.test(i, tags)) return false
-      return !q || [i.title, i.body, i.note, i.tldr, i.visible_text, i.file_path, ...(tags ?? [])].some((s) => s?.toLowerCase().includes(q))
+      const fields = [i.title, i.body, i.note, i.tldr, i.visible_text, i.file_path, ...(tags ?? [])]
+      return words.every((w) => fields.some((s) => s?.toLowerCase().includes(w)))
     })
     if (!vibe) return matches
     const rank = new Map(vibe.map((id, n) => [id, n]))
     return matches.sort((a, b) => rank.get(a.id)! - rank.get(b.id)!)
-  }, [items, tagIndex, active, query, vibe])
+  }, [items, tagIndex, active, terms, query, vibe])
 
   const pickFilter = (key: string | null) => {
     setFilterKey(key)
@@ -95,6 +97,7 @@ export default function App() {
     const ids = await window.tessera.similar(id)
     setOpen(false)
     setQuery('')
+    setTerms([])
     setFilterKey(null)
     setVibe(ids)
     setView('everything')
@@ -185,8 +188,19 @@ export default function App() {
       }}
       onFocus={() => setFocused(which)}
       onBlur={() => setFocused(null)}
-      onKeyDown={(e) => e.key === 'Backspace' && !query && clearFilter()}
-      placeholder={active ? `Search ${active.label.toLowerCase()}…` : 'Search my references…'}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && query.trim()) {
+          setTerms((t) => (t.includes(query.trim()) ? t : [...t, query.trim()]))
+          setQuery('')
+        } else if (e.key === 'Backspace' && !query) {
+          // remove the last chip: a word first, then the filter
+          if (terms.length) setTerms((t) => t.slice(0, -1))
+          else clearFilter()
+        }
+      }}
+      placeholder={
+        terms.length ? 'Add another…' : active ? `Search ${active.label.toLowerCase()}…` : 'Search my references…'
+      }
       spellCheck={false}
       className={`min-w-0 flex-1 bg-transparent font-serif italic tracking-tight placeholder:text-faint focus:outline-none ${className}`}
     />
@@ -231,9 +245,12 @@ export default function App() {
             ))}
           </div>
 
-          <div className="flex items-center gap-5 border-b border-line pb-4">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-b border-line pb-4">
             {active && <ActiveFilter filter={active} onRemove={clearFilter} />}
-            {searchField('big', 'text-[60px] leading-tight')}
+            {terms.map((t) => (
+              <TermChip key={t} term={t} onRemove={() => setTerms((all) => all.filter((x) => x !== t))} />
+            ))}
+            {searchField('big', 'min-w-64 text-[60px] leading-tight')}
             <kbd className="shrink-0 rounded-sm bg-black/[0.05] px-2.5 py-1 font-sans text-[13px] text-dim">
               Ctrl K
             </kbd>
@@ -283,6 +300,9 @@ export default function App() {
         <div className="relative pt-3">
           <div className="flex items-center gap-3 rounded-full bg-card py-2 pr-3 pl-7 shadow-lift">
             {active && <ActiveFilter filter={active} onRemove={clearFilter} />}
+            {terms.map((t) => (
+              <TermChip key={t} term={t} onRemove={() => setTerms((all) => all.filter((x) => x !== t))} />
+            ))}
             {searchField('pill', 'py-1 text-[26px]')}
             <kbd className="shrink-0 rounded-full bg-black/[0.05] px-3 py-1 font-sans text-[12px] text-dim">
               Ctrl K

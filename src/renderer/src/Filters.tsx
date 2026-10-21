@@ -106,3 +106,21 @@ export function ActiveFilter({ filter, onRemove }: { filter: Filter; onRemove: (
     </span>
   )
 }
+
+// A search word fixed with Enter. Shares the applied filter's size, without an icon.
+export function TermChip({ term, onRemove }: { term: string; onRemove: () => void }) {
+  return (
+    <span className="group flex shrink-0 items-center gap-1.5 rounded-full bg-black/[0.05] py-2 pr-2 pl-4 text-[17px]">
+      {term}
+      <button
+        onClick={onRemove}
+        aria-label={`Remove “${term}”`}
+        className="grid size-[18px] place-items-center rounded-full text-dim opacity-0 transition group-hover:opacity-100 hover:bg-fg hover:text-card focus-visible:opacity-100"
+      >
+        <svg viewBox="0 0 12 12" className="size-2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+          <path d="M3 3l6 6M9 3 3 9" />
+        </svg>
+      </button>
+    </span>
+  )
+}
