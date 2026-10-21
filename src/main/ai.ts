@@ -196,12 +196,14 @@ async function analyse(id: number): Promise<void> {
     const image = isText(item.kind) ? null : await imageData(item)
     const call = cfg.provider === 'anthropic' ? viaAnthropic : cfg.provider === 'gemini' ? viaGemini : viaOpenAICompatible
     const r = parse(await call(cfg, text, image))
+    if (!byId(id)) return // deleted while the model was working
     db.prepare(
       `update items set title = coalesce(nullif(?, ''), title), tldr = ?, visible_text = ?,
        status = 'tagged', ai_error = null where id = ?`
     ).run(r.title, r.tldr || null, r.text || null, id)
     addTags(id, r.tags)
   } catch (e) {
+    if (!byId(id)) return
     const message = e instanceof Error ? e.message : String(e)
     console.error('[tessera] analysis failed', id, message)
     db.prepare(`update items set status = 'failed', ai_error = ? where id = ?`).run(message.slice(0, 300), id)
