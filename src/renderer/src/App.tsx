@@ -447,7 +447,7 @@ export default function App() {
               <p className="font-serif text-[32px] italic text-dim">
                 {!items.length ? 'Nothing here yet.' : phrase.length >= 3 && !scores && !vibe ? 'Looking…' : 'Nothing matches that.'}
               </p>
-              <p className="mt-3 text-[14px] leading-relaxed text-dim">
+              <p className="mt-3 text-[14px] leading-relaxed text-fg/80">
                 {items.length
                   ? 'Try another word, or clear the search and filter.'
                   : steps.length
