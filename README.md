@@ -99,7 +99,7 @@ npm run dev      # starts the app; restarts itself when main-process code change
 | `npm run typecheck` | Type-check the whole project (`tsc --noEmit`). |
 | `npm run build` | Type-check, then build to `out/`. |
 | `npm run pack` | Build and package an unpacked app into `release/` (quick check). |
-| `npm run dist` | Build and package an installer into `release/`. |
+| `npm run dist` | Build the Windows installer, `release/Tessera Setup <version>.exe` (~140 MB). |
 
 ---
 
@@ -276,8 +276,6 @@ Everything is stored in Electron's user-data folder, on Windows
 
 - **Windows first.** The window has custom macOS-style controls; on macOS the native ones
   would appear as well, and the app hasn't been tested there or on Linux.
-- **Packaged builds are untested.** Development runs through `npm run dev`; `npm run pack` /
-  `dist` are configured but not yet verified.
 - **Full-page capture** scrolls and stitches screenshots. Pages that scroll an inner element
   come out as one screen, and very long pages are cut at about 20,000 px.
 - **Same vibe** for quotes and snippets still relies on tags; only images have visual vectors.

@@ -5,6 +5,10 @@ directories:
 files:
   - out/**
   - package.json
+  # the browser build of onnxruntime; Tessera runs CLIP through onnxruntime-node
+  - "!**/node_modules/onnxruntime-web/**"
+  # better-sqlite3's C sources; the compiled module is all that's loaded
+  - "!**/node_modules/better-sqlite3/{deps,src}/**"
 asarUnpack:
   - "**/node_modules/better-sqlite3/**"
   - "**/node_modules/sharp/**"
@@ -12,6 +16,11 @@ asarUnpack:
   - "**/node_modules/onnxruntime-node/**"
 win:
   target: nsis
+  # onnxruntime-node ships every platform's binaries (~290 MB); keep the Windows x64 ones
+  files:
+    - "!**/node_modules/onnxruntime-node/bin/napi-v6/{darwin,linux}/**"
+    - "!**/node_modules/onnxruntime-node/bin/napi-v6/win32/arm64/**"
+    - "!**/node_modules/better-sqlite3/prebuilds/!(win32-x64.node)"
 mac:
   target: dmg
 linux:

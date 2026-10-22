@@ -159,9 +159,10 @@ repaint has a timeout. Marked `ponytail:` in `extension/background.js`.
 
 ## Known gaps
 
-- **Packaged build unverified.** `npm run pack` / `dist` have never been run. `asarUnpack`
-  covers the native modules and onnxruntime; `@anthropic-ai/sdk` and
-  `@huggingface/transformers` are runtime dependencies and must ship too.
+- **Installer not code-signed**, so Windows SmartScreen warns on first run. The packaged app
+  is verified (database, sharp, CLIP inference, the extension server and the window all run
+  from `release/win-unpacked`), but only on Windows x64: `win.files` drops onnxruntime's
+  macOS, Linux and arm64 binaries, which a mac or arm build would need back.
 - **macOS.** `titleBarStyle: 'hidden'` keeps the native traffic lights there, so the custom
   ones would duplicate them. Untested on macOS and Linux.
 - **Full page** misses pages that scroll an inner element, and stops at about 20,000 CSS px.
