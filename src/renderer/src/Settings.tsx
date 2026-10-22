@@ -458,6 +458,8 @@ export default function SettingsDialog({
     }
   }
 
+  const connected = !!settings?.extensionConnected
+
   const disconnectAll = async () => {
     onChange(await window.tessera.resetToken())
     setDisconnect('done')
@@ -617,18 +619,26 @@ export default function SettingsDialog({
           <Row
             label="Connect a browser"
             desc="Open the extension's options and click Connect. Tessera asks you to allow it: check the code matches the one the extension shows, then click Allow."
-          />
+          >
+            {/* the dot carries the state; the words stay in the text colour so both themes read */}
+            <span className="flex shrink-0 items-center gap-2 rounded-full bg-fg/[0.06] px-3 py-1 text-[12px] font-medium">
+              <span className={`size-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-faint'}`} />
+              {connected ? 'Connected' : 'Not connected'}
+            </span>
+          </Row>
           <Row
             label="Disconnect all"
             desc={
               disconnect === 'done'
-                ? 'Done. Connected browsers stop saving until you connect them again.'
-                : disconnect === 'ask'
-                  ? 'Every connected browser stops saving until you connect it again.'
-                  : 'Stop every connected browser from saving to Tessera.'
+                ? 'Disconnected. Browsers stop saving until you connect them again.'
+                : !connected
+                  ? 'No browser is connected.'
+                  : disconnect === 'ask'
+                    ? 'Every connected browser stops saving until you connect it again.'
+                    : 'Stop every connected browser from saving to Tessera.'
             }
           >
-            {disconnect === 'ask' ? (
+            {disconnect === 'ask' && connected ? (
               <div className="flex gap-2">
                 <button onClick={() => setDisconnect(null)} className={BUTTON}>
                   Cancel
@@ -638,8 +648,9 @@ export default function SettingsDialog({
                 </button>
               </div>
             ) : (
-              <button onClick={() => setDisconnect('ask')} className={`${BUTTON} w-32`}>
-                Disconnect all
+              // nothing to disconnect: off, so a second click can't look like it did nothing
+              <button onClick={() => setDisconnect('ask')} disabled={!connected} className={`${BUTTON} w-32`}>
+                {disconnect === 'done' ? 'Disconnected' : 'Disconnect all'}
               </button>
             )}
           </Row>
