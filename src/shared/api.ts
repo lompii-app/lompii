@@ -114,6 +114,7 @@ export type TesseraAPI = {
   remove(id: number): Promise<void> // to the trash
   restore(ids: number[] | 'all'): Promise<void>
   trashCount(): Promise<number>
+  trashList(): Promise<Item[]> // most recently deleted first
   emptyTrash(): Promise<void>
   backup(): Promise<string | null> // the backup folder, or null if cancelled
 

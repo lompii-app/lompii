@@ -24,6 +24,7 @@ const api: TesseraAPI = {
   remove: (id) => ipcRenderer.invoke('items:remove', id),
   restore: (ids) => ipcRenderer.invoke('items:restore', ids),
   trashCount: () => ipcRenderer.invoke('trash:count'),
+  trashList: () => ipcRenderer.invoke('trash:list'),
   emptyTrash: () => ipcRenderer.invoke('trash:empty'),
   backup: () => ipcRenderer.invoke('library:backup'),
 

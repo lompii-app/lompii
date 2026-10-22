@@ -77,7 +77,8 @@ the item you ask the AI provider of your choice to describe.
 **Keeping it safe**
 - **Runs in the tray**: closing the window keeps Tessera running so the extension can always
   save. Optionally starts at login (installed app).
-- **Trash with undo**: deleting shows an *Undo*; deleted items are kept for 30 days.
+- **Trash with undo**: deleting shows an *Undo*; the trash (in the sidebar) keeps deleted
+  items for 30 days, and clicking one restores it.
 - **Back up** the whole library (database and files) to a folder you choose.
 
 **Viewing**
@@ -184,8 +185,9 @@ other providers are called over their HTTP APIs.
 - **Select several**: `Ctrl`-click cards to toggle them, `Shift`-click to select a run. While
   anything is selected a plain click toggles too; a bar at the bottom offers Add to stack, Add
   tags and Delete. `Esc` clears the selection.
-- **Delete** moves to the trash and shows *Undo* for a few seconds. *Settings → Library* shows
-  the trash (Restore all / Empty now), backs up the library, and opens *Manage tags*.
+- **Delete** moves to the trash and shows a banner with *Undo* and a link to the trash. The
+  **trash** (the bin icon above Settings) shows deleted items; click one to restore it, or
+  *Empty trash*. *Settings → Library* backs up the library and opens *Manage tags*.
 - **Closing the window** leaves Tessera in the tray. Quit from the tray icon.
 - **Stacks**: *New stack* on the Stacks page, or *Add to stack* (the round button) in an
   item's overlay, which can also create one. The pencil next to a stack's name renames,

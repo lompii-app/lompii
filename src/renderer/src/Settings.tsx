@@ -18,14 +18,12 @@ export default function SettingsDialog({
   settings,
   unanalysed,
   onChange,
-  onRestored,
   onManageTags
 }: {
   ref: React.RefObject<HTMLDialogElement | null>
   settings: Settings | null
   unanalysed: number
   onChange: (s: Settings) => void
-  onRestored: () => void // items came back from the trash
   onManageTags: () => void
 }) {
   const [copied, setCopied] = useState(false)
@@ -35,31 +33,17 @@ export default function SettingsDialog({
   const [baseUrl, setBaseUrl] = useState('')
   const [status, setStatus] = useState('')
   const [vision, setVision] = useState<EmbeddingStatus | null>(null)
-  const [trash, setTrash] = useState(0)
   const [backupNote, setBackupNote] = useState('')
 
-  // indexing progress and the trash count, refreshed while the dialog is open
+  // indexing progress, refreshed while the dialog is open
   useEffect(() => {
     const tick = () => {
       if (!ref.current?.open) return
       window.tessera.embeddingStatus().then(setVision)
-      window.tessera.trashCount().then(setTrash)
     }
     const timer = setInterval(tick, 2000)
     return () => clearInterval(timer)
   }, [ref])
-
-  const restoreAll = async () => {
-    await window.tessera.restore('all')
-    setTrash(0)
-    onRestored()
-  }
-
-  const emptyTrash = async () => {
-    if (!confirm(`Delete ${trash} ${trash === 1 ? 'item' : 'items'} for good? This can't be undone.`)) return
-    await window.tessera.emptyTrash()
-    setTrash(0)
-  }
 
   const backup = async () => {
     setBackupNote('Backing up…')
@@ -215,23 +199,6 @@ export default function SettingsDialog({
 
       <section className="mt-7">
         <h3 className={LABEL}>Library</h3>
-        <div className="mt-3 flex items-center gap-3">
-          <p className="flex-1 text-[13px] leading-relaxed text-dim">
-            {trash
-              ? `${trash} ${trash === 1 ? 'item' : 'items'} in the trash. Deleted items are kept for 30 days.`
-              : 'The trash is empty. Deleted items are kept for 30 days.'}
-          </p>
-          {trash > 0 && (
-            <>
-              <button onClick={restoreAll} className={GHOST}>
-                Restore all
-              </button>
-              <button onClick={emptyTrash} className={`${GHOST} hover:text-red-600`}>
-                Empty now
-              </button>
-            </>
-          )}
-        </div>
         <div className="mt-3 flex items-center gap-3">
           <p className="flex-1 text-[13px] leading-relaxed text-dim">Rename, merge or delete tags everywhere.</p>
           <button onClick={onManageTags} className={GHOST}>

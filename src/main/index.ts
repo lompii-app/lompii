@@ -288,6 +288,9 @@ ipcMain.handle('items:restore', (_e, ids: number[] | 'all') => {
 })
 
 ipcMain.handle('trash:count', () => db.prepare('select count(*) from items where deleted_at is not null').pluck().get())
+ipcMain.handle('trash:list', () =>
+  db.prepare('select * from items where deleted_at is not null order by deleted_at desc').all()
+)
 
 // rows (tags, stack entries and vectors cascade) and their files, for good
 function purge(where: string, ...args: unknown[]): number {

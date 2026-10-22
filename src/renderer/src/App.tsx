@@ -8,10 +8,11 @@ import SelectionBar from './Selection'
 import Stacks from './Stacks'
 import SettingsDialog from './Settings'
 import TagsDialog from './Tags'
+import Trash from './Trash'
 import WindowControls from './WindowControls'
 import { useItems } from './useItems'
 
-type View = 'everything' | 'stacks'
+type View = 'everything' | 'stacks' | 'trash' // trash is reached from the sidebar, not a tab
 
 const TABS: [View, string][] = [['everything', 'Everything'], ['stacks', 'Stacks']]
 
@@ -151,7 +152,7 @@ export default function App() {
   const [undo, setUndo] = useState<{ ids: number[]; label: string } | null>(null)
   useEffect(() => {
     if (!undo) return
-    const timer = setTimeout(() => setUndo(null), 6000)
+    const timer = setTimeout(() => setUndo(null), 9000)
     return () => clearTimeout(timer)
   }, [undo])
 
@@ -161,7 +162,7 @@ export default function App() {
     setItems((prev) => prev.filter((i) => i.id !== id))
     setSelected(null)
     setOpen(false)
-    setUndo({ ids: [id], label: title ? `Deleted “${title.slice(0, 40)}”` : 'Deleted' })
+    setUndo({ ids: [id], label: title ? `“${title.length > 40 ? title.slice(0, 40) + '…' : title}” is` : 'This item is' })
   }
 
   /* multi-select: Ctrl-click toggles, Shift-click selects a run of the visible order */
@@ -191,7 +192,7 @@ export default function App() {
     const gone = new Set(ids)
     setItems((prev) => prev.filter((i) => !gone.has(i.id)))
     clearPicked()
-    setUndo({ ids, label: `Deleted ${ids.length} ${ids.length === 1 ? 'item' : 'items'}` })
+    setUndo({ ids, label: ids.length === 1 ? 'This item is' : `${ids.length} items are` })
   }
 
   const addManyToStack = async (stackId: number) => {
@@ -312,7 +313,11 @@ export default function App() {
         {window.tessera.platform !== 'darwin' && <WindowControls />}
       </div>
 
-      <Sidebar onSettings={() => settingsRef.current?.showModal()} />
+      <Sidebar
+        onSettings={() => settingsRef.current?.showModal()}
+        onTrash={() => setView((v) => (v === 'trash' ? 'everything' : 'trash'))}
+        inTrash={view === 'trash'}
+      />
 
       {/* header and content scroll together; past the header, the floating search takes over */}
       <main
@@ -343,21 +348,25 @@ export default function App() {
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-b border-line pb-4">
-            {active && <ActiveFilter filter={active} onRemove={clearFilter} />}
-            {terms.map((t) => (
-              <TermChip key={t} term={t} onRemove={() => setTerms((all) => all.filter((x) => x !== t))} />
-            ))}
-            {searchField('big', 'min-w-64 text-[60px] leading-tight')}
-            <kbd className="shrink-0 rounded-sm bg-black/[0.05] px-2.5 py-1 font-sans text-[13px] text-dim">
-              Ctrl K
-            </kbd>
-          </div>
+          {view !== 'trash' && (
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-b border-line pb-4">
+              {active && <ActiveFilter filter={active} onRemove={clearFilter} />}
+              {terms.map((t) => (
+                <TermChip key={t} term={t} onRemove={() => setTerms((all) => all.filter((x) => x !== t))} />
+              ))}
+              {searchField('big', 'min-w-64 text-[60px] leading-tight')}
+              <kbd className="shrink-0 rounded-sm bg-black/[0.05] px-2.5 py-1 font-sans text-[13px] text-dim">
+                Ctrl K
+              </kbd>
+            </div>
+          )}
 
           {focused === 'big' && !active && <FilterRow filters={kindFilters} onPick={pickFilter} />}
         </header>
 
-        {view === 'stacks' ? (
+        {view === 'trash' ? (
+          <Trash onExit={() => setView('everything')} onRestored={async () => setItems(await window.tessera.list())} />
+        ) : view === 'stacks' ? (
           <Stacks items={items} stacks={stacks} onOpen={pickFilter} onChange={refreshStacks} />
         ) : visible.length ? (
           <Grid
@@ -388,9 +397,9 @@ export default function App() {
 
       {/* right-3 leaves the scrollbar uncovered; pr-17 then lines the pill up with the content */}
       <div
-        inert={!scrolled}
+        inert={!scrolled || view === 'trash'}
         className={`fixed top-10 right-3 left-20 z-30 pr-17 pl-1 transition duration-200 ease-out ${
-          scrolled ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-3 opacity-0'
+          scrolled && view !== 'trash' ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-3 opacity-0'
         }`}
       >
         <div
@@ -428,11 +437,42 @@ export default function App() {
       {undo && (
         <div
           role="status"
-          className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-4 rounded-full bg-fg py-2.5 pr-2.5 pl-5 text-[14px] text-card shadow-lift transition duration-200 starting:translate-y-3 starting:opacity-0"
+          className="fixed bottom-6 left-1/2 z-50 flex w-[620px] max-w-[calc(100vw-3rem)] -translate-x-1/2 items-center gap-6 rounded-lg bg-accent py-5 pr-12 pl-7 text-white shadow-lift transition duration-200 starting:translate-y-3 starting:opacity-0"
         >
-          <span className="max-w-80 truncate">{undo.label}</span>
-          <button onClick={undoRemove} className="rounded-full bg-card/15 px-3 py-1 font-medium transition-colors hover:bg-card/25">
-            Undo
+          <p className="shrink-0 font-serif text-[30px] leading-[1.05]">
+            Gone,
+            <br />
+            not forgotten.
+          </p>
+          <div className="self-stretch border-l border-white/35" />
+          <div className="min-w-0 text-[14px] leading-relaxed">
+            <p className="truncate">{undo.label} in the trash.</p>
+            <p>
+              <button onClick={undoRemove} className="font-semibold underline underline-offset-2">
+                Undo
+              </button>
+              , or restore it from the{' '}
+              <button
+                onClick={() => {
+                  setUndo(null)
+                  setView('trash')
+                }}
+                className="font-semibold underline underline-offset-2"
+              >
+                Trash
+              </button>{' '}
+              any time.
+            </p>
+            <p className="text-white/80">The trash empties itself after 30 days.</p>
+          </div>
+          <button
+            onClick={() => setUndo(null)}
+            aria-label="Dismiss"
+            className="absolute top-2.5 right-2.5 grid size-7 place-items-center rounded-full transition-colors hover:bg-white/15"
+          >
+            <svg viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+              <path d="M3 3l6 6M9 3 3 9" />
+            </svg>
           </button>
         </div>
       )}
@@ -465,7 +505,6 @@ export default function App() {
         settings={settings}
         unanalysed={items.filter((i) => i.status === 'pending' || i.status === 'failed').length}
         onChange={setSettings}
-        onRestored={async () => setItems(await window.tessera.list())}
       />
     </div>
   )
