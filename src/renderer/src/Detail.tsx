@@ -111,7 +111,7 @@ export default function Detail({
   return (
     <div
       onClick={closeOnSelf}
-      className="fixed inset-0 z-40 bg-fg/40 px-16 py-12 backdrop-blur-sm transition-opacity duration-200 starting:opacity-0"
+      className="fixed inset-0 z-40 bg-black/45 px-16 py-12 backdrop-blur-sm transition-opacity duration-200 starting:opacity-0"
     >
       <p className="pointer-events-none absolute inset-x-0 top-4 text-center text-[13px] text-white/85">
         ↓ Esc to close
@@ -191,7 +191,7 @@ export default function Detail({
 
         {/* panel */}
         <aside className="m-2 flex w-[400px] shrink-0 flex-col overflow-hidden rounded-md bg-ink">
-          <div className="bg-linear-to-b from-black/[0.06] to-transparent px-6 pt-6 pb-4">
+          <div className="bg-linear-to-b from-fg/[0.06] to-transparent px-6 pt-6 pb-4">
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -291,13 +291,13 @@ export default function Detail({
                   <span
                     key={t.id}
                     title={t.dimension}
-                    className={`${CHIP} group flex items-center gap-1 bg-black/[0.05] pr-1.5 text-dim`}
+                    className={`${CHIP} group flex items-center gap-1 bg-fg/[0.06] pr-1.5 text-dim`}
                   >
                     {t.value}
                     <button
                       onClick={() => window.tessera.removeTag(item.id, t.value)}
                       aria-label={`Remove tag ${t.value}`}
-                      className="grid size-4 place-items-center rounded-full opacity-40 transition hover:bg-black/10 hover:opacity-100 group-hover:opacity-70"
+                      className="grid size-4 place-items-center rounded-full opacity-40 transition hover:bg-fg/10 hover:opacity-100 group-hover:opacity-70"
                     >
                       <svg viewBox="0 0 12 12" className="size-2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
                         <path d="M3 3l6 6M9 3 3 9" />

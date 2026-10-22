@@ -90,7 +90,7 @@ export default function Stacks({
                   onClick={() => openDialog(s)}
                   aria-label={`Edit ${s.name}`}
                   title="Rename, recolour or delete"
-                  className="ml-1 grid size-6 place-items-center rounded-full text-dim transition-colors hover:bg-black/[0.05] hover:text-fg"
+                  className="ml-1 grid size-6 place-items-center rounded-full text-dim transition-colors hover:bg-fg/[0.06] hover:text-fg"
                 >
                   <svg viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <path d="M12 20h9" />
@@ -222,7 +222,7 @@ function StackDialog({
             <button
               type="button"
               onClick={remove}
-              className="rounded-md px-3 py-2 text-[14px] text-red-600 transition-colors hover:bg-red-50"
+              className="rounded-md px-3 py-2 text-[14px] text-red-600 transition-colors hover:bg-red-500/10"
             >
               Delete stack
             </button>

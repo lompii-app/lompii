@@ -1,10 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { isText, type Item } from '@shared/api'
+import type { Density } from './prefs'
 import { url } from './useItems'
 
-const GAP = 24
-const MIN_COL = 300
+// narrowest column and gap per layout setting (the sidebar's grid button)
+const SIZES: Record<Density, { minCol: number; gap: number }> = {
+  large: { minCol: 460, gap: 32 },
+  medium: { minCol: 300, gap: 24 },
+  small: { minCol: 190, gap: 16 }
+}
 const CAPTION = 34 // mt-2.5 + one 13px line
 const TEXT = 200 // first guess only; text tiles are measured once rendered
 const TALLEST = 2 // height / width; full-page captures show their top, like a bookmark preview
@@ -24,12 +29,14 @@ type Props = {
   selected: number | null
   onSelect: (id: number | null) => void
   onOpen: (id: number) => void
+  density: Density
   picked: Set<number> // multi-selection
   onPick: (id: number, range: boolean) => void // Ctrl-click toggles; Shift-click extends
   onDelete: (id: number) => void
 }
 
-export default function Grid({ scrollRef, items, selected, onSelect, onOpen, picked, onPick, onDelete }: Props) {
+export default function Grid({ scrollRef, items, selected, onSelect, onOpen, density, picked, onPick, onDelete }: Props) {
+  const { minCol: MIN_COL, gap: GAP } = SIZES[density]
   const listRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
   const [margin, setMargin] = useState(0)

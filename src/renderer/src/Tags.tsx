@@ -101,7 +101,7 @@ export default function TagsDialog({
             <button
               onClick={() => remove(t.value, t.count)}
               aria-label={`Delete tag ${t.value}`}
-              className="grid size-6 place-items-center rounded-full text-dim opacity-0 transition group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 focus-visible:opacity-100"
+              className="grid size-6 place-items-center rounded-full text-dim opacity-0 transition group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-600 focus-visible:opacity-100"
             >
               <svg viewBox="0 0 12 12" className="size-2.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
                 <path d="M3 3l6 6M9 3 3 9" />

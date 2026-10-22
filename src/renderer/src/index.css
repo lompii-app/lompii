@@ -28,6 +28,20 @@
   --shadow-lift: 0 2px 4px rgb(30 40 60 / 0.06), 0 14px 32px rgb(30 40 60 / 0.12);
 }
 
+/* dark mode: the same tokens, redefined; set on <html> by prefs.ts */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-ink: #121419;
+  --color-card: #1c1f26;
+  --color-line: #2b2f38;
+  --color-faint: #4a505c;
+  --color-dim: #8b919d;
+  --color-fg: #e6e8ec;
+  --color-accent: #ff6a33;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 20px rgb(0 0 0 / 0.25);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.35), 0 14px 32px rgb(0 0 0 / 0.45);
+}
+
 html,
 body,
 #root {

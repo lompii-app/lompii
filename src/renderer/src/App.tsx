@@ -4,6 +4,7 @@ import Detail from './Detail'
 import { ActiveFilter, buildFilters, FilterRow, STACK_COLORS, TermChip, type Filter, type TagIndex } from './Filters'
 import Grid from './Grid'
 import Sidebar from './Sidebar'
+import { loadDensity, loadTheme, NEXT_DENSITY, saveDensity, saveTheme } from './prefs'
 import SelectionBar from './Selection'
 import Stacks from './Stacks'
 import SettingsDialog from './Settings'
@@ -32,6 +33,19 @@ export default function App() {
   const [selected, setSelected] = useState<number | null>(null)
   const [open, setOpen] = useState(false)
   const [dragging, setDragging] = useState(false)
+  const [theme, setTheme] = useState(loadTheme)
+  const [density, setDensity] = useState(loadDensity)
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    saveTheme(next)
+    setTheme(next)
+  }
+  const cycleDensity = () => {
+    const next = NEXT_DENSITY[density]
+    saveDensity(next)
+    setDensity(next)
+  }
   const searchRef = useRef<HTMLInputElement>(null)
   const pillRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLElement>(null)
@@ -314,6 +328,10 @@ export default function App() {
       </div>
 
       <Sidebar
+        theme={theme}
+        onTheme={toggleTheme}
+        density={density}
+        onDensity={cycleDensity}
         onSettings={() => settingsRef.current?.showModal()}
         onTrash={() => setView((v) => (v === 'trash' ? 'everything' : 'trash'))}
         inTrash={view === 'trash'}
@@ -355,7 +373,7 @@ export default function App() {
                 <TermChip key={t} term={t} onRemove={() => setTerms((all) => all.filter((x) => x !== t))} />
               ))}
               {searchField('big', 'min-w-64 text-[60px] leading-tight')}
-              <kbd className="shrink-0 rounded-sm bg-black/[0.05] px-2.5 py-1 font-sans text-[13px] text-dim">
+              <kbd className="shrink-0 rounded-sm bg-fg/[0.06] px-2.5 py-1 font-sans text-[13px] text-dim">
                 Ctrl K
               </kbd>
             </div>
@@ -375,6 +393,7 @@ export default function App() {
             selected={selected}
             onSelect={setSelected}
             onOpen={openItem}
+            density={density}
             picked={picked}
             onPick={pick}
             onDelete={remove}
@@ -413,7 +432,7 @@ export default function App() {
               <TermChip key={t} term={t} onRemove={() => setTerms((all) => all.filter((x) => x !== t))} />
             ))}
             {searchField('pill', 'py-1 text-[26px]')}
-            <kbd className="shrink-0 rounded-full bg-black/[0.05] px-3 py-1 font-sans text-[12px] text-dim">
+            <kbd className="shrink-0 rounded-full bg-fg/[0.06] px-3 py-1 font-sans text-[12px] text-dim">
               Ctrl K
             </kbd>
           </div>

@@ -91,7 +91,7 @@ export function FilterRow({ filters, onPick }: { filters: Filter[]; onPick: (key
 // The applied filter, sitting inside the search bar.
 export function ActiveFilter({ filter, onRemove }: { filter: Filter; onRemove: () => void }) {
   return (
-    <span className="flex shrink-0 items-center gap-2.5 rounded-full bg-black/[0.05] py-2 pr-2.5 pl-4 text-[17px]">
+    <span className="flex shrink-0 items-center gap-2.5 rounded-full bg-fg/[0.06] py-2 pr-2.5 pl-4 text-[17px]">
       <FilterIcon filter={filter} className="size-[18px]" />
       {filter.label}
       <button
@@ -110,7 +110,7 @@ export function ActiveFilter({ filter, onRemove }: { filter: Filter; onRemove: (
 // A search word fixed with Enter. Shares the applied filter's size, without an icon.
 export function TermChip({ term, onRemove }: { term: string; onRemove: () => void }) {
   return (
-    <span className="group flex shrink-0 items-center gap-1.5 rounded-full bg-black/[0.05] py-2 pr-2 pl-4 text-[17px]">
+    <span className="group flex shrink-0 items-center gap-1.5 rounded-full bg-fg/[0.06] py-2 pr-2 pl-4 text-[17px]">
       {term}
       <button
         onClick={onRemove}
