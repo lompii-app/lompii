@@ -45,7 +45,7 @@ export function Confirm({
 
 // A browser extension asking to connect. The main process holds the request (it may arrive
 // before this window has loaded) and says when it changes; this asks and sends the answer back.
-export function PairPrompt() {
+export function PairPrompt({ onAnswered }: { onAnswered: () => void }) {
   const [req, setReq] = useState<PairRequest | null>(null)
   useEffect(() => {
     const load = () => window.tessera.pairRequest().then(setReq)
@@ -55,7 +55,7 @@ export function PairPrompt() {
 
   const answer = (ok: boolean) => {
     if (!req) return
-    window.tessera.answerPair(req.id, ok)
+    window.tessera.answerPair(req.id, ok).then(onAnswered)
     setReq(null)
   }
 

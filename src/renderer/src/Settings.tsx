@@ -1,4 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
+import claude from './providers/claude-color.svg?raw'
+import gemini from './providers/gemini-color.svg?raw'
+import ollama from './providers/ollama.svg?raw'
+import openai from './providers/openai.svg?raw'
+import openrouter from './providers/openrouter.svg?raw'
 import {
   AI_PROVIDERS,
   KEY_PAGES,
@@ -18,8 +23,8 @@ const INPUT =
 const BUTTON =
   'shrink-0 rounded-lg border border-line bg-control px-3.5 py-2 text-[13px] font-medium transition-colors outline-none hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-40'
 
-const SECTIONS = ['General', 'AI', 'Extension'] as const
-type Section = (typeof SECTIONS)[number]
+const SECTIONS = ['General', 'AI providers', 'Extension'] as const
+export type Section = (typeof SECTIONS)[number]
 
 const CLOUD: AiProvider[] = ['anthropic', 'openai', 'gemini']
 const LOCAL: AiProvider[] = ['ollama', 'custom', 'openrouter']
@@ -63,8 +68,9 @@ const I = {
   refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7',
   sliders: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4',
   sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z',
-  puzzle: 'M9 4a2 2 0 1 1 4 0v2h4v4h-2a2 2 0 1 0 0 4h2v4h-4v-2a2 2 0 1 0-4 0v2H5v-4h2a2 2 0 1 0 0-4H5V6h4z',
-  chip: 'M7 7h10v10H7zM10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4'
+  // Lucide's puzzle piece (ISC licence)
+  puzzle:
+    'M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z'
 }
 
 const Switch = ({ label, on, disabled, onToggle }: { label: string; on: boolean; disabled?: boolean; onToggle: (on: boolean) => void }) => (
@@ -104,16 +110,17 @@ const Row = ({ label, desc, children }: { label: string; desc?: React.ReactNode;
   </div>
 )
 
-const GLYPH: Partial<Record<AiProvider, [string, string]>> = {
-  anthropic: ['A', '#d97757'],
-  openai: ['O', 'currentColor'],
-  gemini: ['G', '#4f8df7'],
-  openrouter: ['R', '#7c7ff2']
-}
+// Provider logos from Lobe Icons (@lobehub/icons-static-svg, MIT), inlined so the one-colour
+// ones take the text colour in dark mode. Local files, so inserting their markup is safe.
+const LOGO: Partial<Record<AiProvider, string>> = { anthropic: claude, openai, gemini, ollama, openrouter }
 
 const Glyph = ({ p }: { p: AiProvider }) => (
-  <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-line bg-control text-[14px] font-semibold">
-    {GLYPH[p] ? <span style={{ color: GLYPH[p]![1] }}>{GLYPH[p]![0]}</span> : <Icon d={p === 'ollama' ? I.chip : I.server} />}
+  <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-line bg-control">
+    {LOGO[p] ? (
+      <span aria-hidden className="size-[18px] [&>svg]:size-full" dangerouslySetInnerHTML={{ __html: LOGO[p]! }} />
+    ) : (
+      <Icon d={I.server} />
+    )}
   </span>
 )
 
@@ -400,15 +407,18 @@ export default function SettingsDialog({
   settings,
   unanalysed,
   onChange,
-  onManageTags
+  onManageTags,
+  section,
+  onSection
 }: {
   ref: React.RefObject<HTMLDialogElement | null>
   settings: Settings | null
   unanalysed: number
   onChange: (s: Settings) => void
   onManageTags: () => void
+  section: Section // the page showing; App sets it so a setup reminder opens the right one
+  onSection: (s: Section) => void
 }) {
-  const [section, setSection] = useState<Section>('General')
   const [where, setWhere] = useState<'cloud' | 'local'>('cloud')
   const [disconnect, setDisconnect] = useState<'ask' | 'done' | null>(null)
   const [status, setStatus] = useState('')
@@ -459,7 +469,7 @@ export default function SettingsDialog({
   }
 
   const visionDone = !!vision && vision.state !== 'failed' && vision.done >= vision.total
-  const nav: Record<Section, string> = { General: I.sliders, AI: I.sparkle, Extension: I.puzzle }
+  const nav: Record<Section, string> = { General: I.sliders, 'AI providers': I.sparkle, Extension: I.puzzle }
 
   const body: Record<Section, React.ReactNode> = {
     General: (
@@ -511,7 +521,7 @@ export default function SettingsDialog({
       </>
     ),
 
-    AI: settings && (
+    'AI providers': settings && (
       <>
         <Header title="AI providers" desc="Pick the model that titles, summarises and tags what you save, and connect the providers you want available." />
         <Panel className="divide-y divide-line">
@@ -653,7 +663,7 @@ export default function SettingsDialog({
         {SECTIONS.map((s) => (
           <button
             key={s}
-            onClick={() => setSection(s)}
+            onClick={() => onSection(s)}
             aria-current={section === s ? 'page' : undefined}
             className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors ${
               section === s ? 'bg-select font-medium text-fg' : 'text-fg/70 hover:bg-select/60 hover:text-fg'

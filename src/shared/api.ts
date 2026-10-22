@@ -106,6 +106,7 @@ export type Settings = {
     providers: Partial<Record<AiProvider, { model: string; baseUrl: string; hasKey: boolean }>>
   }
   openAtLogin: boolean | null // null: not available (development build)
+  extensionConnected: boolean // a browser has connected since the last Disconnect all
 }
 
 // the browser extension talks to Tessera on this port, 127.0.0.1 only

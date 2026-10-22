@@ -8,7 +8,8 @@ import Sidebar from './Sidebar'
 import { loadDensity, loadTheme, NEXT_DENSITY, saveDensity, saveTheme } from './prefs'
 import SelectionBar from './Selection'
 import Stacks from './Stacks'
-import SettingsDialog from './Settings'
+import SettingsDialog, { type Section } from './Settings'
+import { pendingSteps, SetupCards, SetupStrip } from './Setup'
 import TagsDialog from './Tags'
 import Trash from './Trash'
 import WindowControls from './WindowControls'
@@ -52,6 +53,12 @@ export default function App() {
   const scrollRef = useRef<HTMLElement>(null)
   const headerRef = useRef<HTMLElement>(null)
   const settingsRef = useRef<HTMLDialogElement>(null)
+  const [settingsSection, setSettingsSection] = useState<Section>('General')
+  const openSettings = (section?: Section) => {
+    if (section) setSettingsSection(section)
+    settingsRef.current?.showModal()
+  }
+  const [setupLater, setSetupLater] = useState(false) // "Later" on the strip: hidden until next launch
   const tagsRef = useRef<HTMLDialogElement>(null)
 
   // item:added / item:updated replace `items`, which is also when tags can have changed;
@@ -76,6 +83,11 @@ export default function App() {
   useEffect(() => {
     window.tessera.getSettings().then(setSettings)
   }, [])
+  // what's left to set up; a save from the browser proves it's connected, so check again then
+  const steps = pendingSteps(settings)
+  useEffect(() => {
+    if (settings && !settings.extensionConnected) window.tessera.getSettings().then(setSettings)
+  }, [items.length]) // only when the count changes, not on every settings update
 
   const refreshStacks = () => setStacksVersion((v) => v + 1)
   const filters = useMemo(() => buildFilters(items, tagIndex, stacks), [items, tagIndex, stacks])
@@ -344,7 +356,7 @@ export default function App() {
         onTheme={toggleTheme}
         density={density}
         onDensity={cycleDensity}
-        onSettings={() => settingsRef.current?.showModal()}
+        onSettings={() => openSettings()}
         onTrash={() => setView((v) => (v === 'trash' ? 'everything' : 'trash'))}
         inTrash={view === 'trash'}
       />
@@ -413,28 +425,36 @@ export default function App() {
         ) : view === 'stacks' ? (
           <Stacks items={items} stacks={stacks} onOpen={pickFilter} onChange={refreshStacks} />
         ) : visible.length ? (
-          <Grid
-            scrollRef={scrollRef}
-            items={visible}
-            selected={selected}
-            onSelect={setSelected}
-            onOpen={openItem}
-            density={density}
-            picked={picked}
-            onPick={pick}
-            onDelete={remove}
-          />
+          <>
+            {view === 'everything' && !setupLater && steps.length > 0 && (
+              <SetupStrip steps={steps} onOpen={openSettings} onLater={() => setSetupLater(true)} />
+            )}
+            <Grid
+              scrollRef={scrollRef}
+              items={visible}
+              selected={selected}
+              onSelect={setSelected}
+              onOpen={openItem}
+              density={density}
+              picked={picked}
+              onPick={pick}
+              onDelete={remove}
+            />
+          </>
         ) : (
           <div className="grid place-items-center py-32 pr-20">
-            <div className="max-w-md text-center">
+            <div className={`text-center ${items.length ? 'max-w-md' : 'max-w-xl'}`}>
               <p className="font-serif text-[32px] italic text-dim">
                 {!items.length ? 'Nothing here yet.' : phrase.length >= 3 && !scores && !vibe ? 'Looking…' : 'Nothing matches that.'}
               </p>
               <p className="mt-3 text-[14px] leading-relaxed text-dim">
                 {items.length
                   ? 'Try another word, or clear the search and filter.'
-                  : 'In Chrome, right-click an image or selected text and choose “Add to Tessera”, or press Alt+Shift+S to capture part of a page. You can also drop or paste an image here.'}
+                  : steps.length
+                    ? 'Two steps and it starts filling itself. You can also drop or paste an image here any time.'
+                    : 'In Chrome, right-click an image or selected text and choose “Add to Tessera”, or press Alt+Shift+S to capture part of a page. You can also drop or paste an image here.'}
               </p>
+              {!items.length && steps.length > 0 && <SetupCards steps={steps} onOpen={openSettings} />}
             </div>
           </div>
         )}
@@ -558,7 +578,7 @@ export default function App() {
 
       <TagsDialog ref={tagsRef} onChange={refreshStacks} />
 
-      <PairPrompt />
+      <PairPrompt onAnswered={() => window.tessera.getSettings().then(setSettings)} />
 
       <SettingsDialog
         ref={settingsRef}
@@ -566,6 +586,8 @@ export default function App() {
         settings={settings}
         unanalysed={items.filter((i) => i.status === 'pending' || i.status === 'failed').length}
         onChange={setSettings}
+        section={settingsSection}
+        onSection={setSettingsSection}
       />
     </div>
   )

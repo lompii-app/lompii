@@ -5,7 +5,7 @@ import { EXTENSION_PORT, isHttpUrl, type Item } from '@shared/api'
 import { addTags, db } from './db'
 import { textChanged } from './embed'
 import { ingestBuffer, ingestText } from './ingest'
-import { getSettings } from './settings'
+import { getSettings, markConnected } from './settings'
 
 // Endpoints for the browser extension. Bound to 127.0.0.1 and gated by a key, so a web
 // page that guesses the port still cannot write to the library.
@@ -68,6 +68,7 @@ async function pair(req: IncomingMessage, ask: AskToPair): Promise<{ token: stri
   try {
     // unanswered after two minutes counts as no
     if (!(await ask(code, id, AbortSignal.timeout(120_000)))) throw new HttpError(403, 'declined')
+    markConnected()
     return { token: getSettings().token }
   } finally {
     pairing = false
@@ -125,6 +126,7 @@ export function serve(ask: AskToPair): void {
     const isPair = req.method === 'POST' && req.url === '/pair'
     // read each time: Disconnect all replaces the key while the server runs
     if (!isPair && !authorized(req, getSettings().token)) return send(401, { error: 'bad key' })
+    if (!isPair) markConnected() // browsers connected before this was recorded count too
     try {
       send(200, isPair ? await pair(req, ask) : await route(req))
     } catch (e) {

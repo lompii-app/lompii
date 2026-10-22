@@ -12,6 +12,7 @@ type StoredProvider = { key: string; model: string; baseUrl: string } // key: se
 type Stored = {
   token?: string
   trayHintShown?: boolean
+  extensionConnected?: boolean // a browser has connected since the key was last replaced
   ai?: { active: AiProvider | null; providers: Partial<Record<AiProvider, StoredProvider>> }
 }
 
@@ -43,13 +44,24 @@ export function getSettings(): Settings {
   const providers: Settings['ai']['providers'] = {}
   for (const [p, sp] of Object.entries(s.ai?.providers ?? {}))
     providers[p as AiProvider] = { model: sp.model, baseUrl: sp.baseUrl, hasKey: !!sp.key }
-  return { token: s.token, ai: { active: s.ai?.active ?? null, providers }, openAtLogin: openAtLogin() }
+  return {
+    token: s.token,
+    ai: { active: s.ai?.active ?? null, providers },
+    openAtLogin: openAtLogin(),
+    extensionConnected: !!s.extensionConnected
+  }
 }
 
 // a fresh extension key; every paired browser has to connect again
 export function resetToken(): Settings {
-  write({ ...read(), token: randomBytes(16).toString('hex') })
+  write({ ...read(), token: randomBytes(16).toString('hex'), extensionConnected: false })
   return getSettings()
+}
+
+// a browser paired, or used its key: the "connect your browser" reminder can go
+export function markConnected(): void {
+  const s = read()
+  if (!s.extensionConnected) write({ ...s, extensionConnected: true })
 }
 
 // true only the first time the window is closed, for the "still running in the tray" note
