@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, clipboard, ClipboardItem, dialog, ipcMain, net, protocol, shell } from 'electron'
 import sharp from 'sharp'
 import { isHttpUrl, isText, type Item, type Stack, type WindowAction } from '@shared/api'
-import { addTags, DATA, db, removeTag } from './db'
+import { addTags, DATA, db, deleteTag, removeTag, renameTag, tagCounts } from './db'
 import { enqueue, enqueueUnanalysed, resumeAnalysis } from './ai'
 import { allVectors, embeddingStatus, indexImages, searchImages } from './embed'
 import { ingestBuffer, ingestFile } from './ingest'
@@ -114,6 +114,10 @@ ipcMain.handle('items:removeTag', (_e, id: number, tag: string) => {
   removeTag(id, tag)
   broadcastItem(id)
 })
+
+ipcMain.handle('tags:counts', () => tagCounts())
+ipcMain.handle('tags:rename', (_e, from: string, to: string) => renameTag(from, to))
+ipcMain.handle('tags:delete', (_e, value: string) => deleteTag(value))
 
 const byId = (id: number) => db.prepare('select * from items where id = ?').get(id) as Item | undefined
 

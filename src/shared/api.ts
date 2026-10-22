@@ -96,6 +96,9 @@ export type TesseraAPI = {
   addTags(itemId: number, tags: string[]): Promise<void>
   removeTag(itemId: number, tag: string): Promise<void>
   tagIndex(): Promise<{ item: number; value: string }[]>
+  tagCounts(): Promise<{ value: string; count: number }[]>
+  renameTag(from: string, to: string): Promise<void> // onto an existing tag: merges
+  deleteTag(value: string): Promise<void> // from every item
 
   stacks(): Promise<Stack[]>
   createStack(name: string, color: string): Promise<number>

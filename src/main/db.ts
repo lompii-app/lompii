@@ -140,3 +140,34 @@ export function removeTag(itemId: number, value: string): void {
   // a tag on nothing would linger as an empty filter chip
   db.prepare(`delete from tags where dimension = 'tag' and id not in (select tag_id from item_tags)`).run()
 }
+
+/* library-wide tag edits */
+
+export const tagCounts = (): { value: string; count: number }[] =>
+  db
+    .prepare(
+      `select t.value, count(i.id) as count from tags t
+       join item_tags it on it.tag_id = t.id join items i on i.id = it.item_id
+       where t.dimension = 'tag' and i.deleted_at is null
+       group by t.id order by count desc, t.value`
+    )
+    .all() as { value: string; count: number }[]
+
+// Renaming onto a tag that already exists merges the two.
+export const renameTag = db.transaction((from: string, to: string) => {
+  const src = db.prepare(`select id from tags where dimension = 'tag' and value = ?`).get(normTag(from)) as
+    | { id: number }
+    | undefined
+  const name = normTag(to)
+  if (!src || !name || name === normTag(from)) return
+  const dst = db.prepare(`select id from tags where dimension = 'tag' and value = ?`).get(name) as
+    | { id: number }
+    | undefined
+  if (!dst) return void db.prepare('update tags set value = ? where id = ?').run(name, src.id)
+  db.prepare('insert or ignore into item_tags (item_id, tag_id) select item_id, ? from item_tags where tag_id = ?').run(dst.id, src.id)
+  db.prepare('delete from tags where id = ?').run(src.id) // its item_tags go with it
+})
+
+export function deleteTag(value: string): void {
+  db.prepare(`delete from tags where dimension = 'tag' and value = ?`).run(normTag(value))
+}

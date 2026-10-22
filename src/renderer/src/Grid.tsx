@@ -24,10 +24,12 @@ type Props = {
   selected: number | null
   onSelect: (id: number | null) => void
   onOpen: (id: number) => void
+  picked: Set<number> // multi-selection
+  onPick: (id: number, range: boolean) => void // Ctrl-click toggles; Shift-click extends
   onDelete: (id: number) => void
 }
 
-export default function Grid({ scrollRef, items, selected, onSelect, onOpen, onDelete }: Props) {
+export default function Grid({ scrollRef, items, selected, onSelect, onOpen, picked, onPick, onDelete }: Props) {
   const listRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
   const [margin, setMargin] = useState(0)
@@ -98,7 +100,12 @@ export default function Grid({ scrollRef, items, selected, onSelect, onOpen, onD
                 measure={virtualizer.measureElement}
                 item={item}
                 selected={item.id === selected}
-                onSelect={onOpen}
+                picked={picked.has(item.id)}
+                onClick={(e) =>
+                  e.ctrlKey || e.metaKey || e.shiftKey || picked.size
+                    ? onPick(item.id, e.shiftKey)
+                    : onOpen(item.id)
+                }
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -119,29 +126,39 @@ function Tile({
   index,
   measure,
   selected,
-  onSelect,
+  picked,
+  onClick,
   style
 }: {
   item: Item
   index: number
   measure: (el: Element | null) => void
   selected: boolean
-  onSelect: (id: number) => void
+  picked: boolean
+  onClick: (e: React.MouseEvent) => void
   style: React.CSSProperties
 }) {
   const [loaded, setLoaded] = useState(false)
   const text = caption(item)
   const card = `w-full overflow-hidden rounded-[4px] shadow-card transition-shadow duration-200 group-hover:shadow-lift ${
-    selected ? 'outline-2 outline-offset-2 outline-accent' : ''
+    selected || picked ? 'outline-2 outline-offset-2 outline-accent' : ''
   }`
   return (
     <button
       ref={measure}
       data-index={index}
       style={style}
-      onClick={() => onSelect(item.id)}
-      className="group flex flex-col"
+      onClick={onClick}
+      aria-pressed={picked || undefined}
+      className="group relative flex flex-col"
     >
+      {picked && (
+        <span className="absolute top-2 right-2 z-10 grid size-6 place-items-center rounded-full bg-accent text-white shadow-card">
+          <svg viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+        </span>
+      )}
       {item.kind === 'quote' ? (
         <blockquote className={`${card} bg-card px-7 py-6 text-center font-serif text-fg`}>
           <span aria-hidden className="block font-[Georgia,serif] text-[30px] leading-none">“</span>

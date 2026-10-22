@@ -9,10 +9,12 @@ import {
   type Settings,
   type Stack
 } from '@shared/api'
-import { ActiveFilter, buildFilters, FilterRow, TermChip, type Filter, type TagIndex } from './Filters'
+import { ActiveFilter, buildFilters, FilterRow, STACK_COLORS, TermChip, type Filter, type TagIndex } from './Filters'
 import Grid from './Grid'
 import Sidebar from './Sidebar'
+import SelectionBar from './Selection'
 import Stacks from './Stacks'
+import TagsDialog from './Tags'
 import WindowControls from './WindowControls'
 import { useItems } from './useItems'
 
@@ -45,6 +47,7 @@ export default function App() {
   const scrollRef = useRef<HTMLElement>(null)
   const headerRef = useRef<HTMLElement>(null)
   const settingsRef = useRef<HTMLDialogElement>(null)
+  const tagsRef = useRef<HTMLDialogElement>(null)
 
   // item:added / item:updated replace `items`, which is also when tags can have changed;
   // stacksVersion covers stack edits, which touch no item
@@ -172,6 +175,50 @@ export default function App() {
     setUndo({ ids: [id], label: title ? `Deleted “${title.slice(0, 40)}”` : 'Deleted' })
   }
 
+  /* multi-select: Ctrl-click toggles, Shift-click selects a run of the visible order */
+
+  const [picked, setPicked] = useState<Set<number>>(new Set())
+  const anchor = useRef<number | null>(null)
+
+  const pick = (id: number, range: boolean) => {
+    setPicked((prev) => {
+      const next = new Set(prev)
+      const ids = visible.map((i) => i.id)
+      const from = anchor.current == null ? -1 : ids.indexOf(anchor.current)
+      if (range && from >= 0) {
+        const to = ids.indexOf(id)
+        for (const x of ids.slice(Math.min(from, to), Math.max(from, to) + 1)) next.add(x)
+      } else if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+    anchor.current = id
+  }
+  const clearPicked = () => setPicked(new Set())
+  const pickedIds = [...picked].filter((id) => items.some((i) => i.id === id))
+
+  const removeMany = async (ids: number[]) => {
+    for (const id of ids) await window.tessera.remove(id)
+    const gone = new Set(ids)
+    setItems((prev) => prev.filter((i) => !gone.has(i.id)))
+    clearPicked()
+    setUndo({ ids, label: `Deleted ${ids.length} ${ids.length === 1 ? 'item' : 'items'}` })
+  }
+
+  const addManyToStack = async (stackId: number) => {
+    for (const id of pickedIds) await window.tessera.setInStack(stackId, id, true)
+    refreshStacks()
+  }
+
+  const newStackWithPicked = async (name: string) => {
+    const id = await window.tessera.createStack(name, STACK_COLORS[stacks.length % STACK_COLORS.length])
+    await addManyToStack(id)
+  }
+
+  const tagMany = async (tags: string[]) => {
+    for (const id of pickedIds) await window.tessera.addTags(id, tags)
+  }
+
   const undoRemove = async () => {
     if (!undo) return
     await window.tessera.restore(undo.ids)
@@ -231,12 +278,13 @@ export default function App() {
           else (document.activeElement as HTMLElement).blur()
         }
         else if (open) setOpen(false)
+        else if (picked.size) clearPicked()
         else setSelected(null)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selected, open, query, scrolled])
+  }, [selected, open, query, scrolled, picked])
 
   // both search fields edit the same query and filter
   const searchField = (which: 'big' | 'pill', className: string) => (
@@ -329,6 +377,8 @@ export default function App() {
             selected={selected}
             onSelect={setSelected}
             onOpen={openItem}
+            picked={picked}
+            onPick={pick}
             onDelete={remove}
           />
         ) : (
@@ -406,8 +456,23 @@ export default function App() {
         </div>
       )}
 
+      {pickedIds.length > 0 && !open && (
+        <SelectionBar
+          count={pickedIds.length}
+          stacks={stacks}
+          onAddToStack={addManyToStack}
+          onNewStack={newStackWithPicked}
+          onAddTags={tagMany}
+          onDelete={() => removeMany(pickedIds)}
+          onClear={clearPicked}
+        />
+      )}
+
+      <TagsDialog ref={tagsRef} onChange={refreshStacks} />
+
       <SettingsDialog
         ref={settingsRef}
+        onManageTags={() => tagsRef.current?.showModal()}
         settings={settings}
         unanalysed={items.filter((i) => i.status === 'pending' || i.status === 'failed').length}
         onChange={setSettings}
@@ -422,13 +487,15 @@ function SettingsDialog({
   settings,
   unanalysed,
   onChange,
-  onRestored
+  onRestored,
+  onManageTags
 }: {
   ref: React.RefObject<HTMLDialogElement | null>
   settings: Settings | null
   unanalysed: number
   onChange: (s: Settings) => void
   onRestored: () => void // items came back from the trash
+  onManageTags: () => void
 }) {
   const [copied, setCopied] = useState(false)
   const [key, setKey] = useState('')
@@ -633,6 +700,12 @@ function SettingsDialog({
               </button>
             </>
           )}
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <p className="flex-1 text-[13px] leading-relaxed text-dim">Rename, merge or delete tags everywhere.</p>
+          <button onClick={onManageTags} className={GHOST}>
+            Manage tags…
+          </button>
         </div>
         <div className="mt-3 flex items-center gap-3">
           <p className="flex-1 text-[13px] leading-relaxed text-dim">
