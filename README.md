@@ -45,8 +45,11 @@ the item you ask the AI provider of your choice to describe.
   snippet. Quotes render as serif cards with their own quote marks.
 
 **Understanding (AI)**
-- Each item gets a **title**, a one- or two-sentence **TLDR**, **6–12 search tags**
-  (subject, style, mood, colours, layout) and any **visible text** read off the image.
+- Each item gets a **title**, a one- or two-sentence **TLDR**, **6–10 search tags**
+  (subject, style, mood, colours, layout) and any **visible text** read off the image. The AI
+  reuses your existing tags where they fit, and near-duplicates (motivational / motivation)
+  fold into the tag you already have.
+- Rate limits and overloaded providers are retried automatically.
 - Works with **any provider's API key**: Anthropic (Claude), OpenAI, Google Gemini,
   OpenRouter, or any OpenAI-compatible server (Groq, Ollama, LM Studio…).
 
@@ -54,19 +57,28 @@ the item you ask the AI provider of your choice to describe.
 - **Search** across titles, tags, TLDRs, notes, quote and snippet text, and text inside
   images. Press `Enter` to turn a word into a chip; chips combine, so `natively` + `dark`
   shows only items matching both.
-- **Describe what you remember**: "mountains landscape" or "grainy portrait in shadow" also
-  finds images by what they look like, even when no tag says so (local CLIP, no API calls).
+- **Describe what you remember**: "mountains landscape" finds images by what they look like
+  (CLIP), and "an AI meeting assistant" finds anything by what its words mean (MiniLM), even
+  when no tag says so. Both models run locally; no API calls.
 - **Type filters** (Images, Captures, Quotes, Snippets) appear under the search.
-- **Same vibe**: from any item, see the items that look most like it. Images are compared
-  with a local CLIP model (free, offline after a one-time ~90 MB download); tags and palette
-  add to the score.
+- **Same vibe**: from any item, see the items most like it: how images look (CLIP), what any
+  item is about (MiniLM), plus shared tags and palette.
 - A **floating search pill** takes over once you scroll past the header.
 
 **Organising**
 - **Stacks**: named, coloured collections you build by hand, shown as fanned piles.
   Add an item to stacks from its overlay; rename, recolour or delete stacks.
-- **Tags**: add or remove your own alongside the AI's.
+- **Tags**: add or remove your own alongside the AI's; **Manage tags** renames, merges or
+  deletes a tag across the whole library.
+- **Select several items** (Ctrl- or Shift-click) to add them to a stack, tag them or delete
+  them together.
 - **Notes** on any item.
+
+**Keeping it safe**
+- **Runs in the tray**: closing the window keeps Tessera running so the extension can always
+  save. Optionally starts at login (installed app).
+- **Trash with undo**: deleting shows an *Undo*; deleted items are kept for 30 days.
+- **Back up** the whole library (database and files) to a folder you choose.
 
 **Viewing**
 - A masonry grid of cards with captions; full-page captures show their top.
@@ -97,6 +109,7 @@ npm run dev      # starts the app; restarts itself when main-process code change
 | --- | --- |
 | `npm run dev` | Run in development with hot reload. The renderer reloads in place; changes to `src/main` or `src/preload` restart Electron. |
 | `npm run typecheck` | Type-check the whole project (`tsc --noEmit`). |
+| `npm test` | Run the tests (plain Node, no framework): parsing, the quote rule, scoring. |
 | `npm run build` | Type-check, then build to `out/`. |
 | `npm run pack` | Build and package an unpacked app into `release/` (quick check). |
 | `npm run dist` | Build the Windows installer, `release/Tessera Setup <version>.exe` (~140 MB). |
@@ -168,6 +181,12 @@ other providers are called over their HTTP APIs.
 - **Search**: click the search (or `Ctrl+K`) to see the type filters; pick one, type words,
   press `Enter` to keep a word as a chip. `Backspace` in an empty search removes the last chip.
 - **Same vibe**: in an item's overlay, bottom left. Clear it with the × on its chip.
+- **Select several**: `Ctrl`-click cards to toggle them, `Shift`-click to select a run. While
+  anything is selected a plain click toggles too; a bar at the bottom offers Add to stack, Add
+  tags and Delete. `Esc` clears the selection.
+- **Delete** moves to the trash and shows *Undo* for a few seconds. *Settings → Library* shows
+  the trash (Restore all / Empty now), backs up the library, and opens *Manage tags*.
+- **Closing the window** leaves Tessera in the tray. Quit from the tray icon.
 - **Stacks**: *New stack* on the Stacks page, or *Add to stack* (the round button) in an
   item's overlay, which can also create one. The pencil next to a stack's name renames,
   recolours or deletes it; deleting a stack keeps its items.
@@ -184,7 +203,9 @@ other providers are called over their HTTP APIs.
 | `Esc` | search | clear the text, then leave the search |
 | `←` `→` `↑` `↓` | grid | move the selection |
 | `Enter` | grid | open the selected item |
-| `Delete` | grid | delete the selected item (asks first) |
+| `Delete` | grid | move the selected item to the trash (with Undo) |
+| `Ctrl`-click / `Shift`-click | grid | select several / a run |
+| `Esc` | grid | clear the multi-selection |
 | `Esc` | overlay | close it |
 | `Ctrl+V` | anywhere | save a pasted image |
 
@@ -217,15 +238,20 @@ other providers are called over their HTTP APIs.
   `POST /items/:id/tags`.
 - **Images in the window** load through a private `tessera://` protocol with a path check,
   never `file://`.
-- **Search and filters** run in the renderer over the loaded library. The search phrase also
-  goes, after a 250 ms pause, to CLIP's text encoder in main; images scoring at least 0.25 and
-  within 0.03 of the best match join the results. Word matches rank first, then by how well
-  the image fits the description.
-- **Same vibe** uses CLIP image embeddings (`Xenova/clip-vit-base-patch32`, quantised, run with
-  onnxruntime in the main process; `src/main/embed.ts`). Each image's vector is computed in the
-  background when it's saved and stored in the `embeddings` table. Two images score 65% visual
-  similarity, 25% shared tags, 10% palette; anything involving text or an unindexed image falls
-  back to 60% tags, 30% palette, 10% same broad kind. Matches above 20% are kept, up to 40.
+- **Local models** (`src/main/embed.ts`, run with onnxruntime in the main process):
+  **CLIP** (`Xenova/clip-vit-base-patch32`) gives each image a vector for how it looks;
+  **MiniLM** (`Xenova/all-MiniLM-L6-v2`) gives each item a vector for what its words mean
+  (title, TLDR, tags, body, note, visible text), re-embedded when that text changes. Both are
+  computed in the background and stored in their own tables.
+- **Search** runs in the renderer over the loaded library. After a 250 ms pause the phrase also
+  goes to CLIP's text encoder (images ≥ 0.25 and within 0.03 of the best) and to MiniLM (items
+  ≥ 0.30 and within 0.25 of the best); both map onto a common 0–1 relevance. Word matches rank
+  first, then relevance. CLIP's own text-to-text scores were too flat to use for words.
+- **Same vibe**: two images score 55% visual, 25% meaning, 10% tags, 10% palette; two text
+  items 75% meaning, 25% tags; mixed pairs 45% meaning, 35% tags, 20% palette. Matches above
+  20% are kept, up to 40. The formulas live in `src/main/scoring.ts`, which `npm test` covers.
+- **Trash** sets `deleted_at`; trashed items are hidden everywhere and purged with their files
+  after 30 days. **Backup** uses SQLite's online backup, so it's consistent while Tessera runs.
 - **Migrations** are an ordered list in `db.ts`, applied by SQLite `user_version`.
 
 ## Project structure
@@ -238,17 +264,24 @@ src/
     ingest.ts      saving images and text
     server.ts      local API for the extension
     ai.ts          AI analysis queue and provider adapters
-    embed.ts       local CLIP image embeddings for same vibe
+    embed.ts       local CLIP and MiniLM embeddings, indexing, search
+    scoring.ts     pure parsing and scoring (tested)
+    tray.ts        tray icon, start at login
     settings.ts    settings.json, extension key, encrypted AI key
   preload/       the typed bridge between main and renderer
   renderer/      React app
-    src/App.tsx      layout, search, chips, settings dialog
-    src/Grid.tsx     virtualised masonry grid
-    src/Detail.tsx   item overlay
-    src/Stacks.tsx   stacks page and dialog
-    src/Filters.tsx  filters, chips, icons
+    src/App.tsx        layout, search, chips, selection, undo
+    src/Grid.tsx       virtualised masonry grid
+    src/Detail.tsx     item overlay
+    src/Stacks.tsx     stacks page and dialog
+    src/Settings.tsx   settings dialog
+    src/Selection.tsx  multi-select action bar
+    src/Tags.tsx       tag manager
+    src/Filters.tsx    filters, chips, icons
   shared/api.ts  types and helpers shared by main and renderer
 extension/       Chrome extension (Manifest V3, plain JS)
+test/            npm test
+build/icon.png   app icon
 project.md       product spec, including the AI vocabulary ideas
 MILESTONE.md     milestone status and the decisions behind the design
 ```
@@ -260,11 +293,11 @@ Everything is stored in Electron's user-data folder, on Windows
 
 | Path | Contents |
 | --- | --- |
-| `tessera.db` | SQLite database: items, tags, stacks |
+| `tessera.db` | SQLite database: items, tags, stacks, vectors |
 | `library/` | original files, named by hash |
 | `thumbs/` | 480 px WebP thumbnails |
 | `settings.json` | extension key, AI provider and model, AI key (encrypted) |
-| `models/` | the CLIP models (image ~85 MB, text ~60 MB) used for same vibe and search, downloaded on first use |
+| `models/` | local models, downloaded on first use: CLIP image (~85 MB) and text (~60 MB), MiniLM (~23 MB) |
 
 - The **AI key** is encrypted with the operating system's secure storage (Electron
   `safeStorage`) and never reaches the renderer.
@@ -274,16 +307,17 @@ Everything is stored in Electron's user-data folder, on Windows
 
 ## Known limitations
 
-- **Windows first.** The window has custom macOS-style controls; on macOS the native ones
-  would appear as well, and the app hasn't been tested there or on Linux.
+- **Windows first.** The installer is Windows x64 only and not code-signed, so SmartScreen
+  warns on first run. macOS uses its native window buttons, but the app hasn't been tested on
+  macOS or Linux; their builds would also need the onnxruntime binaries the Windows build drops.
 - **Full-page capture** scrolls and stitches screenshots. Pages that scroll an inner element
   come out as one screen, and very long pages are cut at about 20,000 px.
-- **Same vibe** for quotes and snippets still relies on tags; only images have visual vectors.
 - **One filter at a time** (a kind, a stack or same vibe), plus any number of word chips.
 - The default OpenAI model name may need updating to a current one.
 
 ## Roadmap
 
 - Creative DNA attributes from `project.md` as structured, filterable facets
-- Verified installers for Windows and macOS
-- Removing tags across the whole library, and merging stacks
+- Restoring from a backup inside the app (today: copy the backup's files back while Tessera is closed)
+- A macOS build, and code signing
+- Merging stacks

@@ -7,7 +7,7 @@ For setup and features, see [README.md](README.md).
 | --- | --- |
 | **M1 Capture** | Done. Saving now happens from the web (extension), not a watched folder. |
 | **M2 Understanding** | Done, with free-form tags instead of the Creative DNA vocabulary. |
-| **M3 Retrieval** | Done: keyword search with combinable chips, kind filters, natural-language image search and "same vibe", both on local CLIP. |
+| **M3 Retrieval** | Done: keyword search with combinable chips, kind filters, natural-language search (CLIP for looks, MiniLM for meaning) and "same vibe". |
 | **M4 Collections** | Manual collections done (stacks). Smart collections not started. |
 | Browser extension | Done (was "later, not MVP"). |
 
@@ -38,6 +38,8 @@ hot-reloaded renderer.
 | 7 | palette cache cleared (three colours became four) |
 | 8 | `tldr`, `visible_text`, `ai_error` |
 | 9 | `embeddings` (CLIP vectors, own table) |
+| 10 | `deleted_at` (trash) |
+| 11 | `text_embeddings` (MiniLM vectors, with a hash of the text they came from) |
 
 **Ingest.** sha256 dedupe, copy to `userData/library`, 480 px WebP thumb to
 `userData/thumbs`, dimensions and dominant colour, insert; a duplicate returns the existing
@@ -75,7 +77,13 @@ Delete. Esc and outside clicks close it; arrow keys still move the selection und
 created and edited from the Stacks page or the overlay's picker.
 
 **Search.** Words, word chips (all must match), one active filter (kind, stack, or same
-vibe), across title, body, note, TLDR, visible text, file path and tags.
+vibe), across title, body, note, TLDR, visible text, file path and tags; plus CLIP and MiniLM
+matches by description.
+
+**Daily use.** Tray icon (close hides, quit from the tray), start at login in the installed
+app, one instance at a time. Multi-select with bulk stack/tag/delete. Trash with undo, purged
+after 30 days. Library backup. A tag manager (rename, merge, delete). `npm test` over the
+pure logic in `scoring.ts`. The Windows installer is built and verified.
 
 ## Decisions worth remembering
 
@@ -134,6 +142,19 @@ vector index as the upgrade.
 
 **Search runs in the renderer** over the full array, no index. Fine at thousands of items.
 
+**Words get their own model.** CLIP's text encoder scored every phrase 0.82–0.95 against
+every snippet, useless for text. MiniLM (all-MiniLM-L6-v2, 23 MB) separates matches
+(0.54–0.59) from the rest (0.03–0.17). Each item's text is embedded with a hash of its source
+so edits, analyses and tag changes re-embed (debounced, `textChanged()`).
+
+**Deleting is soft.** `deleted_at` hides an item everywhere; Undo clears it; startup purges
+anything older than 30 days with its files. Re-saving something in the trash restores it,
+since the hash dedupe would otherwise silently swallow the save.
+
+**AI tags fold onto existing ones.** The prompt lists the 80 most-used tags to reuse, and a
+small ending rule (`ing|ed|al|ly|s`) maps motivational→motivation onto the spelling already in
+the library. Deliberately crude: it only ever matches against tags that exist.
+
 **Natural-language search is CLIP text-to-image.** The phrase (chips and typing together)
 goes to CLIP's text encoder after a 250 ms pause; images scoring at least 0.25, and within
 0.03 of the best, join the word matches. Those numbers come from calibrating on a real
@@ -163,13 +184,14 @@ repaint has a timeout. Marked `ponytail:` in `extension/background.js`.
   is verified (database, sharp, CLIP inference, the extension server and the window all run
   from `release/win-unpacked`), but only on Windows x64: `win.files` drops onnxruntime's
   macOS, Linux and arm64 binaries, which a mac or arm build would need back.
-- **macOS.** `titleBarStyle: 'hidden'` keeps the native traffic lights there, so the custom
-  ones would duplicate them. Untested on macOS and Linux.
+- **macOS and Linux are untested.** macOS shows its native traffic lights (the custom ones
+  are skipped there); the Windows build drops onnxruntime's other-platform binaries.
+- **No in-app restore** from a backup; it's a manual copy while Tessera is closed.
 - **Full page** misses pages that scroll an inner element, and stops at about 20,000 CSS px.
 - **The OpenAI default model** (`gpt-4o-mini`) may be outdated.
 - **No end-to-end test of the AI providers** beyond real use; only Anthropic's request shape
   is checked against the SDK's types.
-- **Tags can't be renamed or removed library-wide**, and stacks can't be merged.
+- **Stacks can't be merged.**
 
 ## Deferred
 
