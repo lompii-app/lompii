@@ -3,7 +3,7 @@
   "name": "Tessera",
   "version": "0.2.0",
   "description": "Save images, text and page captures to Tessera.",
-  "permissions": ["contextMenus", "scripting", "storage"],
+  "permissions": ["contextMenus", "scripting", "storage", "offscreen"],
   "host_permissions": ["<all_urls>"],
   "background": { "service_worker": "background.js" },
   "content_scripts": [
@@ -21,5 +21,5 @@
     }
   },
   "options_ui": { "page": "options.html", "open_in_tab": true },
-  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" }
+  "icons": { "16": "icons/menu-16.png", "32": "icons/menu-32.png", "48": "icons/48.png", "128": "icons/128.png" }
 }

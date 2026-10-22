@@ -34,9 +34,14 @@ export default function Sidebar({
 }) {
   return (
     <nav className="flex w-20 shrink-0 flex-col items-center py-10">
-      <span className="font-serif text-[26px] italic tracking-tight text-dim [writing-mode:vertical-rl]">
-        tessera
-      </span>
+      {/* the app icon (build/icon.png), drawn so the dark tiles follow the theme */}
+      <svg viewBox="0 0 24 24" role="img" aria-label="Tessera" className="size-8 text-fg">
+        <title>Tessera</title>
+        <rect x="2" y="2" width="9" height="9" rx="2.4" fill="currentColor" />
+        <rect x="13" y="2" width="9" height="9" rx="2.4" className="fill-accent" />
+        <rect x="2" y="13" width="9" height="9" rx="2.4" fill="currentColor" />
+        <rect x="13" y="13" width="9" height="9" rx="2.4" fill="currentColor" />
+      </svg>
 
       <div className="mt-auto flex flex-col items-center gap-2">
         <button

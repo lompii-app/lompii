@@ -414,6 +414,19 @@ export default function SettingsDialog({
   const [status, setStatus] = useState('')
   const [vision, setVision] = useState<EmbeddingStatus | null>(null)
   const [backupNote, setBackupNote] = useState('')
+  const [extDir, setExtDir] = useState('')
+  const [copiedAddress, setCopiedAddress] = useState(false)
+
+  useEffect(() => {
+    window.tessera.extensionFolder().then(setExtDir)
+  }, [])
+
+  // Chrome won't let other apps open its chrome:// pages, so the address is copied instead
+  const copyAddress = () =>
+    navigator.clipboard.writeText('chrome://extensions').then(() => {
+      setCopiedAddress(true)
+      setTimeout(() => setCopiedAddress(false), 1500)
+    })
 
   // indexing progress, refreshed while the dialog is open
   useEffect(() => {
@@ -552,6 +565,44 @@ export default function SettingsDialog({
     Extension: (
       <>
         <Header title="Browser extension" desc="Save images, text and pages from any site with the Tessera extension." />
+        <Panel className="mb-5">
+          <div className={LABEL}>Install it in Chrome</div>
+          <ol className="mt-3 list-decimal space-y-3 pl-5 text-[13px] leading-relaxed marker:text-dim">
+            <li>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <span>
+                  In Chrome, go to <code className="font-mono text-[12px]">chrome://extensions</code>
+                </span>
+                <button onClick={copyAddress} className={`${BUTTON} py-1 text-[12px]`}>
+                  {copiedAddress ? 'Copied' : 'Copy address'}
+                </button>
+              </div>
+              <p className={DESC}>Paste it into the address bar. In Edge use edge://extensions, in Brave brave://extensions.</p>
+            </li>
+            <li>
+              Turn on <b className="font-medium">Developer mode</b>, the switch at the top right.
+            </li>
+            <li>
+              <span>
+                Click <b className="font-medium">Load unpacked</b> and choose this folder:
+              </span>
+              <div className="mt-1.5 flex items-center gap-2">
+                <code className={`${INPUT} flex-1 truncate py-1.5 text-[12px] select-all`} title={extDir}>
+                  {extDir || '…'}
+                </code>
+                <button onClick={() => window.tessera.showExtensionFolder()} className={`${BUTTON} py-1.5 text-[12px]`}>
+                  Show folder
+                </button>
+              </div>
+            </li>
+            <li>
+              Pin Tessera from the puzzle-piece menu in the toolbar, then connect it below.
+            </li>
+          </ol>
+          <p className={`${DESC} mt-4`}>
+            After Tessera updates, click the reload arrow on the extension's card in chrome://extensions.
+          </p>
+        </Panel>
         <Panel className="divide-y divide-line">
           <Row
             label="Connect a browser"

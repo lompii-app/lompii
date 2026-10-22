@@ -1,15 +1,16 @@
 import { extname, join, resolve, sep } from 'node:path'
 import { copyFileSync, cpSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-import { app, BrowserWindow, clipboard, ClipboardItem, dialog, ipcMain, net, protocol, shell } from 'electron'
+import { app, BrowserWindow, clipboard, ClipboardItem, dialog, ipcMain, net, protocol, shell, type NativeImage } from 'electron'
 import sharp from 'sharp'
-import { isHttpUrl, isText, type Item, type Stack, type WindowAction, type AiProvider } from '@shared/api'
+import { isHttpUrl, isText, type Item, type PairRequest, type Stack, type WindowAction, type AiProvider } from '@shared/api'
 import { addTags, DATA, db, deleteTag, removeTag, renameTag, tagCounts } from './db'
 import { enqueue, enqueueUnanalysed, imagePrompt, listModels, resumeAnalysis, testProvider } from './ai'
 import { allVectors, embeddingStatus, indexImages, indexText, searchImages, searchMeaning, textChanged, textVectors } from './embed'
 import { ingestBuffer, ingestFile } from './ingest'
 import { firstClose, getSettings, resetToken, saveProvider, setActiveProvider } from './settings'
-import { createTray, setOpenAtLogin, startedHidden, trayHint } from './tray'
+import { createTray, setOpenAtLogin, setTrayIcon, startedHidden, trayHint } from './tray'
+import { followTaskbarTheme } from './taskbarIcon'
 import { jaccard, paletteSimilarity, relevance, rgb, visualSimilarity } from './scoring'
 import { serve } from './server'
 // bundled next to the main build; the window and taskbar use it (the .exe gets it from electron-builder)
@@ -305,6 +306,11 @@ function purge(where: string, ...args: unknown[]): number {
 }
 
 ipcMain.handle('trash:empty', () => void purge('deleted_at is not null'))
+// chosen items, for good; only ever ones already in the trash
+ipcMain.handle('trash:delete', (_e, ids: number[]) => {
+  const list = (Array.isArray(ids) ? ids : []).filter(Number.isInteger)
+  if (list.length) purge(`deleted_at is not null and id in (${list.map(() => '?').join(', ')})`, ...list)
+})
 
 /* backup: a dated folder with a consistent copy of the database and every file */
 
@@ -332,6 +338,11 @@ ipcMain.handle('ingest:buffer', (_e, data: ArrayBuffer) => ingestBuffer(data))
 
 ipcMain.handle('settings:get', () => getSettings())
 ipcMain.handle('settings:resetToken', () => resetToken())
+
+// the folder Chrome's "Load unpacked" needs: shipped beside the app, or the repo's in development
+const extensionDir = () => (app.isPackaged ? join(process.resourcesPath, 'extension') : join(app.getAppPath(), 'extension'))
+ipcMain.handle('extension:folder', () => extensionDir())
+ipcMain.handle('extension:show', () => shell.openPath(extensionDir()))
 ipcMain.handle('settings:saveProvider', (_e, p: AiProvider, patch: Parameters<typeof saveProvider>[1]) => saveProvider(p, patch))
 ipcMain.handle('settings:setActiveProvider', (_e, p: AiProvider | null) => setActiveProvider(p))
 ipcMain.handle('settings:setOpenAtLogin', (_e, on: boolean) => {
@@ -365,6 +376,8 @@ ipcMain.handle('search:semantic', async (_e, query: string) => {
 /* ---------- window ---------- */
 
 let win: BrowserWindow | null = null
+// the logo in the taskbar's colours once drawn (taskbarIcon.ts); the file until then
+let windowIcon: NativeImage | string = icon
 let quitting = false
 
 function show(): void {
@@ -384,7 +397,7 @@ function createWindow(visible: boolean): void {
     // No native title bar; the renderer draws a drag strip. Windows and Linux get the renderer's
     // own buttons too; macOS keeps its native ones, placed inside that 40 px strip.
     titleBarStyle: 'hidden',
-    icon,
+    icon: windowIcon,
     ...(process.platform === 'darwin' ? { trafficLightPosition: { x: 16, y: 13 } } : {}),
     autoHideMenuBar: true, // menu still answers its shortcuts (reload, devtools) and Alt
     webPreferences: { preload: join(__dirname, '../preload/index.js') }
@@ -405,23 +418,39 @@ function createWindow(visible: boolean): void {
 }
 
 // The extension asks to connect: bring Tessera forward, even from the tray, and let the person
-// compare the code the extension shows with this one before allowing it.
-async function askToPair(code: string, extensionId: string, signal: AbortSignal): Promise<boolean> {
+// compare the code the extension shows with this one before allowing it. The window draws the
+// question itself (Dialogs.tsx); the request waits here, since the window may still be loading.
+// ponytail: one request at a time; a newer one declines the older. Queue them if that bites.
+let pairing: (PairRequest & { answer: (ok: boolean) => void }) | null = null
+let pairSeq = 0
+const pairChanged = () => win?.webContents.send('pair:changed')
+
+function askToPair(code: string, extensionId: string, signal: AbortSignal): Promise<boolean> {
+  if (signal.aborted) return Promise.resolve(false)
   show()
-  const options = {
-    type: 'question' as const,
-    title: 'Connect browser extension',
-    message: 'Allow a browser extension to save to Tessera?',
-    detail: `Only allow it if the extension shows the same code:\n\n${code.split('').join('  ')}\n\nExtension ID: ${extensionId}`,
-    buttons: ['Allow', "Don't allow"],
-    defaultId: 1,
-    cancelId: 1,
-    noLink: true,
-    signal
-  }
-  const { response } = win ? await dialog.showMessageBox(win, options) : await dialog.showMessageBox(options)
-  return response === 0
+  pairing?.answer(false)
+  return new Promise((resolve) => {
+    const id = ++pairSeq
+    const answer = (ok: boolean) => {
+      if (pairing?.id !== id) return
+      pairing = null
+      signal.removeEventListener('abort', onAbort)
+      pairChanged()
+      resolve(ok)
+    }
+    const onAbort = () => answer(false) // the extension gave up waiting
+    pairing = { id, code, extensionId, answer }
+    signal.addEventListener('abort', onAbort)
+    pairChanged()
+  })
 }
+
+ipcMain.handle('pair:get', (): PairRequest | null =>
+  pairing && { id: pairing.id, code: pairing.code, extensionId: pairing.extensionId }
+)
+ipcMain.handle('pair:answer', (_e, id: number, ok: boolean) => {
+  if (pairing?.id === id) pairing.answer(ok)
+})
 
 function quit(): void {
   quitting = true
@@ -461,6 +490,11 @@ else {
     void indexImages() // backfill same-vibe vectors; downloads the model on first run
     void indexText() // and the text-meaning vectors (another small model, ~23 MB)
     createTray(show, quit)
+    followTaskbarTheme((w, t) => {
+      windowIcon = w
+      win?.setIcon(w)
+      setTrayIcon(t)
+    })
     createWindow(!startedHidden())
     app.on('activate', show)
   })

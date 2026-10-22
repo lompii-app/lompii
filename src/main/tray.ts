@@ -1,4 +1,4 @@
-import { app, Menu, nativeImage, Tray } from 'electron'
+import { app, Menu, nativeImage, Tray, type NativeImage } from 'electron'
 
 // Tessera keeps running in the tray when its window is closed, so the extension can always
 // save. Quit is in the tray menu.
@@ -49,6 +49,9 @@ export function createTray(show: () => void, quit: () => void): Tray {
   tray.on('click', show)
   return tray
 }
+
+// redrawn to suit the taskbar's light or dark mode (taskbarIcon.ts)
+export const setTrayIcon = (img: NativeImage): void => tray?.setImage(img)
 
 // first close only: explain where the window went
 export function trayHint(): void {

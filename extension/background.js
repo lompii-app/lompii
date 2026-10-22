@@ -22,6 +22,18 @@ chrome.contextMenus.removeAll(() => {
   chrome.contextMenus.create({ id: 'capture-view', title: 'Capture visible area', contexts: ['page', 'frame'] })
 })
 
+// The toolbar icon's dark tiles vanish on a dark toolbar, so it swaps to white ones there. Only a
+// page can read prefers-color-scheme; a hidden offscreen page (offscreen.js) reports it to us.
+// Created on every worker start; Chrome refuses a second one, which is fine.
+chrome.offscreen
+  .createDocument({ url: 'offscreen.html', reasons: ['MATCH_MEDIA'], justification: 'Match the toolbar icon to light or dark mode' })
+  .catch(() => {})
+
+const ICONS = {
+  light: { 16: 'icons/16.png', 32: 'icons/32.png' },
+  dark: { 16: 'icons/dark-16.png', 32: 'icons/dark-32.png' }
+}
+
 chrome.runtime.onInstalled.addListener(({ reason }) => {
   if (reason === 'install') chrome.runtime.openOptionsPage()
   // content scripts only reach pages loaded from now on; give tabs already open pointer.js too
@@ -261,6 +273,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 })
 
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+  if (msg?.type === 'theme') {
+    chrome.action.setIcon({ path: msg.dark ? ICONS.dark : ICONS.light })
+    return
+  }
   if (msg?.type === 'capture') {
     reply() // let the popup close; the capture runs on without it
     chrome.tabs.query({ active: true, lastFocusedWindow: true }).then(([tab]) => capture(tab, msg.mode))

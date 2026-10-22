@@ -40,6 +40,9 @@ export const quoteParts = (body: string): { text: string; author: string | null 
 // are matched to existing ones by it, and the tag manager suggests merges with it.
 export const stem = (tag: string) => tag.replace(/(ing|ed|al|ly|s)$/, '') || tag
 
+// a browser extension asking to connect; the person compares `code` with the one it shows
+export type PairRequest = { id: number; code: string; extensionId: string }
+
 export type Stack = { id: number; name: string; color: string; items: number[] } // items newest first
 
 export const isHttpUrl = (u: string): boolean => {
@@ -134,6 +137,7 @@ export type TesseraAPI = {
   trashCount(): Promise<number>
   trashList(): Promise<Item[]> // most recently deleted first
   emptyTrash(): Promise<void>
+  deleteForever(ids: number[]): Promise<void> // items in the trash, files and all
   backup(): Promise<string | null> // the backup folder, or null if cancelled
 
   ingestPaths(paths: string[]): Promise<number>
@@ -149,6 +153,11 @@ export type TesseraAPI = {
 
   getSettings(): Promise<Settings>
   resetToken(): Promise<Settings> // a new extension key: every paired browser must connect again
+  pairRequest(): Promise<PairRequest | null> // the connection request waiting for an answer
+  answerPair(id: number, ok: boolean): Promise<void>
+  onPairChanged(cb: () => void): () => void // a request arrived, was answered, or timed out
+  extensionFolder(): Promise<string> // the folder to choose in Chrome's "Load unpacked"
+  showExtensionFolder(): Promise<string> // opens it in Explorer; '' or an error message
   // key: a new key; '' removes it; left out keeps the saved one
   saveProvider(provider: AiProvider, patch: { key?: string; model?: string; baseUrl?: string }): Promise<Settings>
   setActiveProvider(provider: AiProvider | null): Promise<Settings>

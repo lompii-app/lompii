@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { isText, quoteParts, type Item, type Stack } from '@shared/api'
+import { Confirm } from './Dialogs'
 import { STACK_COLORS } from './Filters'
 import { url } from './useItems'
 
@@ -108,10 +109,14 @@ export default function Stacks({
   )
 }
 
+// Every card in a pile is the same square, so the deck reads as one object whatever the
+// items' shapes; images are cropped from the top, where captures keep their headline.
+const CARD = 'aspect-square h-full max-w-full overflow-hidden rounded-[4px] shadow-lift'
+
 function Card({ item }: { item: Item }) {
   if (isText(item.kind))
     return (
-      <div className="w-4/5 rounded-[4px] bg-card px-5 py-4 shadow-lift">
+      <div className={`${CARD} grid place-items-center bg-card px-5 py-4`}>
         {item.kind === 'quote' ? (
           <p className="line-clamp-5 text-center font-quote text-[14px] italic leading-snug text-fg">“{quoteParts(item.body ?? '').text}”</p>
         ) : (
@@ -125,7 +130,7 @@ function Card({ item }: { item: Item }) {
       alt=""
       draggable={false}
       style={{ background: item.dominant_color }}
-      className="max-h-full max-w-full rounded-[4px] object-contain shadow-lift"
+      className={`${CARD} object-cover object-top`}
     />
   )
 }
@@ -171,8 +176,10 @@ function StackDialog({
     }
   }
 
+  const [confirming, setConfirming] = useState(false)
   const remove = async () => {
-    if (!editing || !confirm(`Delete the stack “${editing.name}”? The items in it stay in your library.`)) return
+    setConfirming(false)
+    if (!editing) return
     await window.tessera.deleteStack(editing.id)
     done()
   }
@@ -221,7 +228,7 @@ function StackDialog({
           {editing && (
             <button
               type="button"
-              onClick={remove}
+              onClick={() => setConfirming(true)}
               className="rounded-md px-3 py-2 text-[14px] text-red-600 transition-colors hover:bg-red-500/10"
             >
               Delete stack
@@ -239,6 +246,15 @@ function StackDialog({
           </button>
         </div>
       </form>
+      <Confirm
+        open={confirming}
+        title={`Delete “${editing?.name}”?`}
+        confirmLabel="Delete stack"
+        onConfirm={remove}
+        onCancel={() => setConfirming(false)}
+      >
+        The items in it stay in your library.
+      </Confirm>
     </dialog>
   )
 }

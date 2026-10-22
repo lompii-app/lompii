@@ -9,6 +9,10 @@ files:
   - "!**/node_modules/onnxruntime-web/**"
   # better-sqlite3's C sources; the compiled module is all that's loaded
   - "!**/node_modules/better-sqlite3/{deps,src}/**"
+# the Chrome extension, so Settings can point "Load unpacked" at a real folder
+extraResources:
+  - from: extension
+    to: extension
 asarUnpack:
   - "**/node_modules/better-sqlite3/**"
   - "**/node_modules/sharp/**"

@@ -55,7 +55,9 @@ A desktop app for Windows (Electron) with a companion Chrome extension.
 **Kinds**
 - **Image**, **Capture** (a screenshot of a page or part of one), **Quote** and **Snippet**.
   Saved text containing a quoted span (`"…"` or `“…”`) becomes a quote; anything else is a
-  snippet. Quotes render as serif cards with their own quote marks.
+  snippet. Quotes are set in Garamond italic, with a “ at the top-left of the words and a ”
+  at the bottom-right. A quote saved as `“…” — Oscar Wilde` is split: the cards show only the
+  words, and the author appears at the foot of the overlay.
 
 **Understanding (AI)**
 - Each item gets a **title**, a one- or two-sentence **TLDR**, **6–10 search tags**
@@ -68,6 +70,9 @@ A desktop app for Windows (Electron) with a companion Chrome extension.
   OpenAI-compatible server (LM Studio, LiteLLM, vLLM…). Each provider keeps its own key, so you
   can set up several and switch between them; **Test connection** checks one, and its
   **Models** list comes live from the provider.
+- **Generate prompt**: from an image's overlay, the AI writes a text-to-image prompt
+  (Midjourney, DALL·E, Stable Diffusion) that would recreate it: subject and composition,
+  style, lighting, palette, mood, camera, and the aspect ratio. Copy it, or ask for another.
 
 **Finding**
 - **Search** across titles, tags, TLDRs, notes, quote and snippet text, and text inside
@@ -79,32 +84,39 @@ A desktop app for Windows (Electron) with a companion Chrome extension.
 - **Type filters** (Images, Captures, Quotes, Snippets) appear under the search.
 - **Same vibe**: from any item, see the items most like it: how images look (CLIP), what any
   item is about (MiniLM), plus shared tags and palette.
-- A **floating search pill** takes over once you scroll past the header.
+- A **floating search pill** takes over once you scroll past the header, and a **back to
+  top** button appears in the bottom-right corner.
 
 **Organising**
-- **Stacks**: named, coloured collections you build by hand, shown as fanned piles.
-  Add an item to stacks from its overlay; rename, recolour or delete stacks.
+- **Stacks**: named, coloured collections you build by hand, shown as fanned piles of
+  same-sized cards. Add an item to stacks from its overlay; rename, recolour or delete stacks.
+- **Save a search as a stack**: once a search has chips, *Save as stack* puts the results in
+  a stack named after them. Saving the same search again adds new matches to that stack.
 - **Tags**: add or remove your own alongside the AI's; **Manage tags** renames, merges or
   deletes tags across the whole library, several at once, and suggests merging look-alikes
   (gradients / gradient).
 - **Select several items** (Ctrl- or Shift-click) to add them to a stack, tag them or delete
   them together.
-- **Notes** on any item.
+- **Notes** on any item: a one-line field that grows as you write.
 
 **Keeping it safe**
 - **Runs in the tray**: closing the window keeps Tessera running so the extension can always
   save. Optionally starts at login (installed app).
 - **Trash with undo**: deleting shows an *Undo*; the trash (in the sidebar) keeps deleted
-  items for 30 days, and clicking one restores it.
+  items for 30 days. Restore or delete for good one card at a time, or select several.
+- **Tessera's own pop-ups**: connecting a browser, deleting a stack and emptying the trash ask
+  in Tessera's style, not the system's.
 - **Back up** the whole library (database and files) to a folder you choose.
 
 **Viewing**
-- A masonry grid of cards with captions; full-page captures show their top.
+- A masonry grid of cards with captions; full-page captures show their top. New saves slot
+  in at the top and the grid rearranges around them.
 - **Light and dark mode**, and **three card sizes** (large, medium, small), from the sidebar.
   Both are remembered; the theme follows the system until you pick one.
 - A detail overlay with the item on its dominant colour, a four-colour **palette** (click a
-  swatch to copy its hex), the source link, TLDR, tags, notes, and **Download**, **Add to
-  stack**, **Copy** (image or text to the clipboard) and **Delete**.
+  swatch to copy its hex), the source link, TLDR, **Generate prompt**, tags (about three rows;
+  click the faded row for the rest), notes, and **Download**, **Add to stack**, **Copy** (image
+  or text to the clipboard) and **Delete**. The grid behind it stays put while it's open.
 
 ---
 
@@ -129,10 +141,16 @@ npm run dev      # starts the app; restarts itself when main-process code change
 | --- | --- |
 | `npm run dev` | Run in development with hot reload. The renderer reloads in place; changes to `src/main` or `src/preload` restart Electron. |
 | `npm run typecheck` | Type-check the whole project (`tsc --noEmit`). |
-| `npm test` | Run the tests (plain Node, no framework): parsing, the quote rule, scoring. |
+| `npm test` | Run the tests (plain Node, no framework): parsing, the quote rules, scoring. |
 | `npm run build` | Type-check, then build to `out/`. |
 | `npm run pack` | Build and package an unpacked app into `release/` (quick check). |
 | `npm run dist` | Build the Windows installer, `release/Tessera Setup <version>.exe` (~140 MB). |
+
+### Before you push
+
+A git hook in [`.githooks/pre-push`](.githooks/pre-push) runs `npm run typecheck` and
+`npm test` before every `git push`, and stops the push if either fails. `npm install` turns it
+on (it sets `core.hooksPath`). Fix what it reports rather than skipping it with `--no-verify`.
 
 ---
 
@@ -142,7 +160,8 @@ The extension lives in [`extension/`](extension) and needs no build step.
 
 1. Start Tessera.
 2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**
-   and choose the `extension` folder.
+   and choose the `extension` folder. *Settings → Extension* walks through this and shows the
+   folder, with a *Show folder* button; the installer ships the folder beside the app.
 3. The extension's options page opens. Click **Connect**: it shows a four-digit code, and
    Tessera comes forward asking to allow a browser extension. If the codes match, click
    **Allow**. The options page then says *Connected to Tessera*; no key to copy.
@@ -150,6 +169,10 @@ The extension lives in [`extension/`](extension) and needs no build step.
 
 After editing anything in `extension/`, click the reload icon on the extension's card in
 `chrome://extensions`.
+
+The toolbar icon follows Chrome's light or dark mode (white tiles on a dark toolbar), read by a
+hidden offscreen page. The right-click menu icon can't change at run time, so it uses grey
+tiles that read on both. Tessera's own taskbar and tray icons do the same for the Windows mode.
 
 | How | What it saves |
 | --- | --- |
@@ -202,6 +225,9 @@ Any model that accepts images works; the defaults are only starting points. For 
 While an item is being analysed, its overlay shows a glow in the TLDR box. The AI's title
 replaces page titles and file names; its tags are ordinary tags you can remove.
 
+**Generate prompt** in an image's overlay is a separate, on-demand call with the same key; the
+prompt isn't saved.
+
 Requests run two at a time in the background. Claude calls use the official
 `@anthropic-ai/sdk` with structured JSON output and Anthropic's server-side refusal fallback;
 other providers are called over their HTTP APIs.
@@ -217,19 +243,24 @@ other providers are called over their HTTP APIs.
   move between items while it's open.
 - **Search**: click the search (or `Ctrl+K`) to see the type filters; pick one, type words,
   press `Enter` to keep a word as a chip. `Backspace` in an empty search removes the last chip.
+  With chips in place, *Save as stack* on the right of the search keeps the results as a stack.
+- **Back to top**: the arrow button in the bottom-right, once you've scrolled down.
 - **Same vibe**: in an item's overlay, bottom left. Clear it with the × on its chip.
 - **Select several**: `Ctrl`-click cards to toggle them, `Shift`-click to select a run. While
   anything is selected a plain click toggles too; a bar at the bottom offers Add to stack, Add
   tags and Delete. `Esc` clears the selection.
 - **Delete** moves to the trash and shows a banner with *Undo* and a link to the trash. The
-  **trash** (the bin icon above Settings) shows deleted items; click one to restore it, or
-  *Empty trash*. *Settings → General* backs up the library and opens *Manage tags*.
+  **trash** (the bin icon above Settings) shows deleted items; hover a card for *Restore* or
+  *Delete forever*, tick several to do either at once, or *Empty trash*. In Settings → General, *Back up* copies the library to a folder and
+  *Manage tags* opens the tag manager.
 - **Closing the window** leaves Tessera in the tray. Quit from the tray icon.
 - **Stacks**: *New stack* on the Stacks page, or *Add to stack* (the round button) in an
   item's overlay, which can also create one. The pencil next to a stack's name renames,
   recolours or deletes it; deleting a stack keeps its items.
 - **Palette**: hover the swatches in the overlay to fan them out; click one to copy its hex,
   or the white ring to copy all of them.
+- **Generate prompt**: in an image's overlay, under the TLDR (needs an AI key). *Copy prompt*
+  puts it on the clipboard; *Write another* asks again.
 
 ## Keyboard shortcuts
 
@@ -326,6 +357,7 @@ src/
   shared/api.ts  types and helpers shared by main and renderer
 extension/       Chrome extension (Manifest V3, plain JS)
 test/            npm test
+.githooks/       pre-push: typecheck and tests before every push
 build/icon.png   app icon
 project.md       product spec: the problem, principles, status and what's next
 PRODUCT.md       short product brief used for design work (users, positioning, principles)
@@ -347,8 +379,8 @@ Everything is stored in Electron's user-data folder, on Windows
 
 - The **AI key** is encrypted with the operating system's secure storage (Electron
   `safeStorage`) and never reaches the renderer.
-- During analysis, the item (a resized JPEG, or its text) is sent to the AI provider you chose.
-  Nothing else leaves your computer.
+- During analysis, and when you ask for a prompt, the item (a resized JPEG, or its text) is
+  sent to the AI provider you chose. Nothing else leaves your computer.
 - None of this data is in the repository.
 
 ## Known limitations
@@ -364,7 +396,8 @@ Everything is stored in Electron's user-data folder, on Windows
 ## Roadmap
 
 - Tessera's own visual identity, replacing the current mymind-like look (in progress)
-- Smart stacks: a stack defined by a saved search
+- Smart stacks that keep updating from a saved search (today *Save as stack* is a snapshot you
+  can re-save)
 - Creative DNA attributes from `project.md` as structured, filterable facets
 - Restoring from a backup inside the app (today: copy the backup's files back while Tessera is closed)
 - A macOS build, and code signing

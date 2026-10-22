@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Settings, Stack } from '@shared/api'
 import Detail from './Detail'
+import { PairPrompt } from './Dialogs'
 import { ActiveFilter, buildFilters, FilterRow, STACK_COLORS, TermChip, type Filter, type TagIndex } from './Filters'
 import Grid from './Grid'
 import Sidebar from './Sidebar'
@@ -354,9 +355,9 @@ export default function App() {
         onScroll={(e) =>
           setScrolled(e.currentTarget.scrollTop > (headerRef.current?.offsetHeight ?? 0) - 40)
         }
-        // the overlay sits outside, but Chromium still sends its wheel here; freeze it while open.
-        // The stable gutter keeps the grid from shifting when the scrollbar goes away.
-        className={`relative min-w-0 flex-1 overflow-x-hidden [scrollbar-gutter:stable] ${
+        // No visible scrollbar (wheel, keys and the back-to-top button do the scrolling). The overlay
+        // sits outside, but Chromium still sends its wheel here, so it's frozen while open.
+        className={`relative min-w-0 flex-1 overflow-x-hidden [scrollbar-width:none] ${
           open ? 'overflow-y-hidden' : 'overflow-y-auto'
         }`}
       >
@@ -439,10 +440,10 @@ export default function App() {
         )}
       </main>
 
-      {/* right-3 leaves the scrollbar uncovered; pr-17 then lines the pill up with the content */}
+      {/* pr-20 lines the pill up with the content, which has the same right padding */}
       <div
         inert={!scrolled || view === 'trash'}
-        className={`fixed top-10 right-3 left-20 z-30 pr-17 pl-1 transition duration-200 ease-out ${
+        className={`fixed top-10 right-0 left-20 z-30 pr-20 pl-1 transition duration-200 ease-out ${
           scrolled && view !== 'trash' ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-3 opacity-0'
         }`}
       >
@@ -556,6 +557,8 @@ export default function App() {
       )}
 
       <TagsDialog ref={tagsRef} onChange={refreshStacks} />
+
+      <PairPrompt />
 
       <SettingsDialog
         ref={settingsRef}

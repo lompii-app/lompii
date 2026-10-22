@@ -26,6 +26,7 @@ const api: TesseraAPI = {
   trashCount: () => ipcRenderer.invoke('trash:count'),
   trashList: () => ipcRenderer.invoke('trash:list'),
   emptyTrash: () => ipcRenderer.invoke('trash:empty'),
+  deleteForever: (ids) => ipcRenderer.invoke('trash:delete', ids),
   backup: () => ipcRenderer.invoke('library:backup'),
 
   ingestPaths: (paths) => ipcRenderer.invoke('ingest:paths', paths),
@@ -37,6 +38,14 @@ const api: TesseraAPI = {
     ipcRenderer.on('item:added', handler)
     return () => ipcRenderer.off('item:added', handler)
   },
+
+  onPairChanged: (cb) => {
+    const handler = () => cb()
+    ipcRenderer.on('pair:changed', handler)
+    return () => ipcRenderer.off('pair:changed', handler)
+  },
+  pairRequest: () => ipcRenderer.invoke('pair:get'),
+  answerPair: (id, ok) => ipcRenderer.invoke('pair:answer', id, ok),
 
   onUpdated: (cb) => {
     const handler = (_e: unknown, item: Item) => cb(item)
@@ -50,6 +59,8 @@ const api: TesseraAPI = {
 
   getSettings: () => ipcRenderer.invoke('settings:get'),
   resetToken: () => ipcRenderer.invoke('settings:resetToken'),
+  extensionFolder: () => ipcRenderer.invoke('extension:folder'),
+  showExtensionFolder: () => ipcRenderer.invoke('extension:show'),
   saveProvider: (p, patch) => ipcRenderer.invoke('settings:saveProvider', p, patch),
   setActiveProvider: (p) => ipcRenderer.invoke('settings:setActiveProvider', p),
   setOpenAtLogin: (on) => ipcRenderer.invoke('settings:setOpenAtLogin', on),
