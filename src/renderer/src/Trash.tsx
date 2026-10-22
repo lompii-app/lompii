@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { isText, type Item } from '@shared/api'
+import { isText, quoteParts, type Item } from '@shared/api'
 import { url } from './useItems'
 
 const TIP_KEY = 'tessera.trashTipDismissed'
@@ -87,10 +87,10 @@ export default function Trash({ onExit, onRestored }: { onExit: () => void; onRe
               {isText(item.kind) ? (
                 <p
                   className={`bg-card px-6 py-5 text-fg ${
-                    item.kind === 'quote' ? 'font-serif text-[18px] leading-snug' : 'text-left text-[14px] leading-relaxed'
+                    item.kind === 'quote' ? 'font-quote text-[18px] leading-snug italic' : 'text-left text-[14px] leading-relaxed'
                   } line-clamp-8`}
                 >
-                  {item.kind === 'quote' ? `“${item.body}”` : item.body}
+                  {item.kind === 'quote' ? `“${quoteParts(item.body ?? '').text}”` : item.body}
                 </p>
               ) : (
                 <img

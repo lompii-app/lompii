@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { isText, type Item } from '@shared/api'
+import { isText, quoteParts, type Item } from '@shared/api'
 import type { Density } from './prefs'
 import { url } from './useItems'
 
@@ -147,6 +147,7 @@ function Tile({
 }) {
   const [loaded, setLoaded] = useState(false)
   const text = caption(item)
+  const quote = quoteParts(item.body ?? '').text // the author shows only in the overlay
   const card = `w-full overflow-hidden rounded-[4px] shadow-card transition-shadow duration-200 group-hover:shadow-lift ${
     selected || picked ? 'outline-2 outline-offset-2 outline-accent' : ''
   }`
@@ -167,10 +168,8 @@ function Tile({
         </span>
       )}
       {item.kind === 'quote' ? (
-        <blockquote className={`${card} bg-card px-7 py-6 text-center font-serif text-fg`}>
-          <span aria-hidden className="block font-[Georgia,serif] text-[30px] leading-none">“</span>
-          <p className="my-3 line-clamp-[12] text-[19px] leading-snug whitespace-pre-line">{item.body}</p>
-          <span aria-hidden className="block font-[Georgia,serif] text-[30px] leading-none">”</span>
+        <blockquote className={`${card} bg-card px-7 py-6 text-center font-quote text-[21px] leading-snug text-fg`}>
+          <CornerQuote text={quote} className="line-clamp-[12]" />
         </blockquote>
       ) : item.kind === 'snippet' ? (
         <div className={`${card} bg-card px-6 py-5 text-left text-fg`}>
@@ -201,5 +200,19 @@ function Tile({
         </span>
       )}
     </button>
+  )
+}
+
+// The words in italic with “ at their top-left and ” at their bottom-right, the same gap on each
+// side. The box shrinks to the text, so a short quote keeps its marks close. Sized in em: set the
+// font size on the parent. The marks stay upright; italic ones lean right and look off-centre.
+export function CornerQuote({ text, className = '' }: { text: string; className?: string }) {
+  const mark = 'absolute h-[.5em] text-[2.1em] leading-none font-bold not-italic text-dim'
+  return (
+    <div className="relative mx-auto w-fit max-w-full px-[1.1em] py-[1.15em]">
+      <b aria-hidden className={`${mark} top-0 left-0`}>“</b>
+      <p className={`italic whitespace-pre-line ${className}`}>{text}</p>
+      <b aria-hidden className={`${mark} right-0 bottom-0`}>”</b>
+    </div>
   )
 }

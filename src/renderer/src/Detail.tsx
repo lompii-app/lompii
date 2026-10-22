@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { isText, type Item, type Stack, type Tag } from '@shared/api'
+import { isText, quoteParts, type Item, type Stack, type Tag } from '@shared/api'
 import { Icon, KINDS, STACK_COLORS } from './Filters'
+import { CornerQuote } from './Grid'
 import { url } from './useItems'
 
 const LABEL = 'text-[11px] uppercase tracking-wider text-dim'
@@ -107,6 +108,7 @@ export default function Detail({
 
   const closeOnSelf = (e: React.MouseEvent) => e.target === e.currentTarget && onClose()
   const tall = !isText(item.kind) && item.height / item.width > 2
+  const quote = item.kind === 'quote' ? quoteParts(item.body ?? '') : { text: '', author: null }
 
   return (
     <div
@@ -133,10 +135,9 @@ export default function Detail({
                 {item.body}
               </div>
             ) : item.kind === 'quote' ? (
-              <blockquote className="max-h-full max-w-3xl cursor-text overflow-y-auto text-center font-serif text-fg select-text">
-                <span aria-hidden className="block font-[Georgia,serif] text-[52px] leading-none">“</span>
-                <p className="my-6 text-[34px] leading-snug whitespace-pre-line">{item.body}</p>
-                <span aria-hidden className="block font-[Georgia,serif] text-[52px] leading-none">”</span>
+              // no scroll of its own: a long quote scrolls the whole pane
+              <blockquote className="max-w-4xl cursor-text pb-10 text-center font-quote text-[48px] leading-tight text-fg select-text">
+                <CornerQuote text={quote.text} />
               </blockquote>
             ) : (
               <img
@@ -147,6 +148,9 @@ export default function Detail({
               />
             )}
           </div>
+          {quote.author && (
+            <p className="pointer-events-none absolute inset-x-0 bottom-7 text-center text-[15px] text-dim">{quote.author}</p>
+          )}
           <div className="absolute bottom-5 left-5 flex items-center gap-3">
             {palette.length > 0 && (
               // overlapped at rest, fanned out on hover; the ring at the end copies all of them

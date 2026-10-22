@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { isText, type Item, type Stack } from '@shared/api'
+import { isText, quoteParts, type Item, type Stack } from '@shared/api'
 import { STACK_COLORS } from './Filters'
 import { url } from './useItems'
 
@@ -113,7 +113,7 @@ function Card({ item }: { item: Item }) {
     return (
       <div className="w-4/5 rounded-[4px] bg-card px-5 py-4 shadow-lift">
         {item.kind === 'quote' ? (
-          <p className="line-clamp-5 text-center font-serif text-[14px] leading-snug text-fg">“{item.body}”</p>
+          <p className="line-clamp-5 text-center font-quote text-[14px] italic leading-snug text-fg">“{quoteParts(item.body ?? '').text}”</p>
         ) : (
           <p className="line-clamp-6 text-[12px] leading-relaxed text-fg">{item.body}</p>
         )}

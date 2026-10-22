@@ -2,7 +2,7 @@
 // mistakes would be silent, wrong data rather than crashes.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { detectProvider, textKind } from '../src/shared/api.ts'
+import { detectProvider, quoteParts, textKind } from '../src/shared/api.ts'
 import { canonicalTags, jaccard, paletteSimilarity, parse, relevance, rgb, stem, visualSimilarity } from '../src/main/scoring.ts'
 
 test('quote or snippet: a quoted span makes a quote', () => {
@@ -11,6 +11,16 @@ test('quote or snippet: a quoted span makes a quote', () => {
   assert.equal(textKind('«Bonjour»'), 'quote')
   assert.equal(textKind('Since launching in 2026, Natively has become…'), 'snippet')
   assert.equal(textKind('one " mark only'), 'snippet')
+})
+
+test('a trailing dash line is the quote author', () => {
+  assert.deepEqual(quoteParts('“Be yourself; everyone else is already taken.”\n— Oscar Wilde'), {
+    text: 'Be yourself; everyone else is already taken.',
+    author: 'Oscar Wilde'
+  })
+  assert.deepEqual(quoteParts('"Less is more" - Mies'), { text: 'Less is more', author: 'Mies' })
+  assert.deepEqual(quoteParts('So many books, so little time.'), { text: 'So many books, so little time.', author: null })
+  assert.deepEqual(quoteParts('I came — I saw'), { text: 'I came — I saw', author: null })
 })
 
 test('provider is guessed from the key prefix', () => {

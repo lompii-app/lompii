@@ -30,6 +30,12 @@ export const isText = (kind: Kind): boolean => kind === 'quote' || kind === 'sni
 export const textKind = (text: string): 'quote' | 'snippet' =>
   /["“”„«»][^]*["“”„«»]/.test(text) ? 'quote' : 'snippet'
 
+// “…” — Oscar Wilde → the words and the author; the cards draw their own quote marks.
+export const quoteParts = (body: string): { text: string; author: string | null } => {
+  const m = body.match(/^\s*["“„«]([^]*)["”»]\s*[—–―-]+\s*([^\n]{1,80})$/)
+  return m ? { text: m[1].trim(), author: m[2].trim() } : { text: body, author: null }
+}
+
 export type Stack = { id: number; name: string; color: string; items: number[] } // items newest first
 
 export const isHttpUrl = (u: string): boolean => {
