@@ -1,6 +1,8 @@
 // Pure logic with no Electron or database: parsing what the AI returns, and the numbers behind
 // same vibe and search. Kept apart so test/scoring.test.ts can run it under plain Node.
 
+import { stem } from '../shared/api.ts'
+
 export type Result = { title: string; tldr: string; tags: string[]; text: string }
 
 // the kinds are shown on their own; as tags they'd only add noise
@@ -24,11 +26,8 @@ export function parse(raw: string): Result {
   }
 }
 
-// Endings that make near-duplicate tags (motivational/motivation, photos/photo). Used only to
-// match a new tag to one the library already has; the existing spelling wins.
-export const stem = (tag: string) => tag.replace(/(ing|ed|al|ly|s)$/, '') || tag
-
-// `known` is the library's tags, most used first
+// A new tag takes the spelling of an existing one with the same stem; `known` is the
+// library's tags, most used first
 export function canonicalTags(tags: string[], known: string[]): string[] {
   const byStem = new Map<string, string>()
   for (const value of known) if (!byStem.has(stem(value))) byStem.set(stem(value), value)

@@ -49,11 +49,13 @@ const api: TesseraAPI = {
   windowControl: (action) => ipcRenderer.invoke('window:control', action),
 
   getSettings: () => ipcRenderer.invoke('settings:get'),
-  setAi: (patch) => ipcRenderer.invoke('settings:setAi', patch),
+  saveProvider: (p, patch) => ipcRenderer.invoke('settings:saveProvider', p, patch),
+  setActiveProvider: (p) => ipcRenderer.invoke('settings:setActiveProvider', p),
   setOpenAtLogin: (on) => ipcRenderer.invoke('settings:setOpenAtLogin', on),
   analyse: (id) => ipcRenderer.invoke('ai:analyse', id),
   analyseAll: () => ipcRenderer.invoke('ai:analyseAll'),
-  testAi: (patch) => ipcRenderer.invoke('ai:test', patch),
+  testProvider: (p) => ipcRenderer.invoke('ai:test', p),
+  listModels: (p) => ipcRenderer.invoke('ai:models', p),
   imagePrompt: (id) => ipcRenderer.invoke('ai:prompt', id),
   embeddingStatus: () => ipcRenderer.invoke('embeddings:status'),
   searchSemantic: (query) => ipcRenderer.invoke('search:semantic', query)

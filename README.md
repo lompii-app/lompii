@@ -17,7 +17,9 @@ anyone else who collects inspiration:
   match what things *look like* and what they *mean*, not just the words you typed.
 - **Yours alone.** Your library, its search models and your keys stay on your computer.
   Nothing leaves it except the item you ask your own AI provider to describe.
-- **Any AI you like:** Claude, OpenAI, Gemini, OpenRouter, or a model running on your machine.
+- **Free, with your own AI.** Tessera costs nothing. Bring your own API key for Claude, OpenAI,
+  Gemini or OpenRouter, or run models locally with Ollama or any OpenAI-compatible server:
+  no account, no subscription, and with a local model nothing leaves your computer at all.
 
 A desktop app for Windows (Electron) with a companion Chrome extension.
 
@@ -61,8 +63,11 @@ A desktop app for Windows (Electron) with a companion Chrome extension.
   reuses your existing tags where they fit, and near-duplicates (motivational / motivation)
   fold into the tag you already have.
 - Rate limits and overloaded providers are retried automatically.
-- Works with **any provider's API key**: Anthropic (Claude), OpenAI, Google Gemini,
-  OpenRouter, or any OpenAI-compatible server (Groq, Ollama, LM Studio…).
+- **Your own key, or no key at all**: Anthropic (Claude), OpenAI, Google Gemini and OpenRouter
+  with your API key, or local models through Ollama (found automatically) and any
+  OpenAI-compatible server (LM Studio, LiteLLM, vLLM…). Each provider keeps its own key, so you
+  can set up several and switch between them; **Test connection** checks one, and its
+  **Models** list comes live from the provider.
 
 **Finding**
 - **Search** across titles, tags, TLDRs, notes, quote and snippet text, and text inside
@@ -80,7 +85,8 @@ A desktop app for Windows (Electron) with a companion Chrome extension.
 - **Stacks**: named, coloured collections you build by hand, shown as fanned piles.
   Add an item to stacks from its overlay; rename, recolour or delete stacks.
 - **Tags**: add or remove your own alongside the AI's; **Manage tags** renames, merges or
-  deletes a tag across the whole library.
+  deletes tags across the whole library, several at once, and suggests merging look-alikes
+  (gradients / gradient).
 - **Select several items** (Ctrl- or Shift-click) to add them to a stack, tag them or delete
   them together.
 - **Notes** on any item.
@@ -159,22 +165,36 @@ its own pages (the New Tab page, `chrome://` pages, the Web Store), so nothing h
 
 ## AI analysis
 
-Open **Settings → AI**, paste an API key and click **Save**. The provider is detected from the
-key's prefix; you can change it and the model.
+Tessera is free. The AI part runs on **your own API key**, so you pay your provider directly for
+what you use, or nothing at all with a **local model**.
 
-| Key starts with | Provider | Default model |
+Open **Settings → AI**:
+
+- **Cloud providers**: paste a key on the Anthropic, OpenAI or Gemini card and click **Save**.
+  *Get key* opens that provider's key page.
+- **Local & gateways**: **Ollama** is found automatically while it's running; pick one of its
+  models. An **OpenAI-compatible server** (LM Studio, LiteLLM, vLLM…) takes a base URL and an
+  optional key. **OpenRouter** gives one key for hundreds of models.
+
+Every card has **Test connection** and a **Models** list fetched from the provider; *Set default*
+picks the model it uses, or type any model ID into the filter. Keys are kept per provider and
+encrypted with your OS keychain. **Active model** at the top (or the switch on a card) chooses
+which provider answers; the first one you set up starts answering on its own.
+
+| Provider | Needs | Default model |
 | --- | --- | --- |
-| `sk-ant-` | Anthropic | `claude-opus-5` |
-| `sk-` | OpenAI | `gpt-4o-mini` |
-| `AIza` | Google Gemini | `gemini-2.5-flash` |
-| `sk-or-` | OpenRouter | `google/gemini-2.5-flash` |
-| — | Other (OpenAI-compatible) | set a model and a base URL, e.g. `http://localhost:11434/v1` |
+| Anthropic | API key | `claude-opus-5` |
+| OpenAI | API key | `gpt-4o-mini` |
+| Google Gemini | API key | `gemini-2.5-flash` |
+| OpenRouter | API key | `google/gemini-2.5-flash` |
+| Ollama | Ollama running on this computer | pick one from its list |
+| OpenAI-compatible server | its base URL, a key if it asks | pick one from its list |
 
 Any model that accepts images works; the defaults are only starting points. For Claude,
 `claude-haiku-4-5` is a much cheaper option than the default.
 
 - **New saves** are analysed automatically once a key is set.
-- **Existing items**: *Settings → Analyse library* queues everything not yet analysed.
+- **Existing items**: *Analyse now* in Settings → AI queues everything not yet analysed.
 - **One item**: the *Analyse* button in its overlay, or *Try again* after a failure (the
   provider's error is shown in the TLDR box).
 
@@ -202,7 +222,7 @@ other providers are called over their HTTP APIs.
   tags and Delete. `Esc` clears the selection.
 - **Delete** moves to the trash and shows a banner with *Undo* and a link to the trash. The
   **trash** (the bin icon above Settings) shows deleted items; click one to restore it, or
-  *Empty trash*. *Settings → Library* backs up the library and opens *Manage tags*.
+  *Empty trash*. *Settings → General* backs up the library and opens *Manage tags*.
 - **Closing the window** leaves Tessera in the tray. Quit from the tray icon.
 - **Stacks**: *New stack* on the Stacks page, or *Add to stack* (the round button) in an
   item's overlay, which can also create one. The pencil next to a stack's name renames,

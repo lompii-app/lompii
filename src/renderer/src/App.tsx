@@ -485,7 +485,7 @@ export default function App() {
           stacks={stacks}
           tagNames={filters.filter((f) => f.icon === 'tag').map((f) => f.label)}
           onStacksChange={refreshStacks}
-          aiReady={!!settings?.ai?.hasKey}
+          aiReady={!!settings?.ai.active}
           onSameVibe={sameVibe}
           onClose={() => setOpen(false)}
           onDelete={remove}

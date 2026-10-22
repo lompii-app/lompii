@@ -36,6 +36,10 @@ export const quoteParts = (body: string): { text: string; author: string | null 
   return m ? { text: m[1].trim(), author: m[2].trim() } : { text: body, author: null }
 }
 
+// Endings that make near-duplicate tags (motivational/motivation, photos/photo): new AI tags
+// are matched to existing ones by it, and the tag manager suggests merges with it.
+export const stem = (tag: string) => tag.replace(/(ing|ed|al|ly|s)$/, '') || tag
+
 export type Stack = { id: number; name: string; color: string; items: number[] } // items newest first
 
 export const isHttpUrl = (u: string): boolean => {
@@ -51,15 +55,19 @@ export type WindowAction = 'close' | 'minimize' | 'maximize'
 
 export type Tag = { id: number; dimension: string; value: string }
 
-export type AiProvider = 'anthropic' | 'openai' | 'gemini' | 'openrouter' | 'custom'
+export type AiProvider = 'anthropic' | 'openai' | 'gemini' | 'openrouter' | 'ollama' | 'custom'
 
 export const AI_PROVIDERS: Record<AiProvider, string> = {
   anthropic: 'Anthropic (Claude)',
   openai: 'OpenAI',
   gemini: 'Google Gemini',
   openrouter: 'OpenRouter',
-  custom: 'Other (OpenAI-compatible)'
+  ollama: 'Ollama',
+  custom: 'OpenAI-compatible server'
 }
+
+// these run on your own machine or network: a key is optional, but a model must be picked
+export const KEYLESS: ReadonlySet<AiProvider> = new Set(['ollama', 'custom'])
 
 // any vision-capable model works; these are only the starting values
 export const DEFAULT_MODELS: Record<AiProvider, string> = {
@@ -67,18 +75,19 @@ export const DEFAULT_MODELS: Record<AiProvider, string> = {
   openai: 'gpt-4o-mini',
   gemini: 'gemini-2.5-flash',
   openrouter: 'google/gemini-2.5-flash',
+  ollama: '',
   custom: ''
 }
 
-// Guess the provider from the key's prefix; the user can still pick another.
-export const detectProvider = (key: string): AiProvider | null => {
-  const k = key.trim()
-  if (k.startsWith('sk-ant-')) return 'anthropic'
-  if (k.startsWith('sk-or-')) return 'openrouter'
-  if (k.startsWith('AIza')) return 'gemini'
-  if (k.startsWith('sk-')) return 'openai'
-  return null
+// where each provider hands out keys; the local server has none
+export const KEY_PAGES: Partial<Record<AiProvider, string>> = {
+  anthropic: 'https://console.anthropic.com/settings/keys',
+  openai: 'https://platform.openai.com/api-keys',
+  gemini: 'https://aistudio.google.com/apikey',
+  openrouter: 'https://openrouter.ai/keys'
 }
+
+export type ModelInfo = { id: string; name: string; vision?: boolean } // vision: known to read images
 
 export type EmbeddingStatus = {
   state: 'idle' | 'loading' | 'ready' | 'failed' // loading includes the first-run model download
@@ -89,7 +98,10 @@ export type EmbeddingStatus = {
 
 export type Settings = {
   token: string
-  ai: { provider: AiProvider; model: string; baseUrl: string; hasKey: boolean } | null
+  ai: {
+    active: AiProvider | null // the provider every analysis goes to
+    providers: Partial<Record<AiProvider, { model: string; baseUrl: string; hasKey: boolean }>>
+  }
   openAtLogin: boolean | null // null: not available (development build)
 }
 
@@ -136,11 +148,14 @@ export type TesseraAPI = {
   windowControl(action: WindowAction): Promise<void>
 
   getSettings(): Promise<Settings>
-  setAi(patch: { provider: AiProvider; model: string; baseUrl: string; key?: string }): Promise<Settings>
+  // key: a new key; '' removes it; left out keeps the saved one
+  saveProvider(provider: AiProvider, patch: { key?: string; model?: string; baseUrl?: string }): Promise<Settings>
+  setActiveProvider(provider: AiProvider | null): Promise<Settings>
   setOpenAtLogin(on: boolean): Promise<Settings>
   analyse(id: number): Promise<void> // queue one item for AI analysis
   analyseAll(): Promise<number> // queue everything not yet analysed; returns how many
-  testAi(patch: { provider: AiProvider; model: string; baseUrl: string; key?: string }): Promise<string | null> // null: the key works; else the error
+  testProvider(provider: AiProvider): Promise<string | null> // null: it answered; else the error
+  listModels(provider: AiProvider): Promise<{ models?: ModelInfo[]; error?: string }>
   imagePrompt(id: number): Promise<string> // a text-to-image prompt that would recreate it; rejects with the reason
   embeddingStatus(): Promise<EmbeddingStatus>
   searchSemantic(query: string): Promise<{ id: number; score: number }[]> // matches by look or meaning, score 0-1

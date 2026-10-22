@@ -2,11 +2,11 @@ import { join } from 'node:path'
 import Anthropic from '@anthropic-ai/sdk'
 import { BrowserWindow } from 'electron'
 import sharp from 'sharp'
-import { DEFAULT_MODELS, isText, type Item } from '@shared/api'
+import { isText, KEYLESS, type AiProvider, type Item, type ModelInfo } from '@shared/api'
 import { addTags, DATA, db, tagCounts } from './db'
 import { textChanged } from './embed'
 import { canonicalTags, parse } from './scoring'
-import { aiConfig, type AiConfig } from './settings'
+import { aiConfig, providerConfig, type AiConfig } from './settings'
 
 // One model call per item: title, TLDR, search tags and any visible text. Runs in the
 // background, two at a time; the item's status drives the overlay's loading state.
@@ -128,17 +128,24 @@ async function withRetry<T>(call: () => Promise<T>): Promise<T> {
 
 const OPENAI_BASE: Partial<Record<AiConfig['provider'], string>> = {
   openai: 'https://api.openai.com/v1',
-  openrouter: 'https://openrouter.ai/api/v1'
+  openrouter: 'https://openrouter.ai/api/v1',
+  ollama: 'http://localhost:11434/v1'
 }
 
-async function viaOpenAICompatible(cfg: AiConfig, text: string, image: string | null, schema: Schema): Promise<string> {
+function baseUrl(cfg: AiConfig): string {
   const base = (OPENAI_BASE[cfg.provider] ?? cfg.baseUrl).replace(/\/+$/, '')
-  if (!base) throw new Error('Set a base URL for this provider in Settings.')
+  if (!base) throw new Error('Set the server address in Settings.')
+  return base
+}
+
+const bearer = (key: string): Record<string, string> => (key ? { authorization: `Bearer ${key}` } : {})
+
+async function viaOpenAICompatible(cfg: AiConfig, text: string, image: string | null, schema: Schema): Promise<string> {
   // local and lesser-known servers often reject json_schema; they get the instruction instead
-  const strict = cfg.provider !== 'custom'
-  const res = await fetch(`${base}/chat/completions`, {
+  const strict = !KEYLESS.has(cfg.provider)
+  const res = await fetch(`${baseUrl(cfg)}/chat/completions`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${cfg.key}` },
+    headers: { 'content-type': 'application/json', ...bearer(cfg.key) },
     body: JSON.stringify({
       model: cfg.model,
       messages: [
@@ -182,11 +189,13 @@ async function viaGemini(cfg: AiConfig, text: string, image: string | null, full
   return out
 }
 
-// One tiny text-only call with these settings, no retries. Returns null if it worked, else why not.
-export async function testAi(patch: Omit<AiConfig, 'key'> & { key?: string }): Promise<string | null> {
-  const key = patch.key?.trim() || aiConfig()?.key
-  if (!key) return 'Paste an API key first.'
-  const cfg = { ...patch, key, model: patch.model.trim() || DEFAULT_MODELS[patch.provider] }
+const notSetUp = (p: AiProvider): string =>
+  p === 'custom' ? 'Add the server address and pick a model first.' : KEYLESS.has(p) ? 'Pick a model first.' : 'Save an API key first.'
+
+// One tiny text-only call with a provider's saved settings, no retries. Null if it answered, else why not.
+export async function testProvider(p: AiProvider): Promise<string | null> {
+  const cfg = providerConfig(p)
+  if (!cfg) return notSetUp(p)
   const text = 'This is a connection test. Return the title "ok" and leave tldr, tags and text empty.'
   try {
     if (cfg.provider === 'anthropic') await viaAnthropic(cfg, text, null, SCHEMA, 0)
@@ -194,6 +203,48 @@ export async function testAi(patch: Omit<AiConfig, 'key'> & { key?: string }): P
     return null
   } catch (e) {
     return e instanceof Error ? e.message : String(e)
+  }
+}
+
+// What a provider offers. Needs its key but not a chosen model, so it can be picked from this list.
+export async function listModels(p: AiProvider): Promise<{ models?: ModelInfo[]; error?: string }> {
+  const sp = providerConfig(p, false)
+  if (!sp) return { error: notSetUp(p) }
+  try {
+    if (p === 'anthropic') {
+      const models: ModelInfo[] = []
+      for await (const m of new Anthropic({ apiKey: sp.key }).models.list()) models.push({ id: m.id, name: m.display_name, vision: true })
+      return { models }
+    }
+    if (p === 'gemini') {
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000', {
+        headers: { 'x-goog-api-key': sp.key }
+      })
+      if (!res.ok) throw await apiError(res)
+      const data: { models?: { name: string; displayName?: string; supportedGenerationMethods?: string[] }[] } = await res.json()
+      return {
+        models: (data.models ?? [])
+          .filter((m) => m.supportedGenerationMethods?.includes('generateContent') && m.name.includes('gemini'))
+          .map((m) => {
+            const id = m.name.replace(/^models\//, '')
+            return { id, name: m.displayName ?? id, vision: true }
+          })
+      }
+    }
+    const res = await fetch(`${baseUrl(sp)}/models`, { headers: bearer(sp.key) })
+    if (!res.ok) throw await apiError(res)
+    const data: { data?: { id: string; name?: string; architecture?: { input_modalities?: string[] } }[] } = await res.json()
+    let models = (data.data ?? []).map((m) => ({
+      id: m.id,
+      name: m.name ?? m.id,
+      vision: m.architecture?.input_modalities?.includes('image') // OpenRouter says; others don't
+    }))
+    // OpenAI's list also has embedding, speech, image and moderation models
+    if (p === 'openai') models = models.filter((m) => /^(gpt|o\d|chatgpt)/.test(m.id) && !/audio|realtime|tts|transcribe|search|image/.test(m.id))
+    return { models }
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e)
+    return { error: e instanceof TypeError ? `Couldn't reach it (${message}).` : message }
   }
 }
 

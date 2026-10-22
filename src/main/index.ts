@@ -3,12 +3,12 @@ import { copyFileSync, cpSync, mkdirSync, rmSync, statSync, writeFileSync } from
 import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, clipboard, ClipboardItem, dialog, ipcMain, net, protocol, shell } from 'electron'
 import sharp from 'sharp'
-import { isHttpUrl, isText, type Item, type Stack, type WindowAction } from '@shared/api'
+import { isHttpUrl, isText, type Item, type Stack, type WindowAction, type AiProvider } from '@shared/api'
 import { addTags, DATA, db, deleteTag, removeTag, renameTag, tagCounts } from './db'
-import { enqueue, enqueueUnanalysed, imagePrompt, resumeAnalysis, testAi } from './ai'
+import { enqueue, enqueueUnanalysed, imagePrompt, listModels, resumeAnalysis, testProvider } from './ai'
 import { allVectors, embeddingStatus, indexImages, indexText, searchImages, searchMeaning, textChanged, textVectors } from './embed'
 import { ingestBuffer, ingestFile } from './ingest'
-import { firstClose, getSettings, setAi } from './settings'
+import { firstClose, getSettings, saveProvider, setActiveProvider } from './settings'
 import { createTray, setOpenAtLogin, startedHidden, trayHint } from './tray'
 import { jaccard, paletteSimilarity, relevance, rgb, visualSimilarity } from './scoring'
 import { serve } from './server'
@@ -331,14 +331,16 @@ ipcMain.handle('ingest:paths', async (_e, paths: string[]) => {
 ipcMain.handle('ingest:buffer', (_e, data: ArrayBuffer) => ingestBuffer(data))
 
 ipcMain.handle('settings:get', () => getSettings())
-ipcMain.handle('settings:setAi', (_e, patch: Parameters<typeof setAi>[0]) => setAi(patch))
+ipcMain.handle('settings:saveProvider', (_e, p: AiProvider, patch: Parameters<typeof saveProvider>[1]) => saveProvider(p, patch))
+ipcMain.handle('settings:setActiveProvider', (_e, p: AiProvider | null) => setActiveProvider(p))
 ipcMain.handle('settings:setOpenAtLogin', (_e, on: boolean) => {
   setOpenAtLogin(!!on)
   return getSettings()
 })
 ipcMain.handle('ai:analyse', (_e, id: number) => void enqueue(id))
 ipcMain.handle('ai:analyseAll', () => enqueueUnanalysed())
-ipcMain.handle('ai:test', (_e, patch: Parameters<typeof testAi>[0]) => testAi(patch))
+ipcMain.handle('ai:test', (_e, p: AiProvider) => testProvider(p))
+ipcMain.handle('ai:models', (_e, p: AiProvider) => listModels(p))
 ipcMain.handle('ai:prompt', (_e, id: number) => imagePrompt(id))
 ipcMain.handle('embeddings:status', () => embeddingStatus())
 

@@ -25,6 +25,13 @@
   --color-dim: #858b96;
   --color-fg: #1d2026;
   --color-accent: #ff5a1f;
+  /* settings surfaces: a pale pane, a slightly darker rail, inset wells, controls inside them */
+  --color-pane: #f4f4f6;
+  --color-rail: #ececef;
+  --color-well: #e8e8eb;
+  --color-control: #dedee2;
+  --color-raised: #ffffff;
+  --color-select: #dcdcec;
   --shadow-card: 0 1px 2px rgb(30 40 60 / 0.04), 0 6px 20px rgb(30 40 60 / 0.06);
   --shadow-lift: 0 2px 4px rgb(30 40 60 / 0.06), 0 14px 32px rgb(30 40 60 / 0.12);
 }
@@ -39,6 +46,12 @@
   --color-dim: #8b919d;
   --color-fg: #e6e8ec;
   --color-accent: #ff6a33;
+  --color-pane: #15171c;
+  --color-rail: #101216;
+  --color-well: #1d2027;
+  --color-control: #262a32;
+  --color-raised: #2d313a;
+  --color-select: #262a3d;
   --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 20px rgb(0 0 0 / 0.25);
   --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.35), 0 14px 32px rgb(0 0 0 / 0.45);
 }
@@ -57,9 +70,9 @@ body {
   overflow: hidden;
 }
 
+/* no visible scrollbars anywhere; wheel, trackpad and keys still scroll */
 * {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-faint) transparent;
+  scrollbar-width: none;
 }
 
 /* AI "analysing" state in the detail overlay */
