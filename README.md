@@ -50,6 +50,10 @@ A desktop app for Windows (Electron) with a companion Chrome extension.
   text**. `Alt+Shift+S` goes straight to area selection.
 - **Saved-to-Tessera toast** on the page, with an *Add tags* field.
 - **Drag and drop** image files onto the window, or **paste** an image with `Ctrl+V`.
+- **Setup reminders.** A new library shows two cards, *Connect your browser* and *Add an AI
+  provider*, each opening its page in Settings. Once there's something in the library, any step
+  still missing becomes one *Finish setting up* line above the grid (*Later* hides it until
+  the next launch). Each step drops out once it's done.
 - The source page's address and title are saved with everything captured from the web.
 
 **Kinds**
@@ -165,7 +169,9 @@ The extension lives in [`extension/`](extension) and needs no build step.
 3. The extension's options page opens. Click **Connect**: it shows a four-digit code, and
    Tessera comes forward asking to allow a browser extension. If the codes match, click
    **Allow**. The options page then says *Connected to Tessera*; no key to copy.
-   *Settings → Extension → Disconnect all* stops every connected browser until it connects again.
+   *Settings → Extension* shows **Connected** or **Not connected**, and *Disconnect all* stops
+   every connected browser until it connects again (it's greyed out when nothing is connected).
+   A browser counts as connected once it pairs or uses its key, until the next Disconnect all.
 
 After editing anything in `extension/`, click the reload icon on the extension's card in
 `chrome://extensions`.
@@ -192,9 +198,10 @@ its own pages (the New Tab page, `chrome://` pages, the Web Store), so nothing h
 Tessera is free. The AI part runs on **your own API key**, so you pay your provider directly for
 what you use, or nothing at all with a **local model**.
 
-Open **Settings → AI**:
+Open **Settings → AI providers**:
 
 - **Cloud providers**: paste a key on the Anthropic, OpenAI or Gemini card and click **Save**.
+  Each card carries the provider's logo (from [Lobe Icons](https://github.com/lobehub/lobe-icons), MIT).
   *Get key* opens that provider's key page.
 - **Local & gateways**: **Ollama** is found automatically while it's running; pick one of its
   models. An **OpenAI-compatible server** (LM Studio, LiteLLM, vLLM…) takes a base URL and an
@@ -218,7 +225,7 @@ Any model that accepts images works; the defaults are only starting points. For 
 `claude-haiku-4-5` is a much cheaper option than the default.
 
 - **New saves** are analysed automatically once a key is set.
-- **Existing items**: *Analyse now* in Settings → AI queues everything not yet analysed.
+- **Existing items**: *Analyse now* in Settings → AI providers queues everything not yet analysed.
 - **One item**: the *Analyse* button in its overlay, or *Try again* after a failure (the
   provider's error is shown in the TLDR box).
 
@@ -237,8 +244,8 @@ other providers are called over their HTTP APIs.
 ## Using Tessera
 
 - **Everything** is the whole library, newest first. **Stacks** shows your collections.
-- **The sidebar**, from the bottom up: Settings, the trash, the card-size button (2×2, 3×3 or
-  4×4 icon; click to cycle) and the sun/moon theme button.
+- **The sidebar**: the Tessera logo at the top; from the bottom up, Settings, the trash, the
+  card-size button (2×2, 3×3 or 4×4 icon; click to cycle) and the sun/moon theme button.
 - **Click a card** to open it. Click outside the card or press `Esc` to close; arrow keys
   move between items while it's open.
 - **Search**: click the search (or `Ctrl+K`) to see the type filters; pick one, type words,
@@ -340,16 +347,20 @@ src/
     embed.ts       local CLIP and MiniLM embeddings, indexing, search
     scoring.ts     pure parsing and scoring (tested)
     tray.ts        tray icon, start at login
+    taskbarIcon.ts window and tray icons redrawn for a light or dark taskbar
     settings.ts    settings.json, extension key, encrypted AI key
   preload/       the typed bridge between main and renderer
   renderer/      React app
     src/App.tsx        layout, search, chips, selection, undo
-    src/Sidebar.tsx    wordmark, theme, card size, trash, settings
+    src/Sidebar.tsx    logo, theme, card size, trash, settings
     src/prefs.ts       theme and card size, kept in localStorage
     src/Grid.tsx       virtualised masonry grid
     src/Detail.tsx     item overlay
     src/Stacks.tsx     stacks page and dialog
     src/Settings.tsx   settings dialog
+    src/providers/     AI provider logos (Lobe Icons, MIT)
+    src/Setup.tsx      setup reminders: connect a browser, add an AI provider
+    src/Dialogs.tsx    Tessera's own confirm and browser-pairing pop-ups
     src/Selection.tsx  multi-select action bar
     src/Tags.tsx       tag manager
     src/Trash.tsx      the trash page
