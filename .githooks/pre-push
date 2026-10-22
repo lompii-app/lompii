@@ -1,0 +1,7 @@
+#!/bin/sh
+# Runs before every git push; a failure stops the push. Fix the problem rather than skipping this.
+echo "pre-push: typecheck and tests..."
+npm run --silent typecheck && npm test --silent || {
+  echo "pre-push: fix the errors above, then push again."
+  exit 1
+}
