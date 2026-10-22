@@ -216,8 +216,8 @@ which provider answers; the first one you set up starts answering on its own.
 | --- | --- | --- |
 | Anthropic | API key | `claude-opus-5` |
 | OpenAI | API key | `gpt-4o-mini` |
-| Google Gemini | API key | `gemini-2.5-flash` |
-| OpenRouter | API key | `google/gemini-2.5-flash` |
+| Google Gemini | API key | `gemini-3.8-flash` |
+| OpenRouter | API key | `google/gemini-3.8-flash` |
 | Ollama | Ollama running on this computer | pick one from its list |
 | OpenAI-compatible server | its base URL, a key if it asks | pick one from its list |
 

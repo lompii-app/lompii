@@ -167,6 +167,16 @@ async function viaOpenAICompatible(cfg: AiConfig, text: string, image: string | 
   return out
 }
 
+// Gemini thinks before answering by default, which made a title and a few tags take many
+// seconds. 2.5 Flash can turn it off; the Gemini 3 family only goes down to "low". Other
+// models (2.5 Pro can't turn it off) keep their default.
+const geminiThinking = (model: string) =>
+  /^gemini-3/.test(model)
+    ? { thinkingConfig: { thinkingLevel: 'low' } }
+    : /^gemini-2\.5-flash/.test(model)
+      ? { thinkingConfig: { thinkingBudget: 0 } }
+      : {}
+
 async function viaGemini(cfg: AiConfig, text: string, image: string | null, full: Schema): Promise<string> {
   const { additionalProperties: _, ...schema } = full // Gemini's schema dialect has no additionalProperties
   const res = await fetch(
@@ -178,7 +188,7 @@ async function viaGemini(cfg: AiConfig, text: string, image: string | null, full
         contents: [
           { parts: [{ text }, ...(image ? [{ inline_data: { mime_type: 'image/jpeg', data: image } }] : [])] }
         ],
-        generationConfig: { responseMimeType: 'application/json', responseSchema: schema }
+        generationConfig: { responseMimeType: 'application/json', responseSchema: schema, ...geminiThinking(cfg.model) }
       })
     }
   )

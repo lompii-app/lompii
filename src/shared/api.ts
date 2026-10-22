@@ -76,8 +76,8 @@ export const KEYLESS: ReadonlySet<AiProvider> = new Set(['ollama', 'custom'])
 export const DEFAULT_MODELS: Record<AiProvider, string> = {
   anthropic: 'claude-opus-5',
   openai: 'gpt-4o-mini',
-  gemini: 'gemini-2.5-flash',
-  openrouter: 'google/gemini-2.5-flash',
+  gemini: 'gemini-3.8-flash',
+  openrouter: 'google/gemini-3.8-flash',
   ollama: '',
   custom: ''
 }
