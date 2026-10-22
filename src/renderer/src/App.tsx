@@ -209,9 +209,20 @@ export default function App() {
     setUndo({ ids, label: ids.length === 1 ? 'This item is' : `${ids.length} items are` })
   }
 
-  const addManyToStack = async (stackId: number) => {
-    for (const id of pickedIds) await window.tessera.setInStack(stackId, id, true)
+  const addManyToStack = async (stackId: number, ids = pickedIds) => {
+    for (const id of ids) await window.tessera.setInStack(stackId, id, true)
     refreshStacks()
+  }
+
+  // the search chips become a stack named after them, holding what the search shows;
+  // saving again adds any new matches to that same stack
+  const searchName = terms.join(' ').slice(0, 50)
+  const [savedSearch, setSavedSearch] = useState<string | null>(null)
+  const saveSearchAsStack = async () => {
+    const existing = stacks.find((s) => s.name.toLowerCase() === searchName.toLowerCase())
+    const id = existing?.id ?? (await window.tessera.createStack(searchName, STACK_COLORS[stacks.length % STACK_COLORS.length]))
+    await addManyToStack(id, visible.map((i) => i.id))
+    setSavedSearch(searchName)
   }
 
   const newStackWithPicked = async (name: string) => {
@@ -343,7 +354,11 @@ export default function App() {
         onScroll={(e) =>
           setScrolled(e.currentTarget.scrollTop > (headerRef.current?.offsetHeight ?? 0) - 40)
         }
-        className="relative min-w-0 flex-1 overflow-x-hidden overflow-y-auto"
+        // the overlay sits outside, but Chromium still sends its wheel here; freeze it while open.
+        // The stable gutter keeps the grid from shifting when the scrollbar goes away.
+        className={`relative min-w-0 flex-1 overflow-x-hidden [scrollbar-gutter:stable] ${
+          open ? 'overflow-y-hidden' : 'overflow-y-auto'
+        }`}
       >
         <header ref={headerRef} className="pr-20 pl-1">
           <div className="flex justify-end gap-9">
@@ -373,6 +388,16 @@ export default function App() {
                 <TermChip key={t} term={t} onRemove={() => setTerms((all) => all.filter((x) => x !== t))} />
               ))}
               {searchField('big', 'min-w-64 text-[60px] leading-tight')}
+              {terms.length > 0 && visible.length > 0 && (
+                <button
+                  onClick={saveSearchAsStack}
+                  title={`Put the ${visible.length} results in a stack called “${searchName}”`}
+                  className="flex shrink-0 items-center gap-2.5 rounded-full bg-card px-5 py-2.5 text-[13px] tracking-wider text-dim uppercase shadow-card transition hover:text-fg hover:shadow-lift"
+                >
+                  <span className={`size-3.5 rounded-full border-2 border-accent ${savedSearch === searchName ? 'bg-accent' : ''}`} />
+                  {savedSearch === searchName ? 'Saved to stack' : 'Save as stack'}
+                </button>
+              )}
               <kbd className="shrink-0 rounded-sm bg-fg/[0.06] px-2.5 py-1 font-sans text-[13px] text-dim">
                 Ctrl K
               </kbd>
@@ -439,6 +464,20 @@ export default function App() {
           {focused === 'pill' && !active && <FilterRow filters={kindFilters} onPick={pickFilter} />}
         </div>
       </div>
+
+      <button
+        onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+        aria-label="Back to top"
+        title="Back to top"
+        inert={!scrolled || view === 'trash'}
+        className={`fixed right-8 bottom-8 z-30 grid size-11 place-items-center rounded-full bg-card text-dim shadow-lift transition duration-200 ease-out hover:text-fg ${
+          scrolled && view !== 'trash' ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-3 opacity-0'
+        }`}
+      >
+        <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M12 19V5M6 11l6-6 6 6" />
+        </svg>
+      </button>
 
       {open && current && (
         <Detail

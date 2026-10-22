@@ -70,6 +70,18 @@ export default function Grid({ scrollRef, items, selected, onSelect, onOpen, den
     overscan: 10
   })
 
+  // The virtualizer remembers each tile's column by its index. An upload lands at index 0 and
+  // shifts everything, so those columns go stale and the masonry overlaps until a restart.
+  // Forget them whenever the list itself changes; this runs before the layout is computed.
+  // ponytail: clears a private field (virtual-core 3.17); measure() would also drop the
+  // measured text-tile heights. Recheck on a @tanstack/virtual upgrade.
+  const laidOut = useRef('')
+  const ids = items.map((i) => i.id).join(',')
+  if (laidOut.current !== ids) {
+    laidOut.current = ids
+    ;(virtualizer as unknown as { laneAssignments?: Map<number, number> }).laneAssignments?.clear()
+  }
+
   // ponytail: index arithmetic, not geometric nearest-neighbour. Up/down can land
   // in a different column than the eye expects on very uneven masonry.
   useEffect(() => {
