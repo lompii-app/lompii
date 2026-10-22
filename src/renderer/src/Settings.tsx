@@ -9,33 +9,20 @@ import {
 } from '@shared/api'
 
 const LABEL = 'text-[11px] uppercase tracking-wider text-dim'
-const BOX = 'min-w-0 flex-1 rounded-md bg-ink px-3 py-2 text-[13px]'
 const FIELD = 'rounded-md bg-ink px-3 py-2 text-[13px] placeholder:text-faint focus:outline-2 focus:outline-accent'
-const GHOST = 'shrink-0 rounded-md px-3 py-2 text-[13px] text-dim transition-colors hover:bg-ink hover:text-fg'
-const DESC = 'text-[13px] leading-relaxed text-dim'
-const SECONDARY =
-  'shrink-0 rounded-md border border-line px-3 py-1.5 text-[13px] transition-colors hover:bg-ink focus-visible:outline-2 focus-visible:outline-accent'
+const DESC = 'text-[14px] leading-relaxed text-dim'
+const LINK = 'text-[15px] text-accent transition-opacity hover:opacity-75'
+const PILL = 'shrink-0 rounded-full px-5 py-2 text-[11px] font-medium tracking-[0.12em] uppercase transition'
 
-const TABS = ['General', 'AI', 'Extension'] as const
-type Tab = (typeof TABS)[number]
-
-// a titled card of rows, split by hairlines
-const Group = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div>
-    <h4 className={`${LABEL} mb-2 px-1`}>{title}</h4>
-    <div className="divide-y divide-line rounded-lg border border-line">{children}</div>
-  </div>
-)
-
-// what it is on the start side, its control on the end side
-const Row = ({ title, desc, children }: { title: string; desc?: React.ReactNode; children?: React.ReactNode }) => (
-  <div className="flex items-center gap-6 px-4 py-3.5">
-    <div className="min-w-0 flex-1">
-      <div className="text-[14px]">{title}</div>
-      {desc && <div className={`${DESC} mt-0.5 break-words`}>{desc}</div>}
+// white card; its title on the start side, an action on the end side, a hairline when there's a body
+const Card = ({ title, action, children }: { title: string; action?: React.ReactNode; children?: React.ReactNode }) => (
+  <section className="rounded-md bg-card px-8 py-6">
+    <div className={`flex items-center gap-4 ${children ? 'border-b border-line pb-3' : ''}`}>
+      <h3 className="flex-1 text-[20px] font-light">{title}</h3>
+      {action}
     </div>
-    {children}
-  </div>
+    {children && <div className="pt-4">{children}</div>}
+  </section>
 )
 
 const Switch = ({
@@ -78,7 +65,6 @@ export default function SettingsDialog({
   onChange: (s: Settings) => void
   onManageTags: () => void
 }) {
-  const [tab, setTab] = useState<Tab>('General')
   const [copied, setCopied] = useState(false)
   const [key, setKey] = useState('')
   const [provider, setProvider] = useState<AiProvider>('anthropic')
@@ -163,187 +149,7 @@ export default function SettingsDialog({
   }
 
   const hasKey = !!settings?.ai?.hasKey
-
-  const sections: Record<Tab, React.ReactNode> = {
-    General: (
-      <div className="space-y-7">
-        <Group title="Startup">
-          <Row
-            title="Open at sign-in"
-            desc={
-              settings?.openAtLogin == null
-                ? 'Available in the installed app.'
-                : 'Closing the window keeps Tessera in the tray, so the extension can always save.'
-            }
-          >
-            <Switch
-              label="Start Tessera when you sign in"
-              on={!!settings?.openAtLogin}
-              disabled={settings?.openAtLogin == null}
-              onToggle={async (on) => onChange(await window.tessera.setOpenAtLogin(on))}
-            />
-          </Row>
-        </Group>
-
-        <Group title="Library">
-          <Row title="Tags" desc="Rename, merge or delete tags everywhere.">
-            <button onClick={onManageTags} className={SECONDARY}>
-              Manage…
-            </button>
-          </Row>
-          <Row title="Back up" desc={backupNote || 'Copy the database and every file into a folder you choose.'}>
-            <button onClick={backup} className={SECONDARY}>
-              Back up…
-            </button>
-          </Row>
-        </Group>
-
-        <Group title="Same vibe">
-          <Row
-            title="Look-alike images"
-            desc={
-              <>
-                <p>
-                  A small model on this computer finds images that look alike. Downloaded once (about 90 MB);
-                  nothing is sent anywhere.
-                </p>
-                <p className="mt-2.5 flex items-center gap-2 text-fg/80">
-                  <span
-                    className={`size-1.5 shrink-0 rounded-full ${
-                      vision?.state === 'failed' ? 'bg-accent' : vision && vision.done >= vision.total ? 'bg-emerald-500' : 'bg-faint'
-                    }`}
-                  />
-                  {!vision
-                    ? 'Checking…'
-                    : vision.state === 'failed'
-                      ? `Couldn't load the model: ${vision.error ?? 'unknown error'}. It will retry next time Tessera starts.`
-                      : vision.done >= vision.total
-                        ? `All ${vision.total} images indexed`
-                        : vision.state === 'loading' && vision.done === 0
-                          ? 'Downloading the model…'
-                          : `Indexing images: ${vision.done} of ${vision.total}`}
-                </p>
-                {vision && vision.state !== 'failed' && vision.done < vision.total && (
-                  <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-ink">
-                    <div
-                      className="h-full rounded-full bg-accent transition-[width] duration-500"
-                      style={{ width: `${(vision.done / Math.max(vision.total, 1)) * 100}%` }}
-                    />
-                  </div>
-                )}
-              </>
-            }
-          />
-        </Group>
-      </div>
-    ),
-
-    AI: (
-      <>
-        <p className={DESC}>
-          Gives everything you save a title, a summary and search tags. Works with any provider's API key;
-          each item is sent to the provider you choose.
-        </p>
-
-        <h4 className={`${LABEL} mt-6`}>API key</h4>
-        <div className="mt-2 flex gap-2">
-          <input
-            type="password"
-            value={key}
-            onChange={(e) => onKey(e.target.value)}
-            placeholder={hasKey ? 'Key saved. Paste a new one to replace it' : 'Paste an API key'}
-            aria-label="API key"
-            spellCheck={false}
-            autoComplete="off"
-            className={`${FIELD} min-w-0 flex-1 font-mono`}
-          />
-          <button
-            onClick={testKey}
-            disabled={(!key.trim() && !hasKey) || test?.state === 'testing'}
-            className={`${GHOST} border border-line disabled:pointer-events-none disabled:opacity-40`}
-          >
-            {test?.state === 'testing' ? 'Testing…' : 'Test key'}
-          </button>
-        </div>
-        {test && test.state !== 'testing' && (
-          <p role="status" className={`mt-1.5 text-[12px] break-words ${test.state === 'ok' ? 'text-fg/80' : 'text-accent'}`}>
-            {test.state === 'ok'
-              ? `✓ It works. ${AI_PROVIDERS[provider]} answered using ${model.trim() || DEFAULT_MODELS[provider]}.`
-              : test.note}
-          </p>
-        )}
-
-        <h4 className={`${LABEL} mt-6`}>Provider and model</h4>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <select
-            value={provider}
-            onChange={(e) => pickProvider(e.target.value as AiProvider)}
-            aria-label="Provider"
-            className={FIELD}
-          >
-            {(Object.keys(AI_PROVIDERS) as AiProvider[]).map((p) => (
-              <option key={p} value={p}>
-                {AI_PROVIDERS[p]}
-              </option>
-            ))}
-          </select>
-          <input
-            value={model}
-            onChange={(e) => {
-              setModel(e.target.value)
-              setTest(null)
-            }}
-            placeholder="Model"
-            aria-label="Model"
-            spellCheck={false}
-            className={`${FIELD} font-mono`}
-          />
-        </div>
-        {provider === 'custom' && (
-          <input
-            value={baseUrl}
-            onChange={(e) => {
-              setBaseUrl(e.target.value)
-              setTest(null)
-            }}
-            placeholder="Base URL, e.g. http://localhost:11434/v1"
-            aria-label="Base URL"
-            spellCheck={false}
-            className={`${FIELD} mt-2 w-full font-mono`}
-          />
-        )}
-
-        <div className="mt-6 flex items-center gap-2">
-          <button onClick={saveAi} className="rounded-md bg-fg px-4 py-2 text-[13px] text-card transition-opacity hover:opacity-85">
-            Save
-          </button>
-          {hasKey && (
-            <>
-              <button onClick={analyseAll} className={GHOST}>
-                Analyse library{unanalysed ? ` (${unanalysed})` : ''}
-              </button>
-              <button onClick={removeKey} className={`${GHOST} ml-auto`}>
-                Remove key
-              </button>
-            </>
-          )}
-        </div>
-        {status && <p className="mt-2 text-[12px] text-dim">{status}</p>}
-      </>
-    ),
-
-    Extension: (
-      <>
-        <p className={DESC}>Paste this key into the Tessera extension's options.</p>
-        <div className="mt-3 flex items-center gap-2">
-          <code className={`${BOX} truncate font-mono text-[12px]`}>{settings?.token}</code>
-          <button onClick={copy} className={GHOST}>
-            {copied ? 'Copied' : 'Copy'}
-          </button>
-        </div>
-      </>
-    )
-  }
+  const visionDone = !!vision && vision.state !== 'failed' && vision.done >= vision.total
 
   return (
     <dialog
@@ -353,28 +159,208 @@ export default function SettingsDialog({
         setStatus('')
         setTest(null)
       }}
-      className="m-auto h-[min(540px,85vh)] w-[min(720px,92vw)] overflow-hidden rounded-lg bg-card text-fg shadow-lift backdrop:bg-ink/70 backdrop:backdrop-blur-sm open:flex"
+      className="m-auto h-[min(860px,90vh)] w-[min(1040px,94vw)] overflow-hidden rounded-xl bg-ink text-fg shadow-lift backdrop:bg-ink/70 backdrop:backdrop-blur-sm"
     >
-      <nav className="flex w-44 shrink-0 flex-col gap-0.5 border-r border-line p-4">
-        <h2 className="mb-5 px-2 pt-2 font-serif text-[28px] italic leading-none">Settings</h2>
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            aria-current={tab === t ? 'page' : undefined}
-            className={`rounded-md px-2 py-1.5 text-left text-[13px] transition-colors ${
-              tab === t ? 'bg-ink text-fg' : 'text-dim hover:bg-ink hover:text-fg'
-            }`}
-          >
-            {t}
-          </button>
-        ))}
-      </nav>
+      <div className="h-full overflow-y-auto px-10 pt-10 pb-12 max-md:px-5">
+        <h2 className="font-quote text-[52px] leading-none tracking-tight max-md:text-[38px]">
+          Tune your <span className="text-dim">Tessera</span>
+        </h2>
 
-      <section className="min-w-0 flex-1 overflow-y-auto p-8">
-        <h3 className="mb-3 text-[18px] font-medium">{tab}</h3>
-        {sections[tab]}
-      </section>
+        <div className="mt-9 grid items-start gap-5 md:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="space-y-5">
+            <Card
+              title="AI"
+              action={
+                <span className={hasKey ? 'text-accent' : 'text-dim'}>
+                  {hasKey ? `Using ${AI_PROVIDERS[settings!.ai!.provider]}` : 'Not set up'}
+                </span>
+              }
+            >
+              <p className={DESC}>
+                Gives everything you save a title, a summary and search tags. Works with any provider's API key;
+                each item is sent to the provider you choose.
+              </p>
+
+              <h4 className={`${LABEL} mt-6`}>API key</h4>
+              <div className="mt-2 flex gap-2">
+                <input
+                  type="password"
+                  value={key}
+                  onChange={(e) => onKey(e.target.value)}
+                  placeholder={hasKey ? 'Key saved. Paste a new one to replace it' : 'Paste an API key'}
+                  aria-label="API key"
+                  spellCheck={false}
+                  autoComplete="off"
+                  className={`${FIELD} min-w-0 flex-1 font-mono`}
+                />
+                <button
+                  onClick={testKey}
+                  disabled={(!key.trim() && !hasKey) || test?.state === 'testing'}
+                  className={`${PILL} border border-line text-fg hover:border-fg disabled:pointer-events-none disabled:opacity-40`}
+                >
+                  {test?.state === 'testing' ? 'Testing…' : 'Test key'}
+                </button>
+              </div>
+              {test && test.state !== 'testing' && (
+                <p role="status" className={`mt-2 text-[12px] break-words ${test.state === 'ok' ? 'text-fg/80' : 'text-accent'}`}>
+                  {test.state === 'ok'
+                    ? `✓ It works. ${AI_PROVIDERS[provider]} answered using ${model.trim() || DEFAULT_MODELS[provider]}.`
+                    : test.note}
+                </p>
+              )}
+
+              <h4 className={`${LABEL} mt-6`}>Provider</h4>
+              <div role="radiogroup" aria-label="Provider" className="mt-2 flex flex-wrap gap-2">
+                {(Object.keys(AI_PROVIDERS) as AiProvider[]).map((p) => (
+                  <button
+                    key={p}
+                    role="radio"
+                    aria-checked={provider === p}
+                    onClick={() => pickProvider(p)}
+                    className={`rounded-full border px-4 py-1.5 text-[13px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                      provider === p ? 'border-fg bg-fg text-card' : 'border-line text-dim hover:border-fg hover:text-fg'
+                    }`}
+                  >
+                    {AI_PROVIDERS[p]}
+                  </button>
+                ))}
+              </div>
+
+              <h4 className={`${LABEL} mt-6`}>Model</h4>
+              <input
+                value={model}
+                onChange={(e) => {
+                  setModel(e.target.value)
+                  setTest(null)
+                }}
+                placeholder={DEFAULT_MODELS[provider]}
+                aria-label="Model"
+                spellCheck={false}
+                className={`${FIELD} mt-2 w-full font-mono`}
+              />
+              {provider === 'custom' && (
+                <input
+                  value={baseUrl}
+                  onChange={(e) => {
+                    setBaseUrl(e.target.value)
+                    setTest(null)
+                  }}
+                  placeholder="Base URL, e.g. http://localhost:11434/v1"
+                  aria-label="Base URL"
+                  spellCheck={false}
+                  className={`${FIELD} mt-2 w-full font-mono`}
+                />
+              )}
+
+              <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2">
+                <button onClick={saveAi} className={`${PILL} bg-fg text-card hover:opacity-85`}>
+                  Save
+                </button>
+                {hasKey && (
+                  <>
+                    <button onClick={analyseAll} className={LINK}>
+                      Analyse library{unanalysed ? ` (${unanalysed})` : ''}
+                    </button>
+                    <button onClick={removeKey} className={`${LINK} ml-auto text-dim`}>
+                      Remove key
+                    </button>
+                  </>
+                )}
+              </div>
+              {status && <p className="mt-2 text-[12px] text-dim">{status}</p>}
+            </Card>
+
+            <Card
+              title="Your tags"
+              action={
+                <button onClick={onManageTags} className={LINK}>
+                  Manage tags
+                </button>
+              }
+            />
+
+            <Card
+              title="Backup"
+              action={
+                <button onClick={backup} className={LINK}>
+                  Back up…
+                </button>
+              }
+            >
+              {backupNote && <p className={`${DESC} break-all`}>{backupNote}</p>}
+            </Card>
+
+            <Card
+              title="Start at sign-in"
+              action={
+                <Switch
+                  label="Start Tessera when you sign in"
+                  on={!!settings?.openAtLogin}
+                  disabled={settings?.openAtLogin == null}
+                  onToggle={async (on) => onChange(await window.tessera.setOpenAtLogin(on))}
+                />
+              }
+            >
+              <p className={DESC}>
+                {settings?.openAtLogin == null ? 'Available in the installed app. ' : ''}
+                Closing the window keeps Tessera in the tray, so the extension can always save.
+              </p>
+            </Card>
+          </div>
+
+          <div className="space-y-5">
+            <aside className="relative rounded-md bg-card px-7 pt-8 pb-7 text-center">
+              <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-accent px-2.5 py-0.5 text-[10px] font-semibold tracking-[0.12em] text-white uppercase">
+                Extension
+              </span>
+              <p className="text-[16px] leading-snug text-dim">
+                Paste this key into the <span className="text-accent">browser extension</span> to save images, text
+                and pages.
+              </p>
+              <code className="mt-5 block truncate rounded-md bg-ink px-3 py-2 font-mono text-[12px]">{settings?.token}</code>
+              <button onClick={copy} className={`${PILL} mt-4 bg-fg text-card hover:opacity-85`}>
+                {copied ? 'Copied' : 'Copy key'}
+              </button>
+            </aside>
+
+            <aside className="rounded-md bg-card px-7 py-8 text-center">
+              <h3 className="font-quote text-[30px] leading-[1.05]">
+                Same vibe,
+                <br />
+                found for you.
+              </h3>
+              <p className="mt-3 text-[14px] leading-relaxed text-dim">
+                A small model on this computer finds images that look alike. Downloaded once (about 90 MB); nothing
+                is sent anywhere.
+              </p>
+              <p className="mt-5 flex items-center justify-center gap-2 text-[13px] text-fg/80">
+                <span
+                  className={`size-1.5 shrink-0 rounded-full ${
+                    vision?.state === 'failed' ? 'bg-accent' : visionDone ? 'bg-emerald-500' : 'bg-faint'
+                  }`}
+                />
+                {!vision
+                  ? 'Checking…'
+                  : vision.state === 'failed'
+                    ? `Couldn't load the model: ${vision.error ?? 'unknown error'}. It will retry next time Tessera starts.`
+                    : visionDone
+                      ? `All ${vision.total} images indexed`
+                      : vision.state === 'loading' && vision.done === 0
+                        ? 'Downloading the model…'
+                        : `Indexing ${vision.done} of ${vision.total}`}
+              </p>
+              {vision && vision.state !== 'failed' && !visionDone && (
+                <div className="mt-3 h-1 overflow-hidden rounded-full bg-ink">
+                  <div
+                    className="h-full rounded-full bg-accent transition-[width] duration-500"
+                    style={{ width: `${(vision.done / Math.max(vision.total, 1)) * 100}%` }}
+                  />
+                </div>
+              )}
+            </aside>
+          </div>
+        </div>
+      </div>
     </dialog>
   )
 }
