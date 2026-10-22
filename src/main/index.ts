@@ -12,6 +12,8 @@ import { firstClose, getSettings, setAi } from './settings'
 import { createTray, setOpenAtLogin, startedHidden, trayHint } from './tray'
 import { jaccard, paletteSimilarity, relevance, rgb, visualSimilarity } from './scoring'
 import { serve } from './server'
+// bundled next to the main build; the window and taskbar use it (the .exe gets it from electron-builder)
+import icon from '../../build/icon.png?asset'
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'tessera', privileges: { standard: true, secure: true, supportFetchAPI: true } }
@@ -377,6 +379,7 @@ function createWindow(visible: boolean): void {
     // No native title bar; the renderer draws a drag strip. Windows and Linux get the renderer's
     // own buttons too; macOS keeps its native ones, placed inside that 40 px strip.
     titleBarStyle: 'hidden',
+    icon,
     ...(process.platform === 'darwin' ? { trafficLightPosition: { x: 16, y: 13 } } : {}),
     autoHideMenuBar: true, // menu still answers its shortcuts (reload, devtools) and Alt
     webPreferences: { preload: join(__dirname, '../preload/index.js') }
@@ -403,6 +406,9 @@ function quit(): void {
 
 // One Tessera at a time: a second copy would fight over the database and port 47821.
 // Launching it again just brings the running one forward.
+// Windows groups taskbar buttons (and pins) by this id; without it, dev runs count as Electron
+if (process.platform === 'win32') app.setAppUserModelId('com.tessera.app')
+
 if (!app.requestSingleInstanceLock()) app.quit()
 else {
   app.on('second-instance', show)
