@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { Item, TesseraAPI } from '@shared/api'
 
 const api: TesseraAPI = {
+  platform: process.platform,
   list: () => ipcRenderer.invoke('items:list'),
   tags: (id) => ipcRenderer.invoke('items:tags', id),
   addTags: (id, tags) => ipcRenderer.invoke('items:addTags', id, tags),

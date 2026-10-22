@@ -7,10 +7,11 @@
     "jsx": "react-jsx",
     "strict": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "types": ["node", "vite/client"],
     "paths": { "@shared/*": ["./src/shared/*"] }
   },
-  "include": ["src", "electron.vite.config.ts"]
+  "include": ["src", "test", "electron.vite.config.ts"]
 }

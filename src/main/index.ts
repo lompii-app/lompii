@@ -10,6 +10,7 @@ import { allVectors, embeddingStatus, indexImages, indexText, searchImages, sear
 import { ingestBuffer, ingestFile } from './ingest'
 import { firstClose, getSettings, setAi } from './settings'
 import { createTray, setOpenAtLogin, startedHidden, trayHint } from './tray'
+import { jaccard, paletteSimilarity, relevance, rgb, visualSimilarity } from './scoring'
 import { serve } from './server'
 
 protocol.registerSchemesAsPrivileged([
@@ -160,31 +161,7 @@ ipcMain.handle('items:palette', async (_e, id: number) => {
   return colors
 })
 
-/* same vibe */
-
-const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
-
-// How close two palettes look: each colour of one matched to its nearest in the other.
-// Unrelated palettes still average ~150 apart in RGB, so that distance maps to zero.
-function paletteSimilarity(a: number[][], b: number[][]): number {
-  if (!a.length || !b.length) return 0
-  const nearest = a.map((p) => Math.min(...b.map((q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]))))
-  return Math.max(0, 1 - nearest.reduce((s, d) => s + d, 0) / nearest.length / 150)
-}
-
-function jaccard(a: Set<string> | undefined, b: Set<string> | undefined): number {
-  if (!a?.size || !b?.size) return 0
-  let shared = 0
-  for (const t of a) if (b.has(t)) shared++
-  return shared / (a.size + b.size - shared)
-}
-
-// CLIP cosine between two unrelated images sits around 0.5; near-duplicates reach ~0.9.
-const visualSimilarity = (a: Float32Array, b: Float32Array): number => {
-  let dot = 0
-  for (let i = 0; i < a.length; i++) dot += a[i] * b[i]
-  return Math.min(1, Math.max(0, (dot - 0.5) / 0.4))
-}
+/* same vibe (the scoring itself is in scoring.ts) */
 
 // ponytail: scored against every item on each click (a dot product per image pair is cheap).
 // Fine for tens of thousands; a vector index (sqlite-vec, HNSW) if the library outgrows that.
@@ -357,10 +334,9 @@ ipcMain.handle('settings:setOpenAtLogin', (_e, on: boolean) => {
 ipcMain.handle('ai:analyse', (_e, id: number) => void enqueue(id))
 ipcMain.handle('ai:analyseAll', () => enqueueUnanalysed())
 ipcMain.handle('embeddings:status', () => embeddingStatus())
+
 // Search by description: CLIP for how images look, MiniLM for what any item's words mean.
 // Their raw scores live on different scales, so each maps onto 0-1 relevance first.
-const relevance = (score: number, low: number, high: number) => Math.min(1, Math.max(0, (score - low) / (high - low)))
-
 ipcMain.handle('search:semantic', async (_e, query: string) => {
   const q = typeof query === 'string' ? query.trim().slice(0, 300) : ''
   if (q.length < 3) return []
@@ -395,8 +371,10 @@ function createWindow(visible: boolean): void {
     minWidth: 720,
     show: false,
     backgroundColor: '#eef0f4',
-    // no native title bar or buttons; the renderer draws a drag strip and its own controls
+    // No native title bar; the renderer draws a drag strip. Windows and Linux get the renderer's
+    // own buttons too; macOS keeps its native ones, placed inside that 40 px strip.
     titleBarStyle: 'hidden',
+    ...(process.platform === 'darwin' ? { trafficLightPosition: { x: 16, y: 13 } } : {}),
     autoHideMenuBar: true, // menu still answers its shortcuts (reload, devtools) and Alt
     webPreferences: { preload: join(__dirname, '../preload/index.js') }
   })

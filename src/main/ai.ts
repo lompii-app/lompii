@@ -5,12 +5,11 @@ import sharp from 'sharp'
 import { isText, type Item } from '@shared/api'
 import { addTags, DATA, db, tagCounts } from './db'
 import { textChanged } from './embed'
+import { canonicalTags, parse } from './scoring'
 import { aiConfig, type AiConfig } from './settings'
 
 // One model call per item: title, TLDR, search tags and any visible text. Runs in the
 // background, two at a time; the item's status drives the overlay's loading state.
-
-type Result = { title: string; tldr: string; tags: string[]; text: string }
 
 const SCHEMA = {
   type: 'object',
@@ -23,19 +22,6 @@ const SCHEMA = {
   required: ['title', 'tldr', 'tags', 'text'],
   additionalProperties: false
 } as const
-
-// the kinds are shown on their own; as tags they'd only add noise
-const KIND_WORDS = new Set(['image', 'images', 'picture', 'photo of', 'screenshot', 'capture', 'quote', 'quotes', 'snippet', 'text'])
-
-// Endings that make near-duplicate tags (motivational/motivation, photos/photo). Used only to
-// match a new tag to one the library already has; the existing spelling wins.
-const stem = (tag: string) => tag.replace(/(ing|ed|al|ly|s)$/, '') || tag
-
-function canonicalTags(tags: string[]): string[] {
-  const known = new Map<string, string>()
-  for (const { value } of tagCounts()) if (!known.has(stem(value))) known.set(stem(value), value) // most used first
-  return [...new Set(tags.map((t) => known.get(stem(t)) ?? t))]
-}
 
 function prompt(item: Item): string {
   const what = { image: 'an image', capture: 'a screenshot of a web page', quote: 'a quote', snippet: 'a text snippet' }[item.kind]
@@ -186,24 +172,6 @@ async function viaGemini(cfg: AiConfig, text: string, image: string | null): Pro
   return out
 }
 
-// Models sometimes wrap JSON in prose or a code fence; take the outermost object.
-function parse(raw: string): Result {
-  const start = raw.indexOf('{')
-  const end = raw.lastIndexOf('}')
-  if (start < 0 || end < start) throw new Error('The model did not return JSON.')
-  const j = JSON.parse(raw.slice(start, end + 1))
-  const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
-  return {
-    title: str(j.title, 120),
-    tldr: str(j.tldr, 600),
-    tags: (Array.isArray(j.tags) ? j.tags : [])
-      .map((t: unknown) => str(t, 50).toLowerCase())
-      .filter((t: string) => t && !KIND_WORDS.has(t))
-      .slice(0, 10),
-    text: str(j.text, 3000)
-  }
-}
-
 /* ---------- queue ---------- */
 
 const MAX_RUNNING = 2
@@ -238,7 +206,7 @@ async function analyse(id: number): Promise<void> {
       `update items set title = coalesce(nullif(?, ''), title), tldr = ?, visible_text = ?,
        status = 'tagged', ai_error = null where id = ?`
     ).run(r.title, r.tldr || null, r.text || null, id)
-    addTags(id, canonicalTags(r.tags))
+    addTags(id, canonicalTags(r.tags, tagCounts().map((t) => t.value)))
     textChanged() // the new title, TLDR and tags are what meaning search reads
   } catch (e) {
     if (!byId(id)) return

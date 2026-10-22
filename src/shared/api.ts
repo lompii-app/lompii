@@ -91,6 +91,7 @@ export type Settings = {
 export const EXTENSION_PORT = 47821
 
 export type TesseraAPI = {
+  platform: string // process.platform: macOS draws its own window buttons
   list(): Promise<Item[]>
   tags(itemId: number): Promise<Tag[]>
   addTags(itemId: number, tags: string[]): Promise<void>

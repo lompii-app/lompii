@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "electron-vite dev --watch",
     "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "pack": "npm run build && electron-builder --dir",
