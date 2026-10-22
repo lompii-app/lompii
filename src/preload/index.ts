@@ -54,6 +54,7 @@ const api: TesseraAPI = {
   analyse: (id) => ipcRenderer.invoke('ai:analyse', id),
   analyseAll: () => ipcRenderer.invoke('ai:analyseAll'),
   testAi: (patch) => ipcRenderer.invoke('ai:test', patch),
+  imagePrompt: (id) => ipcRenderer.invoke('ai:prompt', id),
   embeddingStatus: () => ipcRenderer.invoke('embeddings:status'),
   searchSemantic: (query) => ipcRenderer.invoke('search:semantic', query)
 }

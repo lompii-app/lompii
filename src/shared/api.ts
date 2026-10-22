@@ -141,6 +141,7 @@ export type TesseraAPI = {
   analyse(id: number): Promise<void> // queue one item for AI analysis
   analyseAll(): Promise<number> // queue everything not yet analysed; returns how many
   testAi(patch: { provider: AiProvider; model: string; baseUrl: string; key?: string }): Promise<string | null> // null: the key works; else the error
+  imagePrompt(id: number): Promise<string> // a text-to-image prompt that would recreate it; rejects with the reason
   embeddingStatus(): Promise<EmbeddingStatus>
   searchSemantic(query: string): Promise<{ id: number; score: number }[]> // matches by look or meaning, score 0-1
 }

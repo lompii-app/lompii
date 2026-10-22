@@ -23,6 +23,16 @@ const SCHEMA = {
   additionalProperties: false
 } as const
 
+// "Generate prompt" in the overlay: one text-to-image prompt that would recreate the image
+const PROMPT_SCHEMA = {
+  type: 'object',
+  properties: { prompt: { type: 'string' } },
+  required: ['prompt'],
+  additionalProperties: false
+} as const
+
+type Schema = typeof SCHEMA | typeof PROMPT_SCHEMA
+
 function prompt(item: Item): string {
   const what = { image: 'an image', capture: 'a screenshot of a web page', quote: 'a quote', snippet: 'a text snippet' }[item.kind]
   let from = ''
@@ -57,7 +67,7 @@ async function imageData(item: Item): Promise<string> {
 
 /* ---------- providers ---------- */
 
-async function viaAnthropic(cfg: AiConfig, text: string, image: string | null, retries = 4): Promise<string> {
+async function viaAnthropic(cfg: AiConfig, text: string, image: string | null, schema: Schema, retries = 4): Promise<string> {
   // the SDK retries 408/409/429/5xx and dropped connections itself, honouring retry-after
   const client = new Anthropic({ apiKey: cfg.key, maxRetries: retries })
   const opus5 = /^claude-(opus-5|fable-5)/.test(cfg.model)
@@ -67,8 +77,8 @@ async function viaAnthropic(cfg: AiConfig, text: string, image: string | null, r
     // server-side refusal fallback; "default" lets the API pick the substitute model
     ...(opus5 ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const } : {}),
     output_config: {
-      format: { type: 'json_schema', schema: SCHEMA },
-      // a short cataloguing task; lower effort keeps it quick and cheap where supported
+      format: { type: 'json_schema', schema },
+      // a short describing task; lower effort keeps it quick and cheap where supported
       ...(/^claude-(opus-5|opus-4-[678]|fable|sonnet-5)/.test(cfg.model) ? { effort: 'low' as const } : {})
     },
     messages: [
@@ -121,7 +131,7 @@ const OPENAI_BASE: Partial<Record<AiConfig['provider'], string>> = {
   openrouter: 'https://openrouter.ai/api/v1'
 }
 
-async function viaOpenAICompatible(cfg: AiConfig, text: string, image: string | null): Promise<string> {
+async function viaOpenAICompatible(cfg: AiConfig, text: string, image: string | null, schema: Schema): Promise<string> {
   const base = (OPENAI_BASE[cfg.provider] ?? cfg.baseUrl).replace(/\/+$/, '')
   if (!base) throw new Error('Set a base URL for this provider in Settings.')
   // local and lesser-known servers often reject json_schema; they get the instruction instead
@@ -135,12 +145,12 @@ async function viaOpenAICompatible(cfg: AiConfig, text: string, image: string | 
         {
           role: 'user',
           content: [
-            { type: 'text', text: strict ? text : `${text}\n\nReply with only a JSON object with the keys title, tldr, tags and text.` },
+            { type: 'text', text: strict ? text : `${text}\n\nReply with only a JSON object with the keys ${schema.required.join(', ')}.` },
             ...(image ? [{ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${image}` } }] : [])
           ]
         }
       ],
-      ...(strict ? { response_format: { type: 'json_schema', json_schema: { name: 'catalogue', strict: true, schema: SCHEMA } } } : {})
+      ...(strict ? { response_format: { type: 'json_schema', json_schema: { name: 'reply', strict: true, schema } } } : {})
     })
   })
   if (!res.ok) throw await apiError(res)
@@ -150,8 +160,8 @@ async function viaOpenAICompatible(cfg: AiConfig, text: string, image: string | 
   return out
 }
 
-async function viaGemini(cfg: AiConfig, text: string, image: string | null): Promise<string> {
-  const { additionalProperties: _, ...schema } = SCHEMA // Gemini's schema dialect has no additionalProperties
+async function viaGemini(cfg: AiConfig, text: string, image: string | null, full: Schema): Promise<string> {
+  const { additionalProperties: _, ...schema } = full // Gemini's schema dialect has no additionalProperties
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cfg.model)}:generateContent`,
     {
@@ -179,12 +189,34 @@ export async function testAi(patch: Omit<AiConfig, 'key'> & { key?: string }): P
   const cfg = { ...patch, key, model: patch.model.trim() || DEFAULT_MODELS[patch.provider] }
   const text = 'This is a connection test. Return the title "ok" and leave tldr, tags and text empty.'
   try {
-    if (cfg.provider === 'anthropic') await viaAnthropic(cfg, text, null, 0)
-    else await (cfg.provider === 'gemini' ? viaGemini : viaOpenAICompatible)(cfg, text, null)
+    if (cfg.provider === 'anthropic') await viaAnthropic(cfg, text, null, SCHEMA, 0)
+    else await (cfg.provider === 'gemini' ? viaGemini : viaOpenAICompatible)(cfg, text, null, SCHEMA)
     return null
   } catch (e) {
     return e instanceof Error ? e.message : String(e)
   }
+}
+
+// the Anthropic SDK retries on its own; the fetch-based providers go through withRetry
+const ask = (cfg: AiConfig, text: string, image: string | null, schema: Schema): Promise<string> =>
+  cfg.provider === 'anthropic'
+    ? viaAnthropic(cfg, text, image, schema)
+    : withRetry(() => (cfg.provider === 'gemini' ? viaGemini : viaOpenAICompatible)(cfg, text, image, schema))
+
+// A text-to-image prompt that would recreate this image. Asked for on demand, not stored.
+export async function imagePrompt(id: number): Promise<string> {
+  const cfg = aiConfig()
+  if (!cfg) throw new Error('Add an AI key in Settings first.')
+  const item = byId(id)
+  if (!item || isText(item.kind)) throw new Error('Only images have a prompt.')
+  const what = item.kind === 'capture' ? 'screenshot of a web page or interface' : 'image'
+  const text = `Write a text-to-image prompt that would recreate this ${what} as closely as possible in a generator such as Midjourney, DALL-E or Stable Diffusion.
+
+One paragraph of 40 to 90 words: the subject and composition first, then medium and style, lighting, colour palette, mood, and the camera and lens if it is a photograph. Quote any text that is part of the design. Describe the look in plain words rather than naming living artists. End with the aspect ratio, about ${item.width}:${item.height}, written like "aspect ratio 4:5".`
+  const raw = await ask(cfg, text, await imageData(item), PROMPT_SCHEMA)
+  const out = (JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)) as { prompt?: unknown }).prompt
+  if (typeof out !== 'string' || !out.trim()) throw new Error('The model returned no prompt.')
+  return out.trim()
 }
 
 /* ---------- queue ---------- */
@@ -211,10 +243,7 @@ async function analyse(id: number): Promise<void> {
   try {
     const text = prompt(item)
     const image = isText(item.kind) ? null : await imageData(item)
-    const raw =
-      cfg.provider === 'anthropic'
-        ? await viaAnthropic(cfg, text, image)
-        : await withRetry(() => (cfg.provider === 'gemini' ? viaGemini : viaOpenAICompatible)(cfg, text, image))
+    const raw = await ask(cfg, text, image, SCHEMA)
     const r = parse(raw)
     if (!byId(id)) return // deleted while the model was working
     db.prepare(

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isText, quoteParts, type Item, type Stack, type Tag } from '@shared/api'
 import { Icon, KINDS, STACK_COLORS } from './Filters'
 import { CornerQuote } from './Grid'
@@ -65,6 +65,14 @@ export default function Detail({
   const [palette, setPalette] = useState<string[]>([])
   const [flash, setFlash] = useState('') // brief confirmation after copy / save
   const [copiedSwatch, setCopiedSwatch] = useState<number | null>(null) // its bubble reads "Copied"
+  // "Generate prompt": a text-to-image prompt for this image, kept until another item opens
+  const [gen, setGen] = useState<{ state: 'idle' | 'busy' | 'done' | 'failed'; text: string }>({ state: 'idle', text: '' })
+  const [genCopied, setGenCopied] = useState(false)
+  const openId = useRef(item.id)
+  // tags show about three rows, the last fading out; clicking the fade shows them all
+  const tagBox = useRef<HTMLDivElement>(null)
+  const [tagsOpen, setTagsOpen] = useState(false)
+  const [tagsOverflow, setTagsOverflow] = useState(false)
 
   useEffect(() => {
     setTitle(item.title ?? '')
@@ -73,6 +81,9 @@ export default function Detail({
     setDraft('')
     setPicking(false)
     setPalette([])
+    setGen({ state: 'idle', text: '' })
+    setTagsOpen(false)
+    openId.current = item.id
     window.tessera.fileSize(item.id).then(setBytes)
     window.tessera.palette(item.id).then(setPalette)
   }, [item.id])
@@ -86,6 +97,27 @@ export default function Detail({
   useEffect(() => {
     window.tessera.tags(item.id).then(setTags)
   }, [item])
+
+  useLayoutEffect(() => {
+    const el = tagBox.current
+    if (el) setTagsOverflow(el.scrollHeight > el.clientHeight + 1)
+  }, [tags, adding, tagsOpen])
+
+  const generatePrompt = () => {
+    const id = item.id
+    setGen({ state: 'busy', text: '' })
+    window.tessera.imagePrompt(id).then(
+      (text) => openId.current === id && setGen({ state: 'done', text }),
+      // Electron prefixes the main process's message with "Error invoking remote method …: Error: "
+      (e) => openId.current === id && setGen({ state: 'failed', text: String(e).replace(/^.*Error: /, '') })
+    )
+  }
+
+  const copyPrompt = () =>
+    navigator.clipboard.writeText(gen.text).then(() => {
+      setGenCopied(true)
+      setTimeout(() => setGenCopied(false), 1200)
+    })
 
   const save = (patch: Partial<Pick<Item, 'title' | 'note'>>, changed: boolean) => {
     if (changed) window.tessera.update(item.id, patch)
@@ -255,61 +287,120 @@ export default function Detail({
               )}
             </fieldset>
 
+            {!isText(item.kind) && aiReady && (
+              <section className="flex flex-col gap-2.5">
+                <span className={LABEL}>Prompt</span>
+                {gen.state === 'idle' ? (
+                  <button
+                    onClick={generatePrompt}
+                    className="flex items-center gap-2 self-start rounded-full bg-fg px-4 py-1.5 text-[13px] text-card transition-opacity hover:opacity-85"
+                  >
+                    <Icon name="vibe" className="size-4" />
+                    Generate prompt
+                  </button>
+                ) : gen.state === 'busy' ? (
+                  <p role="status" className="animate-pulse text-[14px] text-dim">Writing a prompt for this image…</p>
+                ) : gen.state === 'failed' ? (
+                  <div className="flex flex-col items-start gap-2">
+                    <p className="text-[13px] leading-relaxed text-red-600">Couldn't write a prompt: {gen.text}</p>
+                    <button onClick={generatePrompt} className="text-[13px] text-fg underline">
+                      Try again
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="rounded-md bg-card px-3.5 py-3 text-[14px] leading-relaxed text-fg/85 shadow-card select-text">
+                      {gen.text}
+                    </p>
+                    <div className="flex gap-2">
+                      <button onClick={copyPrompt} className={`${CHIP} bg-fg text-card transition-opacity hover:opacity-85`}>
+                        {genCopied ? 'Copied' : 'Copy prompt'}
+                      </button>
+                      <button onClick={generatePrompt} className={`${CHIP} bg-fg/[0.06] text-dim transition-colors hover:text-fg`}>
+                        Write another
+                      </button>
+                    </div>
+                  </>
+                )}
+              </section>
+            )}
+
             <section className="flex flex-col gap-2.5">
               <span className={LABEL}>Tags</span>
-              <div className="flex flex-wrap gap-1.5">
-                {adding ? (
-                  <input
-                    autoFocus
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onKeyDown={onTagKey}
-                    onBlur={() => {
-                      submitTags()
-                      setAdding(false)
-                    }}
-                    list="tag-names"
-                    placeholder="Tag, then Enter"
-                    aria-label="New tag; separate several with commas"
-                    spellCheck={false}
-                    className={`${CHIP} w-36 bg-card shadow-card outline-2 outline-accent placeholder:text-faint`}
-                  />
-                ) : (
-                  <button
-                    onClick={() => setAdding(true)}
-                    className={`${CHIP} bg-accent text-white transition-opacity hover:opacity-90`}
-                  >
-                    + Add tag
-                  </button>
-                )}
-                <datalist id="tag-names">
-                  {tagNames.map((n) => (
-                    <option key={n} value={n} />
-                  ))}
-                </datalist>
-                <span className={`${CHIP} flex items-center gap-1.5 bg-card text-dim shadow-card`}>
-                  <Icon name={KINDS[item.kind].icon} className="size-3.5" />
-                  {KINDS[item.kind].label}
-                </span>
-                {tags.map((t) => (
-                  <span
-                    key={t.id}
-                    title={t.dimension}
-                    className={`${CHIP} group flex items-center gap-1 bg-fg/[0.06] pr-1.5 text-dim`}
-                  >
-                    {t.value}
+              <div className="relative">
+                <div
+                  ref={tagBox}
+                  className={`flex flex-wrap gap-1.5 ${tagsOpen ? '' : 'max-h-[90px] overflow-hidden'} ${
+                    !tagsOpen && tagsOverflow ? '[mask-image:linear-gradient(to_bottom,black_55%,transparent)]' : ''
+                  }`}
+                >
+                  {adding ? (
+                    <input
+                      autoFocus
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={onTagKey}
+                      onBlur={() => {
+                        submitTags()
+                        setAdding(false)
+                      }}
+                      list="tag-names"
+                      placeholder="Tag, then Enter"
+                      aria-label="New tag; separate several with commas"
+                      spellCheck={false}
+                      className={`${CHIP} w-36 bg-card shadow-card outline-2 outline-accent placeholder:text-faint`}
+                    />
+                  ) : (
                     <button
-                      onClick={() => window.tessera.removeTag(item.id, t.value)}
-                      aria-label={`Remove tag ${t.value}`}
-                      className="grid size-4 place-items-center rounded-full opacity-40 transition hover:bg-fg/10 hover:opacity-100 group-hover:opacity-70"
+                      onClick={() => setAdding(true)}
+                      className={`${CHIP} bg-accent text-white transition-opacity hover:opacity-90`}
                     >
-                      <svg viewBox="0 0 12 12" className="size-2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
-                        <path d="M3 3l6 6M9 3 3 9" />
-                      </svg>
+                      + Add tag
                     </button>
+                  )}
+                  <datalist id="tag-names">
+                    {tagNames.map((n) => (
+                      <option key={n} value={n} />
+                    ))}
+                  </datalist>
+                  <span className={`${CHIP} flex items-center gap-1.5 bg-card text-dim shadow-card`}>
+                    <Icon name={KINDS[item.kind].icon} className="size-3.5" />
+                    {KINDS[item.kind].label}
                   </span>
-                ))}
+                  {tags.map((t) => (
+                    <span
+                      key={t.id}
+                      title={t.dimension}
+                      className={`${CHIP} group flex items-center gap-1 bg-fg/[0.06] pr-1.5 text-dim`}
+                    >
+                      {t.value}
+                      <button
+                        onClick={() => window.tessera.removeTag(item.id, t.value)}
+                        aria-label={`Remove tag ${t.value}`}
+                        className="grid size-4 place-items-center rounded-full opacity-40 transition hover:bg-fg/10 hover:opacity-100 group-hover:opacity-70"
+                      >
+                        <svg viewBox="0 0 12 12" className="size-2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+                          <path d="M3 3l6 6M9 3 3 9" />
+                        </svg>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                {!tagsOpen && tagsOverflow && (
+                  // covers the faded row, so a click there opens the list instead of removing a tag
+                  <button
+                    onClick={() => setTagsOpen(true)}
+                    aria-label={`Show all ${tags.length + 1} tags`}
+                    title="Show all tags"
+                    className="absolute inset-x-0 bottom-0 h-8 cursor-pointer"
+                  />
+                )}
               </div>
+              {tagsOpen && (
+                <button onClick={() => setTagsOpen(false)} className="self-start text-[12px] text-dim hover:text-fg">
+                  Show fewer
+                </button>
+              )}
             </section>
 
             <label className="flex flex-col gap-2.5">
@@ -320,8 +411,8 @@ export default function Detail({
                 onBlur={() => save({ note: note.trim() || null }, note.trim() !== (item.note ?? ''))}
                 onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), e.currentTarget.blur())}
                 placeholder="Type here to add a note…"
-                rows={3}
-                className="w-full resize-none rounded-md bg-card px-3.5 py-3 text-[14px] leading-relaxed shadow-card placeholder:text-faint focus:outline-2 focus:outline-accent"
+                rows={1}
+                className="[field-sizing:content] max-h-48 min-h-0 w-full resize-none rounded-md bg-card px-3.5 py-3 text-[14px] leading-relaxed shadow-card placeholder:text-faint focus:outline-2 focus:outline-accent"
               />
             </label>
 
