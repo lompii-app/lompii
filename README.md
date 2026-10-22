@@ -235,7 +235,7 @@ replaces page titles and file names; its tags are ordinary tags you can remove.
 **Generate prompt** in an image's overlay is a separate, on-demand call with the same key; the
 prompt isn't saved.
 
-Requests run two at a time in the background. Claude calls use the official
+Requests run four at a time in the background. Claude calls use the official
 `@anthropic-ai/sdk` with structured JSON output and Anthropic's server-side refusal fallback;
 other providers are called over their HTTP APIs.
 

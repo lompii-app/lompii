@@ -9,7 +9,7 @@ import { canonicalTags, parse } from './scoring'
 import { aiConfig, providerConfig, type AiConfig } from './settings'
 
 // One model call per item: title, TLDR, search tags and any visible text. Runs in the
-// background, two at a time; the item's status drives the overlay's loading state.
+// background, four at a time; the item's status drives the overlay's loading state.
 
 const SCHEMA = {
   type: 'object',
@@ -52,7 +52,7 @@ Return:
 - title: a short descriptive title, 3 to 8 words, sentence case. Say what it is, not where it came from.
 - tldr: one or two plain sentences on what it shows and what is notable about it.
 - tags: 6 to 10 lowercase search terms someone might type to find this again: subject, visual style, mood, colours, medium, and layout or typography where they matter. Single words or short phrases. Not generic words like image, screenshot, quote or snippet.
-- text: legible text that appears in the image, verbatim, up to about 300 words. Empty for text-only items or when there is none.${reuse}`
+- text: legible text that appears in the image, verbatim, up to about 100 words (the most prominent first). Empty for text-only items or when there is none.${reuse}`
 }
 
 // JPEG, long side at most 1568 px. Full-page captures keep their top, at a readable width.
@@ -282,7 +282,7 @@ One paragraph of 40 to 90 words: the subject and composition first, then medium 
 
 /* ---------- queue ---------- */
 
-const MAX_RUNNING = 2
+const MAX_RUNNING = 4 // more finishes a batch sooner; providers rate-limit past this, and withRetry waits
 const queue: number[] = []
 let running = 0
 
