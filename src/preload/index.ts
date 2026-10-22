@@ -53,6 +53,7 @@ const api: TesseraAPI = {
   setOpenAtLogin: (on) => ipcRenderer.invoke('settings:setOpenAtLogin', on),
   analyse: (id) => ipcRenderer.invoke('ai:analyse', id),
   analyseAll: () => ipcRenderer.invoke('ai:analyseAll'),
+  testAi: (patch) => ipcRenderer.invoke('ai:test', patch),
   embeddingStatus: () => ipcRenderer.invoke('embeddings:status'),
   searchSemantic: (query) => ipcRenderer.invoke('search:semantic', query)
 }

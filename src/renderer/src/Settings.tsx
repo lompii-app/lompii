@@ -12,6 +12,58 @@ const LABEL = 'text-[11px] uppercase tracking-wider text-dim'
 const BOX = 'min-w-0 flex-1 rounded-md bg-ink px-3 py-2 text-[13px]'
 const FIELD = 'rounded-md bg-ink px-3 py-2 text-[13px] placeholder:text-faint focus:outline-2 focus:outline-accent'
 const GHOST = 'shrink-0 rounded-md px-3 py-2 text-[13px] text-dim transition-colors hover:bg-ink hover:text-fg'
+const DESC = 'text-[13px] leading-relaxed text-dim'
+const SECONDARY =
+  'shrink-0 rounded-md border border-line px-3 py-1.5 text-[13px] transition-colors hover:bg-ink focus-visible:outline-2 focus-visible:outline-accent'
+
+const TABS = ['General', 'AI', 'Extension'] as const
+type Tab = (typeof TABS)[number]
+
+// a titled card of rows, split by hairlines
+const Group = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div>
+    <h4 className={`${LABEL} mb-2 px-1`}>{title}</h4>
+    <div className="divide-y divide-line rounded-lg border border-line">{children}</div>
+  </div>
+)
+
+// what it is on the start side, its control on the end side
+const Row = ({ title, desc, children }: { title: string; desc?: React.ReactNode; children?: React.ReactNode }) => (
+  <div className="flex items-center gap-6 px-4 py-3.5">
+    <div className="min-w-0 flex-1">
+      <div className="text-[14px]">{title}</div>
+      {desc && <div className={`${DESC} mt-0.5 break-words`}>{desc}</div>}
+    </div>
+    {children}
+  </div>
+)
+
+const Switch = ({
+  label,
+  on,
+  disabled,
+  onToggle
+}: {
+  label: string
+  on: boolean
+  disabled?: boolean
+  onToggle: (on: boolean) => void
+}) => (
+  <button
+    role="switch"
+    aria-checked={on}
+    aria-label={label}
+    disabled={disabled}
+    onClick={() => onToggle(!on)}
+    className={`relative h-5 w-9 shrink-0 rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40 ${
+      on ? 'bg-accent' : 'bg-faint'
+    }`}
+  >
+    <span
+      className={`absolute top-0.5 left-0.5 size-4 rounded-full bg-white shadow-sm transition-transform ${on ? 'translate-x-4' : ''}`}
+    />
+  </button>
+)
 
 export default function SettingsDialog({
   ref,
@@ -26,12 +78,14 @@ export default function SettingsDialog({
   onChange: (s: Settings) => void
   onManageTags: () => void
 }) {
+  const [tab, setTab] = useState<Tab>('General')
   const [copied, setCopied] = useState(false)
   const [key, setKey] = useState('')
   const [provider, setProvider] = useState<AiProvider>('anthropic')
   const [model, setModel] = useState(DEFAULT_MODELS.anthropic)
   const [baseUrl, setBaseUrl] = useState('')
   const [status, setStatus] = useState('')
+  const [test, setTest] = useState<{ state: 'testing' | 'ok' | 'failed'; note?: string } | null>(null)
   const [vision, setVision] = useState<EmbeddingStatus | null>(null)
   const [backupNote, setBackupNote] = useState('')
 
@@ -73,10 +127,12 @@ export default function SettingsDialog({
     // keep a model the user typed; swap only the previous provider's default
     if (!model.trim() || model === DEFAULT_MODELS[provider]) setModel(DEFAULT_MODELS[p])
     setProvider(p)
+    setTest(null)
   }
 
   const onKey = (value: string) => {
     setKey(value)
+    setTest(null)
     const guess = detectProvider(value)
     if (guess && guess !== provider) pickProvider(guess)
   }
@@ -88,9 +144,17 @@ export default function SettingsDialog({
     setStatus(next.ai?.hasKey ? 'Saved. New saves will be analysed automatically.' : 'Saved.')
   }
 
+  // tries the fields as typed (the pasted key, or else the saved one) without saving anything
+  const testKey = async () => {
+    setTest({ state: 'testing' })
+    const error = await window.tessera.testAi({ provider, model, baseUrl, key: key.trim() ? key : undefined })
+    setTest(error ? { state: 'failed', note: error } : { state: 'ok' })
+  }
+
   const removeKey = async () => {
     onChange(await window.tessera.setAi({ provider, model, baseUrl, key: '' }))
     setStatus('Key removed.')
+    setTest(null)
   }
 
   const analyseAll = async () => {
@@ -100,52 +164,116 @@ export default function SettingsDialog({
 
   const hasKey = !!settings?.ai?.hasKey
 
-  return (
-    <dialog
-      ref={ref}
-      onClose={() => setStatus('')}
-      className="m-auto max-h-[85vh] w-[480px] overflow-y-auto rounded-lg bg-card p-8 text-fg shadow-lift backdrop:bg-ink/70 backdrop:backdrop-blur-sm"
-    >
-      <h2 className="font-serif text-[32px] italic leading-none">Settings</h2>
+  const sections: Record<Tab, React.ReactNode> = {
+    General: (
+      <div className="space-y-7">
+        <Group title="Startup">
+          <Row
+            title="Open at sign-in"
+            desc={
+              settings?.openAtLogin == null
+                ? 'Available in the installed app.'
+                : 'Closing the window keeps Tessera in the tray, so the extension can always save.'
+            }
+          >
+            <Switch
+              label="Start Tessera when you sign in"
+              on={!!settings?.openAtLogin}
+              disabled={settings?.openAtLogin == null}
+              onToggle={async (on) => onChange(await window.tessera.setOpenAtLogin(on))}
+            />
+          </Row>
+        </Group>
 
-      <section className="mt-7">
-        <h3 className={LABEL}>General</h3>
-        <label className={`mt-3 flex items-center gap-3 text-[14px] ${settings?.openAtLogin == null ? 'opacity-50' : ''}`}>
-          <input
-            type="checkbox"
-            checked={!!settings?.openAtLogin}
-            disabled={settings?.openAtLogin == null}
-            onChange={async (e) => onChange(await window.tessera.setOpenAtLogin(e.target.checked))}
-            className="size-4 accent-[var(--color-accent)]"
+        <Group title="Library">
+          <Row title="Tags" desc="Rename, merge or delete tags everywhere.">
+            <button onClick={onManageTags} className={SECONDARY}>
+              Manage…
+            </button>
+          </Row>
+          <Row title="Back up" desc={backupNote || 'Copy the database and every file into a folder you choose.'}>
+            <button onClick={backup} className={SECONDARY}>
+              Back up…
+            </button>
+          </Row>
+        </Group>
+
+        <Group title="Same vibe">
+          <Row
+            title="Look-alike images"
+            desc={
+              <>
+                <p>
+                  A small model on this computer finds images that look alike. Downloaded once (about 90 MB);
+                  nothing is sent anywhere.
+                </p>
+                <p className="mt-2.5 flex items-center gap-2 text-fg/80">
+                  <span
+                    className={`size-1.5 shrink-0 rounded-full ${
+                      vision?.state === 'failed' ? 'bg-accent' : vision && vision.done >= vision.total ? 'bg-emerald-500' : 'bg-faint'
+                    }`}
+                  />
+                  {!vision
+                    ? 'Checking…'
+                    : vision.state === 'failed'
+                      ? `Couldn't load the model: ${vision.error ?? 'unknown error'}. It will retry next time Tessera starts.`
+                      : vision.done >= vision.total
+                        ? `All ${vision.total} images indexed`
+                        : vision.state === 'loading' && vision.done === 0
+                          ? 'Downloading the model…'
+                          : `Indexing images: ${vision.done} of ${vision.total}`}
+                </p>
+                {vision && vision.state !== 'failed' && vision.done < vision.total && (
+                  <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-ink">
+                    <div
+                      className="h-full rounded-full bg-accent transition-[width] duration-500"
+                      style={{ width: `${(vision.done / Math.max(vision.total, 1)) * 100}%` }}
+                    />
+                  </div>
+                )}
+              </>
+            }
           />
-          Start Tessera when you sign in
-        </label>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-dim">
-          {settings?.openAtLogin == null
-            ? 'Available in the installed app. '
-            : ''}
-          Closing the window keeps Tessera running in the tray, so the extension can always save. Quit
-          from the tray icon.
-        </p>
-      </section>
+        </Group>
+      </div>
+    ),
 
-      <section className="mt-7">
-        <h3 className={LABEL}>AI</h3>
-        <p className="mt-1 text-[13px] leading-relaxed text-dim">
+    AI: (
+      <>
+        <p className={DESC}>
           Gives everything you save a title, a summary and search tags. Works with any provider's API key;
           each item is sent to the provider you choose.
         </p>
 
-        <input
-          type="password"
-          value={key}
-          onChange={(e) => onKey(e.target.value)}
-          placeholder={hasKey ? 'Key saved. Paste a new one to replace it' : 'Paste an API key'}
-          aria-label="API key"
-          spellCheck={false}
-          autoComplete="off"
-          className={`${FIELD} mt-3 w-full font-mono`}
-        />
+        <h4 className={`${LABEL} mt-6`}>API key</h4>
+        <div className="mt-2 flex gap-2">
+          <input
+            type="password"
+            value={key}
+            onChange={(e) => onKey(e.target.value)}
+            placeholder={hasKey ? 'Key saved. Paste a new one to replace it' : 'Paste an API key'}
+            aria-label="API key"
+            spellCheck={false}
+            autoComplete="off"
+            className={`${FIELD} min-w-0 flex-1 font-mono`}
+          />
+          <button
+            onClick={testKey}
+            disabled={(!key.trim() && !hasKey) || test?.state === 'testing'}
+            className={`${GHOST} border border-line disabled:pointer-events-none disabled:opacity-40`}
+          >
+            {test?.state === 'testing' ? 'Testing…' : 'Test key'}
+          </button>
+        </div>
+        {test && test.state !== 'testing' && (
+          <p role="status" className={`mt-1.5 text-[12px] break-words ${test.state === 'ok' ? 'text-fg/80' : 'text-accent'}`}>
+            {test.state === 'ok'
+              ? `✓ It works. ${AI_PROVIDERS[provider]} answered using ${model.trim() || DEFAULT_MODELS[provider]}.`
+              : test.note}
+          </p>
+        )}
+
+        <h4 className={`${LABEL} mt-6`}>Provider and model</h4>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <select
             value={provider}
@@ -161,7 +289,10 @@ export default function SettingsDialog({
           </select>
           <input
             value={model}
-            onChange={(e) => setModel(e.target.value)}
+            onChange={(e) => {
+              setModel(e.target.value)
+              setTest(null)
+            }}
             placeholder="Model"
             aria-label="Model"
             spellCheck={false}
@@ -171,7 +302,10 @@ export default function SettingsDialog({
         {provider === 'custom' && (
           <input
             value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
+            onChange={(e) => {
+              setBaseUrl(e.target.value)
+              setTest(null)
+            }}
             placeholder="Base URL, e.g. http://localhost:11434/v1"
             aria-label="Base URL"
             spellCheck={false}
@@ -179,7 +313,7 @@ export default function SettingsDialog({
           />
         )}
 
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-6 flex items-center gap-2">
           <button onClick={saveAi} className="rounded-md bg-fg px-4 py-2 text-[13px] text-card transition-opacity hover:opacity-85">
             Save
           </button>
@@ -195,65 +329,52 @@ export default function SettingsDialog({
           )}
         </div>
         {status && <p className="mt-2 text-[12px] text-dim">{status}</p>}
-      </section>
+      </>
+    ),
 
-      <section className="mt-7">
-        <h3 className={LABEL}>Library</h3>
-        <div className="mt-3 flex items-center gap-3">
-          <p className="flex-1 text-[13px] leading-relaxed text-dim">Rename, merge or delete tags everywhere.</p>
-          <button onClick={onManageTags} className={GHOST}>
-            Manage tags…
-          </button>
-        </div>
-        <div className="mt-3 flex items-center gap-3">
-          <p className="flex-1 text-[13px] leading-relaxed text-dim">
-            Copy the database and every file into a folder you choose.
-          </p>
-          <button onClick={backup} className={GHOST}>
-            Back up…
-          </button>
-        </div>
-        {backupNote && <p className="mt-1 text-[12px] break-all text-dim">{backupNote}</p>}
-      </section>
-
-      <section className="mt-7">
-        <h3 className={LABEL}>Same vibe</h3>
-        <p className="mt-1 text-[13px] leading-relaxed text-dim">
-          Finds images that look alike with a small model that runs on this computer, downloaded once
-          (about 90 MB). Free, and nothing is sent anywhere.
-        </p>
-        <p className="mt-2 text-[13px] text-fg/80">
-          {!vision
-            ? 'Checking…'
-            : vision.state === 'failed'
-              ? `Couldn't load the model: ${vision.error ?? 'unknown error'}. It will retry next time Tessera starts.`
-              : vision.done >= vision.total
-                ? `All ${vision.total} images indexed.`
-                : vision.state === 'loading' && vision.done === 0
-                  ? 'Downloading the model…'
-                  : `Indexing images: ${vision.done} of ${vision.total}`}
-        </p>
-      </section>
-
-      <section className="mt-7">
-        <h3 className={LABEL}>Browser extension key</h3>
-        <p className="mt-1 text-[13px] text-dim">Paste this into the Tessera extension's options.</p>
+    Extension: (
+      <>
+        <p className={DESC}>Paste this key into the Tessera extension's options.</p>
         <div className="mt-3 flex items-center gap-2">
           <code className={`${BOX} truncate font-mono text-[12px]`}>{settings?.token}</code>
           <button onClick={copy} className={GHOST}>
             {copied ? 'Copied' : 'Copy'}
           </button>
         </div>
-      </section>
+      </>
+    )
+  }
 
-      <div className="mt-8 flex justify-end">
-        <button
-          onClick={() => ref.current?.close()}
-          className="rounded-md bg-fg px-5 py-2 text-[14px] text-card transition-opacity hover:opacity-85"
-        >
-          Done
-        </button>
-      </div>
+  return (
+    <dialog
+      ref={ref}
+      onMouseDown={(e) => e.target === e.currentTarget && ref.current?.close()}
+      onClose={() => {
+        setStatus('')
+        setTest(null)
+      }}
+      className="m-auto h-[min(540px,85vh)] w-[min(720px,92vw)] overflow-hidden rounded-lg bg-card text-fg shadow-lift backdrop:bg-ink/70 backdrop:backdrop-blur-sm open:flex"
+    >
+      <nav className="flex w-44 shrink-0 flex-col gap-0.5 border-r border-line p-4">
+        <h2 className="mb-5 px-2 pt-2 font-serif text-[28px] italic leading-none">Settings</h2>
+        {TABS.map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            aria-current={tab === t ? 'page' : undefined}
+            className={`rounded-md px-2 py-1.5 text-left text-[13px] transition-colors ${
+              tab === t ? 'bg-ink text-fg' : 'text-dim hover:bg-ink hover:text-fg'
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </nav>
+
+      <section className="min-w-0 flex-1 overflow-y-auto p-8">
+        <h3 className="mb-3 text-[18px] font-medium">{tab}</h3>
+        {sections[tab]}
+      </section>
     </dialog>
   )
 }

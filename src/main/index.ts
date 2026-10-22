@@ -5,7 +5,7 @@ import { app, BrowserWindow, clipboard, ClipboardItem, dialog, ipcMain, net, pro
 import sharp from 'sharp'
 import { isHttpUrl, isText, type Item, type Stack, type WindowAction } from '@shared/api'
 import { addTags, DATA, db, deleteTag, removeTag, renameTag, tagCounts } from './db'
-import { enqueue, enqueueUnanalysed, resumeAnalysis } from './ai'
+import { enqueue, enqueueUnanalysed, resumeAnalysis, testAi } from './ai'
 import { allVectors, embeddingStatus, indexImages, indexText, searchImages, searchMeaning, textChanged, textVectors } from './embed'
 import { ingestBuffer, ingestFile } from './ingest'
 import { firstClose, getSettings, setAi } from './settings'
@@ -338,6 +338,7 @@ ipcMain.handle('settings:setOpenAtLogin', (_e, on: boolean) => {
 })
 ipcMain.handle('ai:analyse', (_e, id: number) => void enqueue(id))
 ipcMain.handle('ai:analyseAll', () => enqueueUnanalysed())
+ipcMain.handle('ai:test', (_e, patch: Parameters<typeof testAi>[0]) => testAi(patch))
 ipcMain.handle('embeddings:status', () => embeddingStatus())
 
 // Search by description: CLIP for how images look, MiniLM for what any item's words mean.

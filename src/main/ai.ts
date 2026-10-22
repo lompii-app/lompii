@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import Anthropic from '@anthropic-ai/sdk'
 import { BrowserWindow } from 'electron'
 import sharp from 'sharp'
-import { isText, type Item } from '@shared/api'
+import { DEFAULT_MODELS, isText, type Item } from '@shared/api'
 import { addTags, DATA, db, tagCounts } from './db'
 import { textChanged } from './embed'
 import { canonicalTags, parse } from './scoring'
@@ -57,9 +57,9 @@ async function imageData(item: Item): Promise<string> {
 
 /* ---------- providers ---------- */
 
-async function viaAnthropic(cfg: AiConfig, text: string, image: string | null): Promise<string> {
+async function viaAnthropic(cfg: AiConfig, text: string, image: string | null, retries = 4): Promise<string> {
   // the SDK retries 408/409/429/5xx and dropped connections itself, honouring retry-after
-  const client = new Anthropic({ apiKey: cfg.key, maxRetries: 4 })
+  const client = new Anthropic({ apiKey: cfg.key, maxRetries: retries })
   const opus5 = /^claude-(opus-5|fable-5)/.test(cfg.model)
   const res = await client.beta.messages.create({
     model: cfg.model,
@@ -170,6 +170,21 @@ async function viaGemini(cfg: AiConfig, text: string, image: string | null): Pro
   const out = data.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? '').join('')
   if (!out) throw new Error(data.promptFeedback?.blockReason ? `Blocked: ${data.promptFeedback.blockReason}` : 'The model returned no text.')
   return out
+}
+
+// One tiny text-only call with these settings, no retries. Returns null if it worked, else why not.
+export async function testAi(patch: Omit<AiConfig, 'key'> & { key?: string }): Promise<string | null> {
+  const key = patch.key?.trim() || aiConfig()?.key
+  if (!key) return 'Paste an API key first.'
+  const cfg = { ...patch, key, model: patch.model.trim() || DEFAULT_MODELS[patch.provider] }
+  const text = 'This is a connection test. Return the title "ok" and leave tldr, tags and text empty.'
+  try {
+    if (cfg.provider === 'anthropic') await viaAnthropic(cfg, text, null, 0)
+    else await (cfg.provider === 'gemini' ? viaGemini : viaOpenAICompatible)(cfg, text, null)
+    return null
+  } catch (e) {
+    return e instanceof Error ? e.message : String(e)
+  }
 }
 
 /* ---------- queue ---------- */

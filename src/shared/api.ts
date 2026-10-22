@@ -140,6 +140,7 @@ export type TesseraAPI = {
   setOpenAtLogin(on: boolean): Promise<Settings>
   analyse(id: number): Promise<void> // queue one item for AI analysis
   analyseAll(): Promise<number> // queue everything not yet analysed; returns how many
+  testAi(patch: { provider: AiProvider; model: string; baseUrl: string; key?: string }): Promise<string | null> // null: the key works; else the error
   embeddingStatus(): Promise<EmbeddingStatus>
   searchSemantic(query: string): Promise<{ id: number; score: number }[]> // matches by look or meaning, score 0-1
 }
