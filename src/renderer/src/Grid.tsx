@@ -69,7 +69,7 @@ export default function Grid({ scrollRef, items, selected, onSelect, onOpen, onD
       if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') return
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selected != null && confirm('Delete this item?')) onDelete(selected)
+        if (selected != null) onDelete(selected) // undoable, so no confirm
         return
       }
 

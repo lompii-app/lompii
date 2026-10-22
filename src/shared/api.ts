@@ -20,6 +20,7 @@ export type Item = {
   ai_error: string | null // why the last analysis failed
   note: string | null
   palette: string | null // JSON, main process only; the renderer asks for palette(id)
+  deleted_at: number | null // in the trash since; the renderer never sees trashed items
 }
 
 export const isText = (kind: Kind): boolean => kind === 'quote' || kind === 'snippet'
@@ -106,7 +107,11 @@ export type TesseraAPI = {
   similar(id: number): Promise<number[]> // the item itself, then its closest matches
   saveAs(id: number): Promise<boolean> // false if the save dialog was cancelled
   copy(id: number): Promise<void> // the image, or the text, to the clipboard
-  remove(id: number): Promise<void>
+  remove(id: number): Promise<void> // to the trash
+  restore(ids: number[] | 'all'): Promise<void>
+  trashCount(): Promise<number>
+  emptyTrash(): Promise<void>
+  backup(): Promise<string | null> // the backup folder, or null if cancelled
 
   ingestPaths(paths: string[]): Promise<number>
   ingestBuffer(data: ArrayBuffer): Promise<Item | null>

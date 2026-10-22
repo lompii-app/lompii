@@ -366,7 +366,7 @@ export default function Detail({
             </IconButton>
             <IconButton
               label="Delete"
-              onClick={() => confirm('Delete this item?') && onDelete(item.id)}
+              onClick={() => onDelete(item.id)}
             >
               <path d="M3 6h18" />
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />

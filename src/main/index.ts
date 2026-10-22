@@ -1,5 +1,5 @@
 import { extname, join, resolve, sep } from 'node:path'
-import { copyFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, clipboard, ClipboardItem, dialog, ipcMain, net, protocol, shell } from 'electron'
 import sharp from 'sharp'
@@ -20,7 +20,9 @@ protocol.registerSchemesAsPrivileged([
 
 const EDITABLE = ['source_url', 'title', 'note'] as const
 
-ipcMain.handle('items:list', () => db.prepare('select * from items order by created_at desc').all())
+ipcMain.handle('items:list', () =>
+  db.prepare('select * from items where deleted_at is null order by created_at desc').all()
+)
 
 ipcMain.handle('items:tags', (_e, id: number) =>
   db
@@ -44,7 +46,8 @@ ipcMain.handle('tags:index', () =>
   db
     .prepare(
       `select it.item_id as item, t.value from item_tags it
-       join tags t on t.id = it.tag_id where t.dimension = 'tag'`
+       join tags t on t.id = it.tag_id join items i on i.id = it.item_id
+       where t.dimension = 'tag' and i.deleted_at is null`
     )
     .all()
 )
@@ -63,7 +66,10 @@ ipcMain.handle('stacks:list', () =>
     (s) => ({
       ...s,
       items: db
-        .prepare('select item_id from stack_items where stack_id = ? order by added_at desc')
+        .prepare(
+          `select si.item_id from stack_items si join items i on i.id = si.item_id
+           where si.stack_id = ? and i.deleted_at is null order by si.added_at desc`
+        )
         .pluck()
         .all(s.id) as number[]
     })
@@ -171,7 +177,7 @@ const visualSimilarity = (a: Float32Array, b: Float32Array): number => {
 // ponytail: scored against every item on each click (a dot product per image pair is cheap).
 // Fine for tens of thousands; a vector index (sqlite-vec, HNSW) if the library outgrows that.
 ipcMain.handle('items:similar', async (_e, id: number) => {
-  const all = db.prepare('select * from items').all() as Item[]
+  const all = db.prepare('select * from items where deleted_at is null').all() as Item[]
   const me = all.find((i) => i.id === id)
   if (!me) return []
 
@@ -266,13 +272,49 @@ ipcMain.handle('shell:openExternal', (_e, url: string) => {
   return shell.openExternal(url)
 })
 
+/* trash: deleting is reversible for 30 days */
+
+const TRASH_DAYS = 30
+
 ipcMain.handle('items:remove', (_e, id: number) => {
-  const row = db.prepare('select file_path, thumb_path from items where id = ?').get(id) as
-    | Pick<Item, 'file_path' | 'thumb_path'>
-    | undefined
-  if (!row) return
-  db.prepare('delete from items where id = ?').run(id)
-  for (const p of [row.file_path, row.thumb_path]) if (p) rmSync(join(DATA, p), { force: true }) // quotes have no files
+  db.prepare('update items set deleted_at = ? where id = ? and deleted_at is null').run(Date.now(), id)
+})
+
+ipcMain.handle('items:restore', (_e, ids: number[] | 'all') => {
+  if (ids === 'all') db.prepare('update items set deleted_at = null where deleted_at is not null').run()
+  else if (Array.isArray(ids)) for (const id of ids) db.prepare('update items set deleted_at = null where id = ?').run(id)
+})
+
+ipcMain.handle('trash:count', () => db.prepare('select count(*) from items where deleted_at is not null').pluck().get())
+
+// rows (tags, stack entries and vectors cascade) and their files, for good
+function purge(where: string, ...args: unknown[]): number {
+  const rows = db.prepare(`select id, file_path, thumb_path from items where ${where}`).all(...args) as Item[]
+  for (const row of rows) {
+    db.prepare('delete from items where id = ?').run(row.id)
+    for (const p of [row.file_path, row.thumb_path]) if (p) rmSync(join(DATA, p), { force: true }) // text has no files
+  }
+  return rows.length
+}
+
+ipcMain.handle('trash:empty', () => void purge('deleted_at is not null'))
+
+/* backup: a dated folder with a consistent copy of the database and every file */
+
+ipcMain.handle('library:backup', async (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender)!
+  const pick = await dialog.showOpenDialog(win, {
+    title: 'Back up Tessera to…',
+    properties: ['openDirectory', 'createDirectory']
+  })
+  if (pick.canceled || !pick.filePaths[0]) return null
+  const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ').replace(':', '.')
+  const dest = join(pick.filePaths[0], `Tessera backup ${stamp}`)
+  mkdirSync(dest, { recursive: true })
+  await db.backup(join(dest, 'tessera.db')) // SQLite's online backup: safe while the app is writing
+  for (const dir of ['library', 'thumbs']) cpSync(join(DATA, dir), join(dest, dir), { recursive: true })
+  void shell.openPath(dest)
+  return dest
 })
 
 ipcMain.handle('ingest:paths', async (_e, paths: string[]) => {
@@ -366,6 +408,9 @@ else {
       db.pragma('user_version', { simple: true }),
       (db.prepare('select count(*) as n from items').get() as { n: number }).n
     )
+
+    const purged = purge('deleted_at < ?', Date.now() - TRASH_DAYS * 86_400_000)
+    if (purged) console.log('[tessera] emptied %d item(s) from the trash', purged)
 
     serve()
     resumeAnalysis()

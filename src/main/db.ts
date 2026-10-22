@@ -93,7 +93,11 @@ const MIGRATIONS = [
   `create table embeddings (
      item_id integer primary key references items (id) on delete cascade,
      vector blob not null
-   );`
+   );`,
+
+  // trash: deleting sets this; rows and files go for good after 30 days, or on "Empty now"
+  `alter table items add column deleted_at integer;
+   create index items_deleted on items (deleted_at);`
 ]
 
 export const db = new Database(join(DATA, 'tessera.db'))

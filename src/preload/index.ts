@@ -18,6 +18,10 @@ const api: TesseraAPI = {
   saveAs: (id) => ipcRenderer.invoke('items:saveAs', id),
   copy: (id) => ipcRenderer.invoke('items:copy', id),
   remove: (id) => ipcRenderer.invoke('items:remove', id),
+  restore: (ids) => ipcRenderer.invoke('items:restore', ids),
+  trashCount: () => ipcRenderer.invoke('trash:count'),
+  emptyTrash: () => ipcRenderer.invoke('trash:empty'),
+  backup: () => ipcRenderer.invoke('library:backup'),
 
   ingestPaths: (paths) => ipcRenderer.invoke('ingest:paths', paths),
   ingestBuffer: (data) => ipcRenderer.invoke('ingest:buffer', data),

@@ -155,11 +155,28 @@ export default function App() {
     setOpen(true)
   }
 
+  // Deleting moves to the trash; the toast offers an undo for a few seconds.
+  const [undo, setUndo] = useState<{ ids: number[]; label: string } | null>(null)
+  useEffect(() => {
+    if (!undo) return
+    const timer = setTimeout(() => setUndo(null), 6000)
+    return () => clearTimeout(timer)
+  }, [undo])
+
   const remove = async (id: number) => {
+    const title = items.find((i) => i.id === id)?.title
     await window.tessera.remove(id)
     setItems((prev) => prev.filter((i) => i.id !== id))
     setSelected(null)
     setOpen(false)
+    setUndo({ ids: [id], label: title ? `Deleted “${title.slice(0, 40)}”` : 'Deleted' })
+  }
+
+  const undoRemove = async () => {
+    if (!undo) return
+    await window.tessera.restore(undo.ids)
+    setItems(await window.tessera.list()) // back in their place, not at the top
+    setUndo(null)
   }
 
   /* drag & drop, paste */
@@ -369,6 +386,18 @@ export default function App() {
         />
       )}
 
+      {undo && (
+        <div
+          role="status"
+          className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-4 rounded-full bg-fg py-2.5 pr-2.5 pl-5 text-[14px] text-card shadow-lift transition duration-200 starting:translate-y-3 starting:opacity-0"
+        >
+          <span className="max-w-80 truncate">{undo.label}</span>
+          <button onClick={undoRemove} className="rounded-full bg-card/15 px-3 py-1 font-medium transition-colors hover:bg-card/25">
+            Undo
+          </button>
+        </div>
+      )}
+
       {dragging && (
         <div className="pointer-events-none fixed inset-0 z-50 bg-ink/80 p-6 backdrop-blur-sm">
           <div className="grid h-full place-items-center rounded-xl border-2 border-dashed border-accent/60">
@@ -382,6 +411,7 @@ export default function App() {
         settings={settings}
         unanalysed={items.filter((i) => i.status === 'pending' || i.status === 'failed').length}
         onChange={setSettings}
+        onRestored={async () => setItems(await window.tessera.list())}
       />
     </div>
   )
@@ -391,12 +421,14 @@ function SettingsDialog({
   ref,
   settings,
   unanalysed,
-  onChange
+  onChange,
+  onRestored
 }: {
   ref: React.RefObject<HTMLDialogElement | null>
   settings: Settings | null
   unanalysed: number
   onChange: (s: Settings) => void
+  onRestored: () => void // items came back from the trash
 }) {
   const [copied, setCopied] = useState(false)
   const [key, setKey] = useState('')
@@ -405,13 +437,41 @@ function SettingsDialog({
   const [baseUrl, setBaseUrl] = useState('')
   const [status, setStatus] = useState('')
   const [vision, setVision] = useState<EmbeddingStatus | null>(null)
+  const [trash, setTrash] = useState(0)
+  const [backupNote, setBackupNote] = useState('')
 
-  // same-vibe indexing progress, refreshed while the dialog is open
+  // indexing progress and the trash count, refreshed while the dialog is open
   useEffect(() => {
-    const tick = () => ref.current?.open && window.tessera.embeddingStatus().then(setVision)
+    const tick = () => {
+      if (!ref.current?.open) return
+      window.tessera.embeddingStatus().then(setVision)
+      window.tessera.trashCount().then(setTrash)
+    }
     const timer = setInterval(tick, 2000)
     return () => clearInterval(timer)
   }, [ref])
+
+  const restoreAll = async () => {
+    await window.tessera.restore('all')
+    setTrash(0)
+    onRestored()
+  }
+
+  const emptyTrash = async () => {
+    if (!confirm(`Delete ${trash} ${trash === 1 ? 'item' : 'items'} for good? This can't be undone.`)) return
+    await window.tessera.emptyTrash()
+    setTrash(0)
+  }
+
+  const backup = async () => {
+    setBackupNote('Backing up…')
+    try {
+      const dest = await window.tessera.backup()
+      setBackupNote(dest ? `Saved to ${dest}` : '')
+    } catch {
+      setBackupNote('The backup failed. Is there enough space in that folder?')
+    }
+  }
 
   // load the saved AI choice whenever settings arrive or change
   useEffect(() => {
@@ -553,6 +613,36 @@ function SettingsDialog({
           )}
         </div>
         {status && <p className="mt-2 text-[12px] text-dim">{status}</p>}
+      </section>
+
+      <section className="mt-7">
+        <h3 className={LABEL}>Library</h3>
+        <div className="mt-3 flex items-center gap-3">
+          <p className="flex-1 text-[13px] leading-relaxed text-dim">
+            {trash
+              ? `${trash} ${trash === 1 ? 'item' : 'items'} in the trash. Deleted items are kept for 30 days.`
+              : 'The trash is empty. Deleted items are kept for 30 days.'}
+          </p>
+          {trash > 0 && (
+            <>
+              <button onClick={restoreAll} className={GHOST}>
+                Restore all
+              </button>
+              <button onClick={emptyTrash} className={`${GHOST} hover:text-red-600`}>
+                Empty now
+              </button>
+            </>
+          )}
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <p className="flex-1 text-[13px] leading-relaxed text-dim">
+            Copy the database and every file into a folder you choose.
+          </p>
+          <button onClick={backup} className={GHOST}>
+            Back up…
+          </button>
+        </div>
+        {backupNote && <p className="mt-1 text-[12px] break-all text-dim">{backupNote}</p>}
       </section>
 
       <section className="mt-7">

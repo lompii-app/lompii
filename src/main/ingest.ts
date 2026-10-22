@@ -31,6 +31,15 @@ function added(id: number | bigint): Item {
 
 type Meta = { title?: string | null; source?: string | null; kind?: 'image' | 'capture' }
 
+// A save that matches an item in the trash restores it rather than doing nothing.
+function revive(item: Item): Item {
+  if (item.deleted_at == null) return item
+  db.prepare('update items set deleted_at = null where id = ?').run(item.id)
+  const back = db.prepare('select * from items where id = ?').get(item.id) as Item
+  for (const w of BrowserWindow.getAllWindows()) w.webContents.send('item:added', back)
+  return back
+}
+
 const hex = (...rgb: number[]): string =>
   '#' + rgb.map((n) => Math.round(n).toString(16).padStart(2, '0')).join('')
 
@@ -42,7 +51,7 @@ async function ingest(
 ): Promise<Item | null> {
   const hash = createHash('sha256').update(buf).digest('hex').slice(0, 32)
   const existing = byHash(hash)
-  if (existing) return existing
+  if (existing) return revive(existing)
 
   const [meta, stats] = await Promise.all([sharp(buf).metadata(), sharp(buf).stats()])
   if (!meta.width || !meta.height) return null
@@ -80,7 +89,7 @@ export function ingestText(text: string, meta: Meta): Item {
   // the hash keeps its old 'quote:' prefix so text saved before snippets existed still dedupes
   const hash = createHash('sha256').update('quote:' + text).digest('hex').slice(0, 32)
   const existing = byHash(hash)
-  if (existing) return existing
+  if (existing) return revive(existing)
   const kind = textKind(text)
   const body = kind === 'quote' ? unwrap(text) : text
   const info = insert.run('', '', hash, 0, 0, '#ffffff', meta.source ?? null, meta.title ?? null, Date.now(), kind, body)

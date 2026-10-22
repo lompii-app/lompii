@@ -256,7 +256,10 @@ export function enqueue(id: number): boolean {
 
 export function enqueueUnanalysed(): number {
   if (!aiConfig()) return 0
-  const ids = db.prepare(`select id from items where status in ('pending', 'failed') order by created_at desc`).pluck().all() as number[]
+  const ids = db
+    .prepare(`select id from items where status in ('pending', 'failed') and deleted_at is null order by created_at desc`)
+    .pluck()
+    .all() as number[]
   ids.forEach(enqueue)
   return ids.length
 }

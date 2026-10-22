@@ -49,7 +49,7 @@ export const toVector = (blob: Buffer): Float32Array => new Float32Array(new Uin
 
 const save = db.prepare('insert or replace into embeddings (item_id, vector) values (?, ?)')
 const missing = db.prepare(
-  `select * from items where kind in ('image', 'capture')
+  `select * from items where kind in ('image', 'capture') and deleted_at is null
    and id not in (select item_id from embeddings) order by created_at desc`
 )
 
@@ -90,7 +90,8 @@ export function embeddingStatus(): EmbeddingStatus {
   const { total, done } = db
     .prepare(
       `select count(*) as total, count(e.item_id) as done from items i
-       left join embeddings e on e.item_id = i.id where i.kind in ('image', 'capture')`
+       left join embeddings e on e.item_id = i.id
+       where i.kind in ('image', 'capture') and i.deleted_at is null`
     )
     .get() as { total: number; done: number }
   return { state, done, total, error }
@@ -139,7 +140,12 @@ export async function searchImages(query: string): Promise<{ id: number; score: 
 
 // vectors for every embedded item; empty blobs (failed files) are left out
 export function allVectors(): Map<number, Float32Array> {
-  const rows = db.prepare('select item_id, vector from embeddings where length(vector) > 0').all() as {
+  const rows = db
+    .prepare(
+      `select e.item_id, e.vector from embeddings e join items i on i.id = e.item_id
+       where length(e.vector) > 0 and i.deleted_at is null`
+    )
+    .all() as {
     item_id: number
     vector: Buffer
   }[]
