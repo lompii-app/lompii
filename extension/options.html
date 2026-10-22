@@ -10,28 +10,34 @@
         box-shadow: 0 1px 2px rgb(30 40 60 / .04), 0 6px 20px rgb(30 40 60 / .06) }
       h1 { margin: 0 0 4px; font: italic 32px/1.2 'Iowan Old Style', 'Palatino Linotype', Georgia, serif }
       p { margin: 0 0 24px; color: #858b96; font-size: 14px }
-      label { display: block; margin-bottom: 8px; color: #858b96; font-size: 11px; letter-spacing: .08em; text-transform: uppercase }
-      .row { display: flex; gap: 8px }
-      input { flex: 1; min-width: 0; padding: 10px 12px; border: 0; border-radius: 6px; background: #eef0f4;
-        font: 13px ui-monospace, monospace; color: inherit }
-      input:focus, button:focus-visible { outline: 2px solid #ff5a1f }
-      button { padding: 0 16px; border: 0; border-radius: 6px; background: #1d2026; color: #fff; font: inherit; cursor: pointer }
-      #status { min-height: 1.5em; margin-top: 12px; font-size: 14px; color: #858b96 }
-      #status[data-ok='true'] { color: #1a7f4b }
+      .card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 8px; background: #eef0f4 }
+      .dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: #c3c8d1 }
+      .dot[data-ok='true'] { background: #1a7f4b }
+      #status { flex: 1; font-size: 14px }
+      button { padding: 8px 16px; border: 0; border-radius: 6px; background: #1d2026; color: #fff; font: inherit;
+        font-size: 14px; cursor: pointer }
+      button.quiet { padding: 0; background: none; color: #858b96; text-decoration: underline; text-underline-offset: 2px }
+      button:focus-visible { outline: 2px solid #ff5a1f; outline-offset: 2px }
+      button[hidden] { display: none }
+      #pairing { margin-top: 16px; text-align: center }
+      #code { margin: 4px 0 8px; font: 600 34px/1.2 ui-monospace, monospace; letter-spacing: .35em }
+      #pairing p { margin: 0 }
     </style>
   </head>
   <body>
     <main>
       <h1>tessera</h1>
       <p>Right-click an image or selected text and choose “Add to Tessera”. To capture part of a page, click the Tessera button or press Alt+Shift+S.</p>
-      <form>
-        <label for="key">Key — Tessera › Settings › Browser extension key</label>
-        <div class="row">
-          <input id="key" autocomplete="off" spellcheck="false" placeholder="Paste key" />
-          <button>Save</button>
-        </div>
-      </form>
-      <div id="status" role="status"></div>
+      <div class="card">
+        <span class="dot" id="dot"></span>
+        <span id="status" role="status">Checking…</span>
+        <button id="connect" hidden>Connect</button>
+        <button id="disconnect" class="quiet" hidden>Disconnect</button>
+      </div>
+      <div id="pairing" hidden>
+        <p>Check that Tessera shows this code, then click <b>Allow</b> there.</p>
+        <div id="code"></div>
+      </div>
     </main>
     <script src="options.js"></script>
   </body>

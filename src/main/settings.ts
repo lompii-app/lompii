@@ -46,6 +46,12 @@ export function getSettings(): Settings {
   return { token: s.token, ai: { active: s.ai?.active ?? null, providers }, openAtLogin: openAtLogin() }
 }
 
+// a fresh extension key; every paired browser has to connect again
+export function resetToken(): Settings {
+  write({ ...read(), token: randomBytes(16).toString('hex') })
+  return getSettings()
+}
+
 // true only the first time the window is closed, for the "still running in the tray" note
 export function firstClose(): boolean {
   const s = read()

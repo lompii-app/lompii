@@ -143,16 +143,17 @@ The extension lives in [`extension/`](extension) and needs no build step.
 1. Start Tessera.
 2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**
    and choose the `extension` folder.
-3. The extension's options page opens. In Tessera, open **Settings → Browser extension key**,
-   click **Copy**, paste the key into the options page and **Save**. It should say
-   *Connected to Tessera*.
+3. The extension's options page opens. Click **Connect**: it shows a four-digit code, and
+   Tessera comes forward asking to allow a browser extension. If the codes match, click
+   **Allow**. The options page then says *Connected to Tessera*; no key to copy.
+   *Settings → Extension → Disconnect all* stops every connected browser until it connects again.
 
 After editing anything in `extension/`, click the reload icon on the extension's card in
 `chrome://extensions`.
 
 | How | What it saves |
 | --- | --- |
-| Right-click an image → *Add to Tessera* | the image (as an **Image**) |
+| Right-click an image → *Add to Tessera* | the image (as an **Image**), at the largest size the site offers; also pictures inside links or under overlays (Pinterest, Instagram) |
 | Select text, right-click → *Add to Tessera* | a **Quote** or **Snippet** |
 | Right-click the page → *Capture an area…* / *Capture visible area* | a **Capture** |
 | Toolbar popup | visible area, full page, selected area, delayed capture, or selected text |
@@ -270,8 +271,12 @@ other providers are called over their HTTP APIs.
   480 px WebP thumbnail and a dominant colour, and inserted into SQLite. Text is classified as
   a quote or snippet. New items reach the window live, then go to the AI queue.
 - **Extension API.** A small HTTP server bound to `127.0.0.1` on port `47821`. Every request
-  must carry the key from Settings, so web pages that find the port can't write to the library.
-  Endpoints: `GET /ping`, `POST /image?source=&title=&kind=`, `POST /text`,
+  must carry the extension's key, so web pages that find the port can't write to the library.
+  The extension gets the key by **pairing**: `POST /pair` is the one call without it, it is
+  refused unless it comes from a browser extension (web pages can't fake that `Origin`), and
+  Tessera hands the key over only after you click *Allow* on a dialog showing the same code
+  the extension shows. One request at a time; unanswered for two minutes counts as no.
+  Endpoints: `POST /pair`, `GET /ping`, `POST /image?source=&title=&kind=`, `POST /text`,
   `POST /items/:id/tags`.
 - **Images in the window** load through a private `tessera://` protocol with a path check,
   never `file://`.

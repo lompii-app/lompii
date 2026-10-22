@@ -2,23 +2,33 @@
 const API = 'http://127.0.0.1:47821'
 
 const MESSAGES = {
-  nokey: 'Paste your Tessera key in the extension options first.',
-  badkey: "Key doesn't match. Copy it again from Tessera › Settings.",
+  nokey: 'Connect the extension to Tessera in its options first.',
+  badkey: 'Tessera disconnected this browser. Connect it again in the options.',
   offline: "Couldn't reach Tessera. Is the app open?",
   download: "Couldn't download this image.",
   capture: "Chrome wouldn't let Tessera capture this page.",
   'not an image': "That doesn't look like an image.",
-  'empty text': 'Select some text first.'
+  'empty text': 'Select some text first.',
+  noimage: "There's no picture under the pointer to save."
 }
 
+// Rebuilt every time the worker starts, not only on install: turning the extension off and on
+// (and some browser restarts) can drop the items without firing onInstalled.
+chrome.contextMenus.removeAll(() => {
+  // links too: many sites wrap pictures in links or cover them, so the browser sees only a link
+  chrome.contextMenus.create({ id: 'save', title: 'Add to Tessera', contexts: ['image', 'selection', 'link'] })
+  // page background only, so right-clicking an image still offers "Add to Tessera" directly
+  chrome.contextMenus.create({ id: 'capture-area', title: 'Capture an area…', contexts: ['page', 'frame'] })
+  chrome.contextMenus.create({ id: 'capture-view', title: 'Capture visible area', contexts: ['page', 'frame'] })
+})
+
 chrome.runtime.onInstalled.addListener(({ reason }) => {
-  chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({ id: 'save', title: 'Add to Tessera', contexts: ['image', 'selection'] })
-    // page background only, so right-clicking an image still offers "Add to Tessera" directly
-    chrome.contextMenus.create({ id: 'capture-area', title: 'Capture an area…', contexts: ['page', 'frame'] })
-    chrome.contextMenus.create({ id: 'capture-view', title: 'Capture visible area', contexts: ['page', 'frame'] })
-  })
   if (reason === 'install') chrome.runtime.openOptionsPage()
+  // content scripts only reach pages loaded from now on; give tabs already open pointer.js too
+  chrome.tabs.query({}).then((tabs) => {
+    for (const tab of tabs)
+      chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: ['pointer.js'] }).catch(() => {})
+  })
 })
 
 async function call(path, init = {}) {
@@ -59,6 +69,17 @@ async function saveImage(src, meta) {
   return postImage(blob, meta)
 }
 
+// the first that downloads: a site's largest size can refuse where the one on screen works
+async function saveFirst(srcs, meta) {
+  for (const [i, src] of srcs.entries()) {
+    try {
+      return await saveImage(src, meta)
+    } catch (e) {
+      if (e.message !== 'download' || i === srcs.length - 1) throw e
+    }
+  }
+}
+
 // info.selectionText flattens line breaks; read the live selection when the page allows it.
 async function selectedText(info, tabId) {
   try {
@@ -69,6 +90,19 @@ async function selectedText(info, tabId) {
     if (r?.result?.trim()) return r.result
   } catch {}
   return info.selectionText
+}
+
+// what pointer.js noted at the right-click, in the frame that was clicked: URLs, best first
+async function pictureUnderPointer(info, tabId) {
+  try {
+    const [r] = await chrome.scripting.executeScript({
+      target: { tabId, frameIds: [info.frameId ?? 0] },
+      func: () => globalThis.tesseraImage ?? null
+    })
+    return r?.result ?? null
+  } catch {
+    return null
+  }
 }
 
 function failure(e) {
@@ -213,10 +247,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const meta = { source: info.pageUrl ?? tab?.url ?? '', title: tab?.title ?? '' }
   let state
   try {
-    const { id } =
-      info.mediaType === 'image' && info.srcUrl
-        ? await saveImage(info.srcUrl, meta)
-        : await postJson('/text', { text: await selectedText(info, tab.id), ...meta })
+    const srcs =
+      info.mediaType === 'image' && info.srcUrl ? [info.srcUrl] : info.selectionText ? null : await pictureUnderPointer(info, tab.id)
+    if (!srcs?.length && !info.selectionText) throw new Error('noimage')
+    const { id } = srcs?.length
+      ? await saveFirst(srcs, meta)
+      : await postJson('/text', { text: await selectedText(info, tab.id), ...meta })
     state = { ok: true, id }
   } catch (e) {
     state = failure(e)

@@ -148,6 +148,7 @@ export type TesseraAPI = {
   windowControl(action: WindowAction): Promise<void>
 
   getSettings(): Promise<Settings>
+  resetToken(): Promise<Settings> // a new extension key: every paired browser must connect again
   // key: a new key; '' removes it; left out keeps the saved one
   saveProvider(provider: AiProvider, patch: { key?: string; model?: string; baseUrl?: string }): Promise<Settings>
   setActiveProvider(provider: AiProvider | null): Promise<Settings>

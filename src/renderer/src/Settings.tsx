@@ -410,7 +410,7 @@ export default function SettingsDialog({
 }) {
   const [section, setSection] = useState<Section>('General')
   const [where, setWhere] = useState<'cloud' | 'local'>('cloud')
-  const [copied, setCopied] = useState(false)
+  const [disconnect, setDisconnect] = useState<'ask' | 'done' | null>(null)
   const [status, setStatus] = useState('')
   const [vision, setVision] = useState<EmbeddingStatus | null>(null)
   const [backupNote, setBackupNote] = useState('')
@@ -435,10 +435,9 @@ export default function SettingsDialog({
     }
   }
 
-  const copy = async () => {
-    await navigator.clipboard.writeText(settings?.token ?? '')
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
+  const disconnectAll = async () => {
+    onChange(await window.tessera.resetToken())
+    setDisconnect('done')
   }
 
   const analyseAll = async () => {
@@ -553,14 +552,36 @@ export default function SettingsDialog({
     Extension: (
       <>
         <Header title="Browser extension" desc="Save images, text and pages from any site with the Tessera extension." />
-        <Panel>
-          <Row label="Extension key" desc="Paste this into the extension's options. It lets the extension talk to this app, and nothing else." />
-          <div className="mt-3 flex items-center gap-2">
-            <code className="min-w-0 flex-1 truncate rounded-lg border border-line bg-control px-3 py-2 font-mono text-[12px]">{settings?.token}</code>
-            <button onClick={copy} className={BUTTON}>
-              {copied ? 'Copied' : 'Copy'}
-            </button>
-          </div>
+        <Panel className="divide-y divide-line">
+          <Row
+            label="Connect a browser"
+            desc="Open the extension's options and click Connect. Tessera asks you to allow it: check the code matches the one the extension shows, then click Allow."
+          />
+          <Row
+            label="Disconnect all"
+            desc={
+              disconnect === 'done'
+                ? 'Done. Connected browsers stop saving until you connect them again.'
+                : disconnect === 'ask'
+                  ? 'Every connected browser stops saving until you connect it again.'
+                  : 'Stop every connected browser from saving to Tessera.'
+            }
+          >
+            {disconnect === 'ask' ? (
+              <div className="flex gap-2">
+                <button onClick={() => setDisconnect(null)} className={BUTTON}>
+                  Cancel
+                </button>
+                <button onClick={disconnectAll} className="shrink-0 rounded-lg bg-accent px-3.5 py-2 text-[13px] font-medium text-white hover:opacity-85">
+                  Disconnect
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setDisconnect('ask')} className={`${BUTTON} w-32`}>
+                Disconnect all
+              </button>
+            )}
+          </Row>
         </Panel>
       </>
     )
@@ -570,7 +591,10 @@ export default function SettingsDialog({
     <dialog
       ref={ref}
       onMouseDown={(e) => e.target === e.currentTarget && ref.current?.close()}
-      onClose={() => setStatus('')}
+      onClose={() => {
+        setStatus('')
+        setDisconnect(null)
+      }}
       className="m-auto h-[min(720px,90vh)] w-[min(960px,94vw)] overflow-hidden rounded-2xl bg-pane text-fg shadow-lift backdrop:bg-ink/70 backdrop:backdrop-blur-sm open:flex"
     >
       <nav className="flex w-52 shrink-0 flex-col gap-0.5 border-r border-line bg-rail p-4">

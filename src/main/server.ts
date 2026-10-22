@@ -9,6 +9,8 @@ import { getSettings } from './settings'
 
 // Endpoints for the browser extension. Bound to 127.0.0.1 and gated by a key, so a web
 // page that guesses the port still cannot write to the library.
+//   POST /pair                         body: { code }; no key. Asks you to allow the extension
+//                                      and answers { token } if you do (extensions only)
 //   GET  /ping
 //   POST /image?source=&title=&kind=   body: image bytes; kind is image (default) or capture
 //   POST /text                         body: { text, source, title }; becomes a quote or snippet
@@ -48,6 +50,28 @@ const str = (v: unknown, max: number): string | null =>
 const meta = (source: unknown, title: unknown) => {
   const s = str(source, 2048)
   return { source: s && isHttpUrl(s) ? s : null, title: str(title, 300) }
+}
+
+// Pairing: only a browser extension may ask (a web page can't fake its Origin header), one
+// request at a time, and you allow it in Tessera after checking the code it shows matches.
+export type AskToPair = (code: string, extensionId: string, signal: AbortSignal) => Promise<boolean>
+let pairing = false
+
+async function pair(req: IncomingMessage, ask: AskToPair): Promise<{ token: string }> {
+  const origin = req.headers.origin ?? ''
+  const id = origin.match(/^chrome-extension:\/\/([a-p]{32})$/)?.[1]
+  if (!id) throw new HttpError(403, 'extensions only')
+  const code = str((await json(req)).code, 8)
+  if (!code || !/^\d{4}$/.test(code)) throw new HttpError(400, 'bad code')
+  if (pairing) throw new HttpError(409, 'busy')
+  pairing = true
+  try {
+    // unanswered after two minutes counts as no
+    if (!(await ask(code, id, AbortSignal.timeout(120_000)))) throw new HttpError(403, 'declined')
+    return { token: getSettings().token }
+  } finally {
+    pairing = false
+  }
 }
 
 function authorized(req: IncomingMessage, token: string): boolean {
@@ -92,16 +116,17 @@ async function route(req: IncomingMessage): Promise<unknown> {
   throw new HttpError(404, 'not found')
 }
 
-export function serve(): void {
-  const { token } = getSettings()
+export function serve(ask: AskToPair): void {
   createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const send = (status: number, data: unknown) => {
       res.writeHead(status, { 'content-type': 'application/json' })
       res.end(JSON.stringify(data))
     }
-    if (!authorized(req, token)) return send(401, { error: 'bad key' })
+    const isPair = req.method === 'POST' && req.url === '/pair'
+    // read each time: Disconnect all replaces the key while the server runs
+    if (!isPair && !authorized(req, getSettings().token)) return send(401, { error: 'bad key' })
     try {
-      send(200, await route(req))
+      send(200, isPair ? await pair(req, ask) : await route(req))
     } catch (e) {
       if (e instanceof HttpError) send(e.status, { error: e.message })
       else {

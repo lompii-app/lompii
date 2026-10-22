@@ -8,7 +8,7 @@ import { addTags, DATA, db, deleteTag, removeTag, renameTag, tagCounts } from '.
 import { enqueue, enqueueUnanalysed, imagePrompt, listModels, resumeAnalysis, testProvider } from './ai'
 import { allVectors, embeddingStatus, indexImages, indexText, searchImages, searchMeaning, textChanged, textVectors } from './embed'
 import { ingestBuffer, ingestFile } from './ingest'
-import { firstClose, getSettings, saveProvider, setActiveProvider } from './settings'
+import { firstClose, getSettings, resetToken, saveProvider, setActiveProvider } from './settings'
 import { createTray, setOpenAtLogin, startedHidden, trayHint } from './tray'
 import { jaccard, paletteSimilarity, relevance, rgb, visualSimilarity } from './scoring'
 import { serve } from './server'
@@ -331,6 +331,7 @@ ipcMain.handle('ingest:paths', async (_e, paths: string[]) => {
 ipcMain.handle('ingest:buffer', (_e, data: ArrayBuffer) => ingestBuffer(data))
 
 ipcMain.handle('settings:get', () => getSettings())
+ipcMain.handle('settings:resetToken', () => resetToken())
 ipcMain.handle('settings:saveProvider', (_e, p: AiProvider, patch: Parameters<typeof saveProvider>[1]) => saveProvider(p, patch))
 ipcMain.handle('settings:setActiveProvider', (_e, p: AiProvider | null) => setActiveProvider(p))
 ipcMain.handle('settings:setOpenAtLogin', (_e, on: boolean) => {
@@ -403,6 +404,25 @@ function createWindow(visible: boolean): void {
   else win.loadFile(join(__dirname, '../renderer/index.html'))
 }
 
+// The extension asks to connect: bring Tessera forward, even from the tray, and let the person
+// compare the code the extension shows with this one before allowing it.
+async function askToPair(code: string, extensionId: string, signal: AbortSignal): Promise<boolean> {
+  show()
+  const options = {
+    type: 'question' as const,
+    title: 'Connect browser extension',
+    message: 'Allow a browser extension to save to Tessera?',
+    detail: `Only allow it if the extension shows the same code:\n\n${code.split('').join('  ')}\n\nExtension ID: ${extensionId}`,
+    buttons: ['Allow', "Don't allow"],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+    signal
+  }
+  const { response } = win ? await dialog.showMessageBox(win, options) : await dialog.showMessageBox(options)
+  return response === 0
+}
+
 function quit(): void {
   quitting = true
   app.quit()
@@ -436,7 +456,7 @@ else {
     const purged = purge('deleted_at < ?', Date.now() - TRASH_DAYS * 86_400_000)
     if (purged) console.log('[tessera] emptied %d item(s) from the trash', purged)
 
-    serve()
+    serve(askToPair)
     resumeAnalysis()
     void indexImages() // backfill same-vibe vectors; downloads the model on first run
     void indexText() // and the text-meaning vectors (another small model, ~23 MB)

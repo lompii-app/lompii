@@ -49,6 +49,7 @@ const api: TesseraAPI = {
   windowControl: (action) => ipcRenderer.invoke('window:control', action),
 
   getSettings: () => ipcRenderer.invoke('settings:get'),
+  resetToken: () => ipcRenderer.invoke('settings:resetToken'),
   saveProvider: (p, patch) => ipcRenderer.invoke('settings:saveProvider', p, patch),
   setActiveProvider: (p) => ipcRenderer.invoke('settings:setActiveProvider', p),
   setOpenAtLogin: (on) => ipcRenderer.invoke('settings:setOpenAtLogin', on),

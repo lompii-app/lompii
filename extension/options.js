@@ -1,32 +1,56 @@
 const API = 'http://127.0.0.1:47821' // same as background.js
-const input = document.getElementById('key')
-const status = document.getElementById('status')
+const $ = (id) => document.getElementById(id)
 
-async function check(token) {
-  status.dataset.ok = 'false'
-  status.textContent = 'Checking…'
+function show(text, { ok = false, connect = false, disconnect = false } = {}) {
+  $('status').textContent = text
+  $('dot').dataset.ok = String(ok)
+  $('connect').hidden = !connect
+  $('disconnect').hidden = !disconnect
+  $('pairing').hidden = true
+}
+
+async function check() {
+  const { token } = await chrome.storage.local.get('token')
+  if (!token) return show('Not connected to Tessera yet.', { connect: true })
   try {
     const res = await fetch(`${API}/ping`, { headers: { authorization: `Bearer ${token}` } })
-    status.dataset.ok = String(res.ok)
-    status.textContent = res.ok
-      ? 'Connected to Tessera.'
-      : res.status === 401
-        ? "Key doesn't match. Copy it again from Tessera › Settings."
-        : `Unexpected response (${res.status}).`
+    if (res.ok) show('Connected to Tessera.', { ok: true, disconnect: true })
+    else if (res.status === 401) show('Tessera disconnected this browser.', { connect: true })
+    else show(`Unexpected response (${res.status}).`, { connect: true })
   } catch {
-    status.textContent = "Couldn't reach Tessera. Is the app open?"
+    show("Couldn't reach Tessera. Is the app open?", { connect: true })
   }
 }
 
-chrome.storage.local.get('token').then(({ token }) => {
-  if (!token) return
-  input.value = token
-  check(token)
-})
+const REFUSED = {
+  declined: "Not allowed. Connect again when you're ready.",
+  busy: 'Tessera is already asking about another connection. Answer that first.'
+}
 
-document.querySelector('form').addEventListener('submit', async (e) => {
-  e.preventDefault()
-  const token = input.value.trim()
-  await chrome.storage.local.set({ token })
-  check(token)
+// Tessera asks you to allow this browser, showing the same code, and hands back its key if you do.
+async function connect() {
+  const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 10000).padStart(4, '0')
+  show('Waiting for you to allow it in Tessera…')
+  $('code').textContent = code
+  $('pairing').hidden = false
+  try {
+    const res = await fetch(`${API}/pair`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code })
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || !data.token) return show(REFUSED[data.error] ?? `Couldn't connect (${data.error || res.status}).`, { connect: true })
+    await chrome.storage.local.set({ token: data.token })
+    check()
+  } catch {
+    show("Couldn't reach Tessera. Open it, then try again.", { connect: true })
+  }
+}
+
+$('connect').addEventListener('click', connect)
+$('disconnect').addEventListener('click', async () => {
+  await chrome.storage.local.remove('token')
+  check()
 })
+check()
