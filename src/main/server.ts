@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { BrowserWindow } from 'electron'
 import { EXTENSION_PORT, isHttpUrl, type Item } from '@shared/api'
 import { addTags, db } from './db'
+import { textChanged } from './embed'
 import { ingestBuffer, ingestText } from './ingest'
 import { getSettings } from './settings'
 
@@ -83,6 +84,7 @@ async function route(req: IncomingMessage): Promise<unknown> {
     const item = db.prepare('select * from items where id = ?').get(id) as Item | undefined
     if (!item) throw new HttpError(404, 'no such item')
     addTags(id, Array.isArray(b.tags) ? b.tags : [])
+    textChanged()
     for (const w of BrowserWindow.getAllWindows()) w.webContents.send('item:updated', item)
     return { ok: true }
   }

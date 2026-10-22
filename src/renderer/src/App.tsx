@@ -93,7 +93,7 @@ export default function App() {
     let live = true
     const timer = setTimeout(
       () =>
-        window.tessera.searchVisual(phrase).then((hits) => {
+        window.tessera.searchSemantic(phrase).then((hits) => {
           if (live) setVisual({ phrase, scores: new Map(hits.map((h) => [h.id, h.score])) })
         }),
       250

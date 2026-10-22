@@ -133,7 +133,7 @@ export type TesseraAPI = {
   analyse(id: number): Promise<void> // queue one item for AI analysis
   analyseAll(): Promise<number> // queue everything not yet analysed; returns how many
   embeddingStatus(): Promise<EmbeddingStatus>
-  searchVisual(query: string): Promise<{ id: number; score: number }[]> // images matching a description
+  searchSemantic(query: string): Promise<{ id: number; score: number }[]> // matches by look or meaning, score 0-1
 }
 
 declare global {

@@ -6,7 +6,7 @@ import sharp from 'sharp'
 import { isHttpUrl, isText, type Item, type Stack, type WindowAction } from '@shared/api'
 import { addTags, DATA, db, deleteTag, removeTag, renameTag, tagCounts } from './db'
 import { enqueue, enqueueUnanalysed, resumeAnalysis } from './ai'
-import { allVectors, embeddingStatus, indexImages, searchImages } from './embed'
+import { allVectors, embeddingStatus, indexImages, indexText, searchImages, searchMeaning, textChanged, textVectors } from './embed'
 import { ingestBuffer, ingestFile } from './ingest'
 import { firstClose, getSettings, setAi } from './settings'
 import { createTray, setOpenAtLogin, startedHidden, trayHint } from './tray'
@@ -39,6 +39,7 @@ ipcMain.handle('items:update', (_e, id: number, patch: Record<string, string | n
   }
   const item = db.prepare('select * from items where id = ?').get(id) as Item | undefined
   if (item) for (const w of BrowserWindow.getAllWindows()) w.webContents.send('item:updated', item)
+  textChanged()
 })
 
 // every user tag in the library, for filtering in the renderer
@@ -59,6 +60,7 @@ const stackName = (v: unknown): string => (typeof v === 'string' ? v.trim().slic
 const broadcastItem = (id: number) => {
   const item = db.prepare('select * from items where id = ?').get(id) as Item | undefined
   if (item) for (const w of BrowserWindow.getAllWindows()) w.webContents.send('item:updated', item)
+  textChanged() // tags are part of an item's searchable text
 }
 
 ipcMain.handle('stacks:list', () =>
@@ -116,8 +118,14 @@ ipcMain.handle('items:removeTag', (_e, id: number, tag: string) => {
 })
 
 ipcMain.handle('tags:counts', () => tagCounts())
-ipcMain.handle('tags:rename', (_e, from: string, to: string) => renameTag(from, to))
-ipcMain.handle('tags:delete', (_e, value: string) => deleteTag(value))
+ipcMain.handle('tags:rename', (_e, from: string, to: string) => {
+  renameTag(from, to)
+  textChanged()
+})
+ipcMain.handle('tags:delete', (_e, value: string) => {
+  deleteTag(value)
+  textChanged()
+})
 
 const byId = (id: number) => db.prepare('select * from items where id = ?').get(id) as Item | undefined
 
@@ -208,20 +216,32 @@ ipcMain.handle('items:similar', async (_e, id: number) => {
 
   const vectors = allVectors()
   const mine = vectors.get(id)
+  const meanings = textVectors()
+  const myMeaning = meanings.get(id)
+  const meaningSimilarity = (other: number) => {
+    const theirs = meanings.get(other)
+    if (!myMeaning || !theirs) return 0
+    let dot = 0
+    for (let i = 0; i < theirs.length; i++) dot += myMeaning[i] * theirs[i]
+    return relevance(dot, 0.2, 0.7)
+  }
   const scored = all
     .filter((i) => i.id !== id)
     .map((i) => {
       const tagScore = jaccard(tags.get(id), tags.get(i.id))
       const colour = paletteSimilarity(palettes.get(id) ?? [], palettes.get(i.id) ?? [])
       const theirs = vectors.get(i.id)
+      const meaning = meaningSimilarity(i.id)
       return {
         id: i.id,
-        // both images embedded: how they look leads. Otherwise (text, or not indexed yet):
-        // tags and colour, as before.
+        // Two images: how they look leads, then what they're about. Text items: what they're
+        // about. Mixed pairs, or not indexed yet: meaning, tags and colour.
         score:
           mine && theirs
-            ? 0.65 * visualSimilarity(mine, theirs) + 0.25 * tagScore + 0.1 * colour
-            : 0.6 * tagScore + 0.3 * colour + 0.1 * (isText(i.kind) === isText(me.kind) ? 1 : 0)
+            ? 0.55 * visualSimilarity(mine, theirs) + 0.25 * meaning + 0.1 * tagScore + 0.1 * colour
+            : isText(me.kind) && isText(i.kind)
+              ? 0.75 * meaning + 0.25 * tagScore
+              : 0.45 * meaning + 0.35 * tagScore + 0.2 * colour
       }
     })
     .filter((s) => s.score >= 0.2)
@@ -287,6 +307,7 @@ ipcMain.handle('items:remove', (_e, id: number) => {
 ipcMain.handle('items:restore', (_e, ids: number[] | 'all') => {
   if (ids === 'all') db.prepare('update items set deleted_at = null where deleted_at is not null').run()
   else if (Array.isArray(ids)) for (const id of ids) db.prepare('update items set deleted_at = null where id = ?').run(id)
+  textChanged()
 })
 
 ipcMain.handle('trash:count', () => db.prepare('select count(*) from items where deleted_at is not null').pluck().get())
@@ -336,15 +357,23 @@ ipcMain.handle('settings:setOpenAtLogin', (_e, on: boolean) => {
 ipcMain.handle('ai:analyse', (_e, id: number) => void enqueue(id))
 ipcMain.handle('ai:analyseAll', () => enqueueUnanalysed())
 ipcMain.handle('embeddings:status', () => embeddingStatus())
-ipcMain.handle('search:visual', async (_e, query: string) => {
+// Search by description: CLIP for how images look, MiniLM for what any item's words mean.
+// Their raw scores live on different scales, so each maps onto 0-1 relevance first.
+const relevance = (score: number, low: number, high: number) => Math.min(1, Math.max(0, (score - low) / (high - low)))
+
+ipcMain.handle('search:semantic', async (_e, query: string) => {
   const q = typeof query === 'string' ? query.trim().slice(0, 300) : ''
   if (q.length < 3) return []
-  try {
-    return await searchImages(q)
-  } catch (e) {
-    console.error('[tessera] visual search failed', e instanceof Error ? e.message : e)
-    return [] // keyword search still works
+  const best = new Map<number, number>()
+  const add = (hits: { id: number; score: number }[], low: number, high: number) => {
+    for (const h of hits) best.set(h.id, Math.max(best.get(h.id) ?? 0, relevance(h.score, low, high)))
   }
+  const [visual, meaning] = await Promise.allSettled([searchImages(q), searchMeaning(q)])
+  if (visual.status === 'fulfilled') add(visual.value, 0.2, 0.32)
+  if (meaning.status === 'fulfilled') add(meaning.value, 0.15, 0.65)
+  for (const r of [visual, meaning])
+    if (r.status === 'rejected') console.error('[tessera] semantic search failed', r.reason) // keyword search still works
+  return [...best].map(([id, score]) => ({ id, score }))
 })
 
 /* ---------- window ---------- */
@@ -419,6 +448,7 @@ else {
     serve()
     resumeAnalysis()
     void indexImages() // backfill same-vibe vectors; downloads the model on first run
+    void indexText() // and the text-meaning vectors (another small model, ~23 MB)
     createTray(show, quit)
     createWindow(!startedHidden())
     app.on('activate', show)

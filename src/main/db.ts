@@ -97,7 +97,15 @@ const MIGRATIONS = [
 
   // trash: deleting sets this; rows and files go for good after 30 days, or on "Empty now"
   `alter table items add column deleted_at integer;
-   create index items_deleted on items (deleted_at);`
+   create index items_deleted on items (deleted_at);`,
+
+  // MiniLM sentence vectors of each item's text (title, TLDR, tags, body, note, visible text),
+  // for meaning-based search and same vibe. source is a hash of that text, so edits re-embed.
+  `create table text_embeddings (
+     item_id integer primary key references items (id) on delete cascade,
+     source text not null,
+     vector blob not null
+   );`
 ]
 
 export const db = new Database(join(DATA, 'tessera.db'))

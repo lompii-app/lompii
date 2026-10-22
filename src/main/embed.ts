@@ -1,11 +1,13 @@
 import { join } from 'node:path'
+import { createHash } from 'node:crypto'
 import {
   AutoProcessor,
   AutoTokenizer,
   CLIPTextModelWithProjection,
   CLIPVisionModelWithProjection,
   RawImage,
-  env
+  env,
+  pipeline
 } from '@huggingface/transformers'
 import type { EmbeddingStatus, Item } from '@shared/api'
 import { DATA, db } from './db'
@@ -135,6 +137,102 @@ export async function searchImages(query: string): Promise<{ id: number; score: 
   }
   scored.sort((a, b) => b.score - a.score)
   const cut = Math.max(FLOOR, (scored[0]?.score ?? 0) - NEAR_BEST)
+  return scored.filter((s) => s.score >= cut).slice(0, 30)
+}
+
+/* ---------- text meaning (MiniLM) ---------- */
+
+// CLIP's text-to-text scores are useless for this (every phrase scored 0.82-0.95 against every
+// snippet), so text uses a sentence-embedding model: all-MiniLM-L6-v2, ~23 MB, 384 numbers.
+const TEXT_MODEL = 'Xenova/all-MiniLM-L6-v2'
+let minilm: ReturnType<typeof loadMinilm> | null = null
+function loadMinilm() {
+  return pipeline('feature-extraction', TEXT_MODEL, { dtype: 'q8' })
+}
+const sentences = () =>
+  (minilm ??= loadMinilm().catch((e) => {
+    minilm = null
+    throw e
+  }))
+
+async function embedSentence(text: string): Promise<Float32Array> {
+  const extract = await sentences()
+  return Float32Array.from((await extract(text, { pooling: 'mean', normalize: true })).data as Float32Array)
+}
+
+// everything a person might remember an item by, in words
+const docs = db.prepare(
+  `select i.id, i.title, i.tldr, i.body, i.note, i.visible_text,
+     (select group_concat(t.value, ', ') from item_tags it join tags t on t.id = it.tag_id
+      where it.item_id = i.id) as tags
+   from items i where i.deleted_at is null`
+)
+type DocRow = { id: number; title: string | null; tldr: string | null; body: string | null; note: string | null; visible_text: string | null; tags: string | null }
+const docText = (r: DocRow) =>
+  [r.title, r.tldr, r.tags, r.body, r.note, r.visible_text].map((s) => s?.trim()).filter(Boolean).join('. ')
+const savedSources = db.prepare('select item_id, source from text_embeddings')
+const saveText = db.prepare('insert or replace into text_embeddings (item_id, source, vector) values (?, ?, ?)')
+const sourceOf = (doc: string) => createHash('sha1').update(doc).digest('hex')
+
+let textRunning = false
+let textAgain = false
+
+// Embeds every item whose text changed since it was last embedded. Cheap to call often.
+export async function indexText(): Promise<void> {
+  if (textRunning) return void (textAgain = true)
+  textRunning = true
+  try {
+    do {
+      textAgain = false
+      const saved = new Map((savedSources.all() as { item_id: number; source: string }[]).map((r) => [r.item_id, r.source]))
+      for (const row of docs.all() as DocRow[]) {
+        const id = row.id
+        const words = docText(row)
+        if (!words) continue
+        const source = sourceOf(words)
+        if (saved.get(id) === source) continue
+        const vector = await embedSentence(words)
+        if (db.prepare('select 1 from items where id = ?').get(id)) saveText.run(id, source, Buffer.from(vector.buffer))
+      }
+    } while (textAgain)
+  } catch (e) {
+    console.error('[tessera] text embedding failed', e instanceof Error ? e.message : e)
+  } finally {
+    textRunning = false
+  }
+}
+
+// a debounced indexText, for after edits and analyses
+let textTimer: NodeJS.Timeout | undefined
+export function textChanged(): void {
+  clearTimeout(textTimer)
+  textTimer = setTimeout(() => void indexText(), 1500)
+}
+
+export function textVectors(): Map<number, Float32Array> {
+  const rows = db
+    .prepare(
+      `select e.item_id, e.vector from text_embeddings e join items i on i.id = e.item_id
+       where i.deleted_at is null`
+    )
+    .all() as { item_id: number; vector: Buffer }[]
+  return new Map(rows.map((r) => [r.item_id, toVector(r.vector)]))
+}
+
+// Calibrated on a real library: matches scored 0.54-0.59, unrelated items 0.03-0.17.
+const TEXT_FLOOR = 0.3
+const TEXT_NEAR_BEST = 0.25
+
+export async function searchMeaning(query: string): Promise<{ id: number; score: number }[]> {
+  const q = await embedSentence(query)
+  const scored: { id: number; score: number }[] = []
+  for (const [id, v] of textVectors()) {
+    let dot = 0
+    for (let i = 0; i < v.length; i++) dot += v[i] * q[i]
+    scored.push({ id, score: dot })
+  }
+  scored.sort((a, b) => b.score - a.score)
+  const cut = Math.max(TEXT_FLOOR, (scored[0]?.score ?? 0) - TEXT_NEAR_BEST)
   return scored.filter((s) => s.score >= cut).slice(0, 30)
 }
 

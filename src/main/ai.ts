@@ -3,7 +3,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import { BrowserWindow } from 'electron'
 import sharp from 'sharp'
 import { isText, type Item } from '@shared/api'
-import { addTags, DATA, db } from './db'
+import { addTags, DATA, db, tagCounts } from './db'
+import { textChanged } from './embed'
 import { aiConfig, type AiConfig } from './settings'
 
 // One model call per item: title, TLDR, search tags and any visible text. Runs in the
@@ -26,6 +27,16 @@ const SCHEMA = {
 // the kinds are shown on their own; as tags they'd only add noise
 const KIND_WORDS = new Set(['image', 'images', 'picture', 'photo of', 'screenshot', 'capture', 'quote', 'quotes', 'snippet', 'text'])
 
+// Endings that make near-duplicate tags (motivational/motivation, photos/photo). Used only to
+// match a new tag to one the library already has; the existing spelling wins.
+const stem = (tag: string) => tag.replace(/(ing|ed|al|ly|s)$/, '') || tag
+
+function canonicalTags(tags: string[]): string[] {
+  const known = new Map<string, string>()
+  for (const { value } of tagCounts()) if (!known.has(stem(value))) known.set(stem(value), value) // most used first
+  return [...new Set(tags.map((t) => known.get(stem(t)) ?? t))]
+}
+
 function prompt(item: Item): string {
   const what = { image: 'an image', capture: 'a screenshot of a web page', quote: 'a quote', snippet: 'a text snippet' }[item.kind]
   let from = ''
@@ -35,13 +46,17 @@ function prompt(item: Item): string {
     } catch {}
   }
   const body = isText(item.kind) ? `\n\nThe ${item.kind}:\n"""\n${item.body}\n"""` : ''
+  const vocabulary = tagCounts().slice(0, 80).map((t) => t.value)
+  const reuse = vocabulary.length
+    ? `\n\nTags already in the library: ${vocabulary.join(', ')}. Reuse one of these whenever it fits, instead of a near-synonym or a different form of the same word.`
+    : ''
   return `You catalogue references in a designer's personal library so they can find them again later by searching. This is ${what}.${from}${body}
 
 Return:
 - title: a short descriptive title, 3 to 8 words, sentence case. Say what it is, not where it came from.
 - tldr: one or two plain sentences on what it shows and what is notable about it.
-- tags: 6 to 12 lowercase search terms someone might type to find this again: subject, visual style, mood, colours, medium, and layout or typography where they matter. Single words or short phrases. Not generic words like image, screenshot, quote or snippet.
-- text: legible text that appears in the image, verbatim, up to about 300 words. Empty for text-only items or when there is none.`
+- tags: 6 to 10 lowercase search terms someone might type to find this again: subject, visual style, mood, colours, medium, and layout or typography where they matter. Single words or short phrases. Not generic words like image, screenshot, quote or snippet.
+- text: legible text that appears in the image, verbatim, up to about 300 words. Empty for text-only items or when there is none.${reuse}`
 }
 
 // JPEG, long side at most 1568 px. Full-page captures keep their top, at a readable width.
@@ -184,7 +199,7 @@ function parse(raw: string): Result {
     tags: (Array.isArray(j.tags) ? j.tags : [])
       .map((t: unknown) => str(t, 50).toLowerCase())
       .filter((t: string) => t && !KIND_WORDS.has(t))
-      .slice(0, 12),
+      .slice(0, 10),
     text: str(j.text, 3000)
   }
 }
@@ -223,7 +238,8 @@ async function analyse(id: number): Promise<void> {
       `update items set title = coalesce(nullif(?, ''), title), tldr = ?, visible_text = ?,
        status = 'tagged', ai_error = null where id = ?`
     ).run(r.title, r.tldr || null, r.text || null, id)
-    addTags(id, r.tags)
+    addTags(id, canonicalTags(r.tags))
+    textChanged() // the new title, TLDR and tags are what meaning search reads
   } catch (e) {
     if (!byId(id)) return
     const message = e instanceof Error ? e.message : String(e)
