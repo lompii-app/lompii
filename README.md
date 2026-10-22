@@ -1,14 +1,25 @@
 # Tessera
 
-**A personal visual memory for designers.** Save images, page captures, quotes and snippets
-from the web; Tessera describes and tags each one with AI so you can find it again by
-describing what you remember.
+**Find the thing you half-remember.**
 
 > Save anything. Tessera understands it. Find it when you need it.
 
-Tessera is a desktop app (Electron) with a companion Chrome extension. Everything lives on
-your computer: the library, the database and your keys. The only thing that leaves it is
-the item you ask the AI provider of your choice to describe.
+You saved it months ago: a dark site with huge type, a poster in a particular orange, a line
+someone wrote that stuck. You don't remember where it was, what it was called, or which folder
+it went into. With Tessera you don't need to. Describe what you remember, *"grainy portrait,
+deep shadow"*, and it comes back.
+
+Tessera is a private visual memory for designers, illustrators, photographers, writers and
+anyone else who collects inspiration:
+
+- **Save from anywhere** with one right-click: images, text, a selected area or a full page.
+- **Find it by description.** AI gives everything a title, a summary and tags, and local models
+  match what things *look like* and what they *mean*, not just the words you typed.
+- **Yours alone.** Your library, its search models and your keys stay on your computer.
+  Nothing leaves it except the item you ask your own AI provider to describe.
+- **Any AI you like:** Claude, OpenAI, Gemini, OpenRouter, or a model running on your machine.
+
+A desktop app for Windows (Electron) with a companion Chrome extension.
 
 ---
 
@@ -83,6 +94,8 @@ the item you ask the AI provider of your choice to describe.
 
 **Viewing**
 - A masonry grid of cards with captions; full-page captures show their top.
+- **Light and dark mode**, and **three card sizes** (large, medium, small), from the sidebar.
+  Both are remembered; the theme follows the system until you pick one.
 - A detail overlay with the item on its dominant colour, a four-colour **palette** (click a
   swatch to copy its hex), the source link, TLDR, tags, notes, and **Download**, **Add to
   stack**, **Copy** (image or text to the clipboard) and **Delete**.
@@ -177,6 +190,8 @@ other providers are called over their HTTP APIs.
 ## Using Tessera
 
 - **Everything** is the whole library, newest first. **Stacks** shows your collections.
+- **The sidebar**, from the bottom up: Settings, the trash, the card-size button (2×2, 3×3 or
+  4×4 icon; click to cycle) and the sun/moon theme button.
 - **Click a card** to open it. Click outside the card or press `Esc` to close; arrow keys
   move between items while it's open.
 - **Search**: click the search (or `Ctrl+K`) to see the type filters; pick one, type words,
@@ -273,18 +288,22 @@ src/
   preload/       the typed bridge between main and renderer
   renderer/      React app
     src/App.tsx        layout, search, chips, selection, undo
+    src/Sidebar.tsx    wordmark, theme, card size, trash, settings
+    src/prefs.ts       theme and card size, kept in localStorage
     src/Grid.tsx       virtualised masonry grid
     src/Detail.tsx     item overlay
     src/Stacks.tsx     stacks page and dialog
     src/Settings.tsx   settings dialog
     src/Selection.tsx  multi-select action bar
     src/Tags.tsx       tag manager
+    src/Trash.tsx      the trash page
     src/Filters.tsx    filters, chips, icons
   shared/api.ts  types and helpers shared by main and renderer
 extension/       Chrome extension (Manifest V3, plain JS)
 test/            npm test
 build/icon.png   app icon
-project.md       product spec, including the AI vocabulary ideas
+project.md       product spec: the problem, principles, status and what's next
+PRODUCT.md       short product brief used for design work (users, positioning, principles)
 MILESTONE.md     milestone status and the decisions behind the design
 ```
 
@@ -319,6 +338,8 @@ Everything is stored in Electron's user-data folder, on Windows
 
 ## Roadmap
 
+- Tessera's own visual identity, replacing the current mymind-like look (in progress)
+- Smart stacks: a stack defined by a saved search
 - Creative DNA attributes from `project.md` as structured, filterable facets
 - Restoring from a backup inside the app (today: copy the backup's files back while Tessera is closed)
 - A macOS build, and code signing

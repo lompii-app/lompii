@@ -2,408 +2,124 @@
 
 ## Product
 
-Tessera is an AI-powered visual reference library.
+Tessera is a personal visual memory: a desktop app and a Chrome extension for saving the things that inspire you, and finding them again by describing what you remember.
 
-Its purpose is to help creative people save visual references and reliably find them again later.
-
-Users can save screenshots, images, website references, UI designs, typography, illustrations, product references, and other visual material.
-
-Tessera automatically analyzes each reference and extracts structured visual attributes so the reference can later be found through natural language, visual similarity, or combinations of attributes.
+It is for creative people broadly: designers, illustrators, photographers, writers, anyone who collects inspiration.
 
 ### Core promise
 
 > Save anything. Tessera understands it. Find it when you need it.
 
+### What it stands on
+
+- **Finds what you remember.** Describe something vaguely and it's found, by how it looks and by what it means, not only by the words you typed.
+- **Local and private.** The library, database, models and keys live on your computer. The only thing that leaves it is an item you send to your own AI provider.
+- **A tool for makers.** Page captures, palettes with copyable hex codes, source links, stacks, notes, bulk actions.
+- **Bring any AI.** Any provider's API key (Anthropic, OpenAI, Gemini, OpenRouter, any OpenAI-compatible server) or a local model.
+
 ---
 
 # The Problem
 
-Creative people constantly save visual references.
+Creative people constantly save references: website screenshots, UI, images, typography, palettes, product designs, illustrations, ads, photography, quotes, passages of text.
 
-They save:
+Over time they scatter across downloads, screenshot folders, bookmarks, Pinterest, Notion, Figma and phone galleries.
 
-* Website screenshots
-* UI references
-* Images
-* Typography
-* Color palettes
-* Animations
-* Product designs
-* Illustrations
-* Ads
-* Photography
-* Other visual inspiration
-
-Over time, these references become scattered across:
-
-* Downloads
-* Screenshots
-* Folders
-* Browser bookmarks
-* Pinterest
-* Notion
-* Figma
-* Phone galleries
-
-The problem is not storing the references.
-
-The problem is finding them later.
+The problem is not storing them. It is finding them later.
 
 A user may remember:
 
 > "I saved a dark website with huge typography and an interesting hero."
 
-But they may not remember:
-
-* the website name
-* the filename
-* the folder
-* the date
-* where they saved it
-
-Tessera should allow the user to describe what they remember and retrieve the reference.
+But not the website's name, the file name, the folder, the date or where they saved it. Tessera lets them describe what they remember and get it back.
 
 ---
 
 # Core Product Philosophy
 
-Tessera is a personal visual memory.
+Tessera is a personal visual memory. It is not a social network, discovery feed, generic gallery or project-management tool.
 
-It is not primarily a social network, discovery feed, image gallery, or project-management tool.
-
-The product should prioritize:
+It prioritises, in order:
 
 1. Capture
 2. Understanding
 3. Retrieval
 4. Reuse
 
-The product should remain focused on the user's own saved references.
+It stays focused on the user's own saved references.
+
+### The loop
+
+Save → AI understands → (optionally) organise → forget → describe → find → reuse
+
+The product succeeds when something saved today is found months later.
 
 ---
 
-# Core User Loop
+# Capture
 
-The fundamental loop is:
+Saving is deliberate and happens mostly from the browser. (An early version watched the Screenshots folder; it was removed because most screenshots are taken for something else and flooded the library.)
 
-Save
-↓
-AI understands
-↓
-Organize
-↓
-Forget
-↓
-Search
-↓
-Find
-↓
-Reuse
-
-The product succeeds when a user can save something today and reliably find it months later.
+- **Chrome extension:** right-click an image or selected text → *Add to Tessera*; or capture the visible area, the full page, a selected area (`Alt+Shift+S`), the visible area after a 3-second delay, or the selected text, from the toolbar popup. A toast on the page offers *Add tags*.
+- **In the app:** drag and drop image files, or paste an image.
+- Everything from the web keeps its source URL and page title.
+- Tessera runs in the tray so the extension can always save.
 
 ---
 
-# Reference
+# The Reference
 
-The fundamental object in Tessera is a Reference.
+Each saved item has a **kind**:
 
-A Reference consists of:
+- **Image**: an image saved from a page or dropped in.
+- **Capture**: a screenshot of a page or part of one.
+- **Quote**: saved text containing a quoted span (`"…"`, `“…”`).
+- **Snippet**: any other saved text.
 
-## Asset
+And four layers:
 
-The actual saved content.
-
-Examples:
-
-* Image
-* Screenshot
-* Website capture
-* Video frame
-
-## Source
-
-Information about where the reference came from.
-
-Examples:
-
-* URL
-* Website
-* Page title
-* Capture date
-
-## User Context
-
-Optional information added by the user.
-
-Examples:
-
-* Note
-* Collection
-
-## AI Understanding
-
-Machine-generated information about the reference.
-
-Examples:
-
-* Creative DNA
-* OCR
-* Colors
-* Description
-* Embedding
-* Searchable attributes
+- **Asset:** the file or the text.
+- **Source:** URL, site, page title, date saved. The source can be opened from the item.
+- **User context:** title, notes, tags, stacks.
+- **AI understanding:** title, a one- or two-sentence TLDR, search tags, text read off the image, a four-colour palette (extracted locally), and two local embeddings: CLIP for how an image looks, MiniLM for what the item's words mean.
 
 ---
 
-# Creative DNA
+# Understanding
 
-Creative DNA is the structured visual understanding of a reference. Every
-value must come from the lists below — nothing outside this vocabulary. If a
-value doesn't fit, it belongs in the free-text description, not in a tag.
+One model call per item, through whichever provider the user configured, returns:
 
-Each dimension has a cardinality limit. The model must not exceed it.
+- a short descriptive **title**,
+- a **TLDR**,
+- **6–10 search tags**: subject, style, mood, colours, medium, layout and typography where they matter. The model is given the library's most-used tags to reuse, and near-duplicates (motivational / motivation) fold into the existing tag. Kind words (image, quote, snippet…) are never tags.
+- **visible text**, verbatim, so words inside an image are searchable.
 
-## Category — exactly 1
+Free-form tags replaced the original idea of a strict "Creative DNA" vocabulary (Category, Theme, Style, Typography, Composition, Visual Effects, Elements, each with cardinality limits): free tags searched better in practice. Creative DNA remains a candidate for structured, filterable facets later (see Later).
 
-The kind of thing this reference is.
-
-- **Website** — a full page or site view, not a single component
-- **Landing Page** — a marketing or product page built to convert
-- **Dashboard** — a data or admin interface, charts, tables, panels
-- **Mobile UI** — a phone or app screen
-- **Illustration** — a drawn or rendered graphic, not a photo
-- **Photography** — a photograph
-- **Product** — a physical product shot or product page
-- **Logo** — a wordmark, symbol, or brand mark
-- **Animation** — a motion reference (GIF, video frame, Lottie)
-
-## Theme — exactly 1
-
-Overall light/dark balance of the reference.
-
-- **Dark** — dark background, light content
-- **Light** — light background, dark content
-- **Neutral** — grey or muted, no strong light/dark contrast
-- **Colorful** — saturated, multiple strong hues dominate
-
-## Style — 0 to 2
-
-The overall design language. Pick the two strongest if more than one applies;
-pick none if nothing fits clearly.
-
-- **Minimal** — sparse, restrained, little decoration
-- **Editorial** — reads like a magazine, type-led, generous whitespace
-- **Brutalist** — raw, unstyled-looking, harsh grid, system fonts
-- **Futuristic** — sci-fi cues, glow, dark + neon, 3D
-- **Luxury** — premium materials or cues, serif type, restrained palette
-- **Playful** — bright, rounded, illustrated, informal
-- **Corporate** — safe, conventional, stock-photo-adjacent
-
-## Typography — 0 to 3
-
-Notable type treatment. Skip if type isn't a distinguishing feature.
-
-- **Large Type** — type is the dominant visual element, oversized
-- **Serif** — primary typeface has serifs
-- **Sans Serif** — primary typeface is sans-serif
-- **Monospace** — primary typeface is fixed-width
-- **Condensed** — narrow, tightly-set letterforms
-- **Experimental** — unconventional, custom, or distorted type
-
-## Composition — 0 to 3
-
-How the layout is arranged.
-
-- **Centered** — content is centred on the page or frame
-- **Split** — the layout is divided into two clear halves
-- **Grid** — content arranged in a visible grid of equal units
-- **Asymmetric** — deliberately unbalanced layout
-- **Fullscreen** — one element fills the entire viewport
-- **Dense** — many elements packed with little breathing room
-- **Spacious** — few elements, large margins and gaps
-
-## Visual Effects — 0 to 3
-
-Surface treatment layered on top of the content.
-
-- **Glass** — frosted/translucent panels (glassmorphism)
-- **Blur** — background or element blur used deliberately
-- **Grain** — visible texture or noise overlay
-- **Glow** — light-emitting or neon effect
-- **Gradient** — a colour gradient is a visible design choice
-- **Shadow** — pronounced drop shadows or elevation
-- **Border** — visible strokes/outlines as a structural device
-
-## Elements — 0 to 4
-
-Specific UI or layout components visible in the reference. Only tag
-components that are a focal point, not everything present.
-
-- **Hero** — a large top-of-page introductory section
-- **Navigation** — a visible nav bar or menu
-- **CTA** — a prominent call-to-action button or block
-- **Card** — content presented in discrete card components
-- **Form** — an input form is visible
-- **Product UI** — an app/product interface shown in a frame or mockup
+Rate limits and overloaded providers are retried. Failures show the provider's error with *Try again*.
 
 ---
 
-Dashboard and Illustration are Category values only — do not also tag them
-as Elements. If the model tags a value outside a dimension's list, or
-exceeds its cardinality, discard the extra and log it; do not silently keep it.
+# Retrieval
+
+Search is the primary way people use Tessera.
+
+- **Words** match titles, tags, TLDRs, notes, quote and snippet text, and text inside images. `Enter` turns a word into a chip; chips combine, so every one must match.
+- **Description**: the phrase also goes to CLIP (images that look like it) and MiniLM (items whose words mean it). "mountains landscape" finds the mountain illustration; "an AI meeting assistant" finds the Natively pages. Word matches rank first, then relevance.
+- **Kind filters** under the search: Images, Captures, Quotes, Snippets.
+- **Same vibe** from any item: items that look alike (CLIP), are about the same thing (MiniLM), share tags, and share colours.
+
+Combinations are queries, not a separate product: there is no Explore page of attribute pair counts, and filter panels are not the primary interface.
 
 ---
 
-# Search
+# Organisation
 
-Search is the primary way users interact with Tessera.
+One organising concept the user makes: the **stack**, a named, coloured collection. An item can be in any number of stacks. Work for a client is just a stack named after it. Stacks are separate from tags; tags are for finding, stacks are for gathering.
 
-Users should be able to search using natural language.
+Also: notes on any item, multi-select (Ctrl/Shift-click) to stack, tag or delete many at once, a tag manager (rename, merge, delete across the library), a trash that keeps deleted items 30 days, and a library backup.
 
-Examples:
-
-> dark websites with huge typography
-
-> minimal SaaS dashboards
-
-> landing pages with interesting navigation
-
-> purple AI websites
-
-> references I saved for Natively
-
-> that hero section with the mountain image
-
-The system should translate natural-language queries into relevant metadata, semantic search, and visual similarity signals.
-
----
-
-# Attribute Combinations
-
-Attributes can be combined during search.
-
-For example:
-
-Dark
-+
-Typography
-+
-Editorial
-
-or:
-
-Light
-+
-Minimal
-+
-Dashboard
-+
-Glass
-
-The combination is a search query, not a separate Explore product.
-
-Do not build a dedicated page showing pair counts such as:
-
-"Dark × Typography: 87 references."
-
-That does not provide enough value by itself.
-
----
-
-# Visual Similarity
-
-A user should be able to open a reference and request:
-
-> Find similar references.
-
-The system should use visual embeddings and other available signals to find visually related references.
-
-Similarity can consider:
-
-* Composition
-* Color
-* Layout
-* Typography
-* Visual style
-* Subject
-* UI structure
-
----
-
-# Organization
-
-Tessera has one organizing concept: the collection. A reference can belong
-to any number of collections.
-
-## Manual collections
-
-Created by the user. Examples: "Natively website", "Favourite hero sections".
-Work for a client or product is just a collection named after it.
-
-## Smart collections
-
-A saved search. Defined by a query and/or attributes, for example
-"Dark + Editorial + Hero". Updates automatically as matching references
-are added.
-
-There are no projects, sub-sections, or nested collections. If users ask for
-structure inside a collection, revisit then.
-
----
-
-# Source Tracking
-
-Every reference should preserve its source whenever possible.
-
-The user should be able to see:
-
-* Original URL
-* Website
-* Page title
-* Date saved
-
-The user should be able to open the original source.
-
-This solves the problem of:
-
-> Where did I find this?
-
----
-
-# OCR
-
-Tessera should extract text from screenshots and images when useful.
-
-This allows users to search for text that appears inside a reference.
-
-Example:
-
-A screenshot contains:
-
-"Build better products with AI."
-
-The user should be able to find the screenshot by searching for:
-
-> Build better products
-
----
-
-# Prompt Generation
-
-Prompt generation is a secondary feature.
-
-A user can select a reference and ask Tessera to generate a design prompt based on the reference's visual characteristics.
-
-The prompt should describe the design principles rather than simply saying:
-
-"Make this image exactly."
-
-Example:
-
-> Create a premium SaaS landing page using an editorial composition, oversized typography, generous whitespace, a restrained dark palette, subtle lavender accents, and an asymmetric product-focused hero.
-
-Prompt generation should not determine the core architecture of Tessera.
+No projects, sub-sections or nested stacks. Revisit if users ask for structure inside a stack.
 
 ---
 
@@ -417,60 +133,42 @@ Do not turn Tessera into:
 * A generic image gallery
 * A project management system
 * A generic AI chatbot
-* A discovery engine
-* A recommendation feed
+* A discovery or recommendation engine
 
-Do not build a dedicated Explore page based only on combinations and counts.
+Do not build an Explore page based on attribute combinations and counts. Do not build "show me things unlike my usual references". Do not make filter panels the primary interface. Do not add analytics about the user's library. And do not look like mymind: Tessera has its own identity.
 
-Do not build "show me things unlike my usual references" as an initial feature.
+Stay focused on:
 
-Do not make filter panels the primary interface.
-
-Do not create unnecessary analytics about the user's library.
-
-The product should remain focused on:
-
-> Saving, understanding, and retrieving personal visual references.
+> Saving, understanding, and retrieving personal references.
 
 ---
 
-# MVP
+# Status
 
-The MVP proves one thing: a large personal library can be searched by
-description. Build in this order. Do not start a milestone until the previous
-one works well on a real library of 100+ references.
+| Milestone | State |
+| --- | --- |
+| M1 Capture | Done: Chrome extension (images, text, captures), drag and drop, paste, tray. |
+| M2 Understanding | Done: title, TLDR, tags, visible text; palettes; any provider. |
+| M3 Retrieval | Done: words and chips, kind filters, search by look (CLIP) and meaning (MiniLM), same vibe. |
+| M4 Collections | Manual stacks done. Smart stacks (saved searches) not started. |
 
-## M1: Capture (done)
+Also done: trash with undo, backup, multi-select, tag manager, light and dark mode, three card sizes, a verified Windows installer. Details and decisions: [MILESTONE.md](MILESTONE.md). Setup: [README.md](README.md).
 
-Folder watch, drag and drop, multi-file, paste, grid, detail panel.
+Under way: replacing the mymind-like interface with Tessera's own visual identity, starting with the home.
 
-## M2: Understanding
+## Later
 
-One vision-model call per reference returning: Creative DNA (strict enums),
-a two-sentence description, and visible text. Colours extracted locally.
-
-## M3: Retrieval
-
-Embedding per reference. Natural-language search ranked by embedding
-similarity, with description and visible text as keyword signals.
-Clickable attribute chips as filters. "Find similar" on any reference.
-
-## M4: Collections
-
-Manual collections. A smart collection is a saved search.
-
-## Later, not MVP
-
-Browser extension for URL and page title, prompt generation, copy metadata,
-moodboards, sync.
+- Smart stacks: a stack defined by a saved search, updating as matching items arrive.
+- Creative DNA attributes as structured, filterable facets.
+- Prompt generation: describe a reference's design principles as a prompt, rather than "make this exactly". Secondary; it must not shape the architecture.
+- Restoring a backup inside the app; merging stacks.
+- macOS build, code signing, sync across devices.
 
 ---
 
 # Prioritisation rule
 
-The milestones in the MVP section are the only ordering. When deciding whether
-something belongs in the current milestone, ask one question: does it make a
-saved reference easier to find later? If not, it goes to "Later, not MVP".
+When deciding whether something belongs now, ask one question: does it make a saved reference easier to find later? If not, it waits.
 
 ---
 
@@ -479,7 +177,7 @@ saved reference easier to find later? If not, it goes to "Later, not MVP".
 A user should be able to:
 
 1. Save hundreds of references.
-2. Never manually organize most of them.
+2. Never manually organise most of them.
 3. Come back weeks or months later.
 4. Describe what they remember.
 5. Find the reference quickly.
