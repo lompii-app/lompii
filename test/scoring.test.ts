@@ -78,3 +78,15 @@ test('search relevance is clamped to 0-1', () => {
   assert.equal(relevance(0.5, 0.2, 0.32), 1)
   assert.ok(Math.abs(relevance(0.26, 0.2, 0.32) - 0.5) < 1e-9)
 })
+
+test('archive PIN: six digits only; only the same PIN matches, and it is never stored as given', async () => {
+  const { isPin, passwordMatches, sealPassword } = await import('../src/main/password.ts')
+  assert.ok(isPin('012345'))
+  for (const bad of ['12345', '1234567', '12345a', ' 123456', 123456]) assert.ok(!isPin(bad), String(bad))
+  const sealed = sealPassword('482913')
+  assert.ok(!sealed.includes('482913'))
+  assert.ok(passwordMatches('482913', sealed))
+  assert.ok(!passwordMatches('482914', sealed))
+  assert.ok(!passwordMatches('', sealed))
+  assert.notEqual(sealPassword('482913'), sealed) // a fresh salt each time
+})

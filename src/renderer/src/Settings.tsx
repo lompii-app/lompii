@@ -4,6 +4,7 @@ import gemini from './providers/gemini-color.svg?raw'
 import ollama from './providers/ollama.svg?raw'
 import openai from './providers/openai.svg?raw'
 import openrouter from './providers/openrouter.svg?raw'
+import { PinTiles } from './Dialogs'
 import {
   AI_PROVIDERS,
   KEY_PAGES,
@@ -66,6 +67,7 @@ const I = {
   server: 'M4 4h16v6H4zM4 14h16v6H4zM8 7h.01M8 17h.01',
   image: 'M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M15 9h.01',
   refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7',
+  power: 'M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0',
   sliders: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4',
   sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z',
   // Lucide's puzzle piece (ISC licence)
@@ -109,6 +111,105 @@ const Row = ({ label, desc, children }: { label: string; desc?: React.ReactNode;
     {children}
   </div>
 )
+
+// Set, change or remove the archive's 6-digit PIN; changing or removing it asks for the current one.
+function ArchiveLock({ locked, onChange }: { locked: boolean; onChange: (s: Settings) => void }) {
+  const [mode, setMode] = useState<'set' | 'remove' | null>(null)
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [again, setAgain] = useState('')
+  const [error, setError] = useState('')
+
+  const start = (m: 'set' | 'remove') => {
+    setMode(m)
+    setCurrent('')
+    setNext('')
+    setAgain('')
+    setError('')
+  }
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (mode === 'set' && next !== again) return setError("The two new PINs don't match.")
+    try {
+      onChange(await window.tessera.setArchivePassword(current, mode === 'set' ? next : ''))
+      setMode(null)
+    } catch (err) {
+      const why = String(err)
+      setError(
+        why.includes('wrong password')
+          ? "That's not the current PIN."
+          : why.includes('wait')
+            ? 'Too many tries. Wait half a minute, then try again.'
+            : "Couldn't save it."
+      )
+    }
+  }
+
+  const field = (label: string, value: string, set: (v: string) => void, first = false) => (
+    <div className="flex items-center justify-between gap-4">
+      <span className={DESC}>{label}</span>
+      <PinTiles value={value} onChange={set} label={label} autoFocus={first} small />
+    </div>
+  )
+
+  return (
+    <div className="py-3.5 first:pt-0 last:pb-0">
+      <div className="flex items-center gap-6">
+        <div className="min-w-0 flex-1">
+          <div className={LABEL}>Archive PIN</div>
+          <div className={`${DESC} mt-0.5`}>
+            {locked
+              ? "Opening the archive asks for it. It keeps the archive private inside Tessera; the files themselves aren't encrypted."
+              : "Ask for a 6-digit PIN each time the archive is opened. It keeps the archive private inside Tessera; the files themselves aren't encrypted."}
+          </div>
+        </div>
+        {locked ? (
+          <div className="flex gap-2">
+            <button onClick={() => start('set')} className={BUTTON}>
+              Change
+            </button>
+            <button onClick={() => start('remove')} className={BUTTON}>
+              Remove
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => start('set')} className={`${BUTTON} w-32`}>
+            Set PIN
+          </button>
+        )}
+      </div>
+      {mode && (
+        <form onSubmit={save} className="mt-4 flex flex-col gap-3">
+          {locked && field('Current PIN', current, setCurrent, true)}
+          {mode === 'set' && (
+            <>
+              {field('New PIN', next, setNext, !locked)}
+              {field('New PIN again', again, setAgain)}
+            </>
+          )}
+          {error && (
+            <p role="alert" className="text-[12px] text-accent">
+              {error}
+            </p>
+          )}
+          <div className="mt-1 flex justify-end gap-2">
+            <button type="button" onClick={() => setMode(null)} className={BUTTON}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={(locked && current.length < 6) || (mode === 'set' && (next.length < 6 || again.length < 6))}
+              className={BUTTON}
+            >
+              {mode === 'remove' ? 'Remove PIN' : 'Save PIN'}
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  )
+}
 
 // Provider logos from Lobe Icons (@lobehub/icons-static-svg, MIT), inlined so the one-colour
 // ones take the text colour in dark mode. Local files, so inserting their markup is safe.
@@ -501,6 +602,7 @@ export default function SettingsDialog({
               onToggle={async (on) => onChange(await window.tessera.setFreeMemoryInTray(on))}
             />
           </Row>
+          <ArchiveLock locked={!!settings?.archiveLocked} onChange={onChange} />
           <Row label="Tags" desc="Rename, merge or delete tags everywhere.">
             <button onClick={onManageTags} className={`${BUTTON} w-32`}>
               Manage tags
@@ -695,6 +797,13 @@ export default function SettingsDialog({
             <Icon d={nav[s]} /> {s}
           </button>
         ))}
+        {/* closing the window only hides Tessera in the tray; this stops it, and saving from the browser with it */}
+        <button
+          onClick={() => window.tessera.windowControl('quit')}
+          className="mt-auto flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] text-fg/70 transition-colors hover:bg-select/60 hover:text-fg"
+        >
+          <Icon d={I.power} /> Quit Tessera
+        </button>
       </nav>
       <section className="min-w-0 flex-1 overflow-y-auto p-8">{body[section]}</section>
     </dialog>

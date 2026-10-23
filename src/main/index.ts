@@ -19,7 +19,18 @@ import {
   wakeModels
 } from './embed'
 import { ingestBuffer, ingestFile } from './ingest'
-import { firstClose, freeMemoryInTray, getSettings, resetToken, saveProvider, setActiveProvider, setFreeMemoryInTray } from './settings'
+import {
+  archiveHasPassword,
+  checkArchivePassword,
+  firstClose,
+  freeMemoryInTray,
+  getSettings,
+  resetToken,
+  saveProvider,
+  setActiveProvider,
+  setArchivePassword,
+  setFreeMemoryInTray
+} from './settings'
 import { createTray, setOpenAtLogin, setTrayIcon, startedHidden, trayHint } from './tray'
 import { followTaskbarTheme } from './taskbarIcon'
 import { jaccard, paletteSimilarity, relevance, rgb, visualSimilarity } from './scoring'
@@ -35,9 +46,42 @@ protocol.registerSchemesAsPrivileged([
 
 const EDITABLE = ['source_url', 'title', 'note'] as const
 
+// Archive lock: with a password set, archived items stay here, out of the window's list, the
+// trash and single-item lookups, until the password is given. Leaving the archive, or the
+// window hiding, locks it again.
+let archiveOpen = false
+const archiveHidden = () => archiveHasPassword() && !archiveOpen
+const unlessHidden = () => (archiveHidden() ? ' and archived_at is null' : '')
+
 ipcMain.handle('items:list', () =>
-  db.prepare('select * from items where deleted_at is null order by created_at desc').all()
+  db.prepare(`select * from items where deleted_at is null${unlessHidden()} order by created_at desc`).all()
 )
+
+// Six digits are few, so after 5 wrong tries in a row every further try waits 30 s.
+let misses = 0
+let waitUntil = 0
+function tryPin(pin: unknown): 'ok' | 'wrong' | 'wait' {
+  if (Date.now() < waitUntil) return 'wait'
+  if (checkArchivePassword(pin)) {
+    misses = 0
+    return 'ok'
+  }
+  if (++misses >= 5) waitUntil = Date.now() + 30_000
+  return 'wrong'
+}
+
+ipcMain.handle('archive:unlock', (_e, pin: string) => {
+  const result = tryPin(pin)
+  archiveOpen = result === 'ok'
+  return result
+})
+ipcMain.handle('archive:lock', () => void (archiveOpen = false))
+ipcMain.handle('settings:setArchivePassword', (_e, current: string, next: string) => {
+  archiveOpen = false
+  const result = tryPin(current)
+  if (result !== 'ok') throw new Error(result === 'wait' ? 'wait' : 'wrong password')
+  return setArchivePassword(current, next)
+})
 
 ipcMain.handle('items:tags', (_e, id: number) =>
   db
@@ -85,7 +129,7 @@ ipcMain.handle('stacks:list', () =>
       items: db
         .prepare(
           `select si.item_id from stack_items si join items i on i.id = si.item_id
-           where si.stack_id = ? and i.deleted_at is null order by si.added_at desc`
+           where si.stack_id = ? and i.deleted_at is null and i.archived_at is null order by si.added_at desc`
         )
         .pluck()
         .all(s.id) as number[]
@@ -142,7 +186,10 @@ ipcMain.handle('tags:delete', (_e, value: string) => {
   textChanged()
 })
 
-const byId = (id: number) => db.prepare('select * from items where id = ?').get(id) as Item | undefined
+const byId = (id: number) => {
+  const item = db.prepare('select * from items where id = ?').get(id) as Item | undefined
+  return item?.archived_at && archiveHidden() ? undefined : item
+}
 
 const hex = (...rgb: number[]): string =>
   '#' + rgb.map((n) => Math.round(n).toString(16).padStart(2, '0')).join('')
@@ -180,7 +227,10 @@ ipcMain.handle('items:palette', async (_e, id: number) => {
 // ponytail: scored against every item on each click (a dot product per image pair is cheap).
 // Fine for tens of thousands; a vector index (sqlite-vec, HNSW) if the library outgrows that.
 ipcMain.handle('items:similar', async (_e, id: number) => {
-  const all = db.prepare('select * from items where deleted_at is null').all() as Item[]
+  // archived items never match, but one opened from the archive can still look for its likes
+  const all = db
+    .prepare('select * from items where deleted_at is null and (archived_at is null or id = ?)')
+    .all(id) as Item[]
   const me = all.find((i) => i.id === id)
   if (!me) return []
 
@@ -280,11 +330,19 @@ ipcMain.handle('window:control', (e, action: WindowAction) => {
   if (action === 'close') win?.close()
   else if (action === 'minimize') win?.minimize()
   else if (action === 'maximize') win?.isMaximized() ? win.unmaximize() : win?.maximize()
+  else if (action === 'quit') quit()
 })
 
 ipcMain.handle('shell:openExternal', (_e, url: string) => {
   if (!isHttpUrl(url)) throw new Error('refusing to open non-http url')
   return shell.openExternal(url)
+})
+
+/* archive: out of the way, not deleted; items:list still sends them, the renderer splits them off */
+
+ipcMain.handle('items:archive', (_e, ids: number[], on: boolean) => {
+  const set = db.prepare('update items set archived_at = ? where id = ?')
+  for (const id of (Array.isArray(ids) ? ids : []).filter(Number.isInteger)) set.run(on ? Date.now() : null, id)
 })
 
 /* trash: deleting is reversible for 30 days */
@@ -301,9 +359,12 @@ ipcMain.handle('items:restore', (_e, ids: number[] | 'all') => {
   textChanged()
 })
 
-ipcMain.handle('trash:count', () => db.prepare('select count(*) from items where deleted_at is not null').pluck().get())
+// a locked archive's trashed items stay out of sight (and out of Empty now); the 30 days still apply
+ipcMain.handle('trash:count', () =>
+  db.prepare(`select count(*) from items where deleted_at is not null${unlessHidden()}`).pluck().get()
+)
 ipcMain.handle('trash:list', () =>
-  db.prepare('select * from items where deleted_at is not null order by deleted_at desc').all()
+  db.prepare(`select * from items where deleted_at is not null${unlessHidden()} order by deleted_at desc`).all()
 )
 
 // rows (tags, stack entries and vectors cascade) and their files, for good
@@ -316,11 +377,11 @@ function purge(where: string, ...args: unknown[]): number {
   return rows.length
 }
 
-ipcMain.handle('trash:empty', () => void purge('deleted_at is not null'))
+ipcMain.handle('trash:empty', () => void purge(`deleted_at is not null${unlessHidden()}`))
 // chosen items, for good; only ever ones already in the trash
 ipcMain.handle('trash:delete', (_e, ids: number[]) => {
   const list = (Array.isArray(ids) ? ids : []).filter(Number.isInteger)
-  if (list.length) purge(`deleted_at is not null and id in (${list.map(() => '?').join(', ')})`, ...list)
+  if (list.length) purge(`deleted_at is not null${unlessHidden()} and id in (${list.map(() => '?').join(', ')})`, ...list)
 })
 
 /* backup: a dated folder with a consistent copy of the database and every file */
@@ -429,7 +490,11 @@ function createWindow(visible: boolean): void {
     }
     if (firstClose()) trayHint()
   })
-  win.on('closed', () => (win = null))
+  win.on('hide', () => (archiveOpen = false))
+  win.on('closed', () => {
+    win = null
+    archiveOpen = false
+  })
 
   if (process.env.ELECTRON_RENDERER_URL) win.loadURL(process.env.ELECTRON_RENDERER_URL)
   else win.loadFile(join(__dirname, '../renderer/index.html'))

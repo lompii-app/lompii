@@ -14,6 +14,43 @@ const CAPTION = 34 // mt-2.5 + one 13px line
 const TEXT = 200 // first guess only; text tiles are measured once rendered
 const TALLEST = 2 // height / width; full-page captures show their top, like a bookmark preview
 
+// cards dragged inside the window carry their ids under this type; the sidebar logo takes them
+export const ITEMS_TYPE = 'application/x-tessera-items'
+
+// A small square of the card follows the pointer instead of the whole tile, so the logo it's
+// dropped on stays in view. Several cards carry their count.
+function dragGhost(tile: HTMLElement, count: number): HTMLCanvasElement {
+  const size = 72
+  const c = document.createElement('canvas')
+  c.width = c.height = size * devicePixelRatio
+  c.style.cssText = `position:fixed;top:-${size * 2}px;width:${size}px;height:${size}px`
+  const ctx = c.getContext('2d')!
+  ctx.scale(devicePixelRatio, devicePixelRatio)
+  ctx.beginPath()
+  ctx.roundRect(0, 0, size, size, 6)
+  ctx.clip()
+  const css = getComputedStyle(document.documentElement)
+  ctx.fillStyle = css.getPropertyValue('--color-card')
+  ctx.fillRect(0, 0, size, size)
+  const img = tile.querySelector('img')
+  if (img?.naturalWidth) {
+    const s = Math.min(img.naturalWidth, img.naturalHeight) // cover, from the top like the tile
+    ctx.drawImage(img, (img.naturalWidth - s) / 2, 0, s, s, 0, 0, size, size)
+  }
+  if (count > 1) {
+    ctx.fillStyle = css.getPropertyValue('--color-accent')
+    ctx.beginPath()
+    ctx.arc(size - 15, 15, 11, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = '#fff'
+    ctx.font = '600 12px system-ui'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(String(count), size - 15, 15.5)
+  }
+  return c
+}
+
 const caption = (i: Item): string | null => {
   if (i.title) return i.title
   try {
@@ -125,6 +162,16 @@ export default function Grid({ scrollRef, items, selected, onSelect, onOpen, den
                     ? onPick(item.id, e.shiftKey)
                     : onOpen(item.id)
                 }
+                onDragStart={(e) => {
+                  // a picked card brings the whole selection along
+                  const ids = picked.has(item.id) ? [...picked] : [item.id]
+                  e.dataTransfer.setData(ITEMS_TYPE, JSON.stringify(ids))
+                  e.dataTransfer.effectAllowed = 'move'
+                  const ghost = dragGhost(e.currentTarget, ids.length)
+                  document.body.append(ghost)
+                  e.dataTransfer.setDragImage(ghost, -14, -14) // below-right of the pointer, clear of the logo
+                  setTimeout(() => ghost.remove()) // the browser has its snapshot by then
+                }}
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -147,6 +194,7 @@ function Tile({
   selected,
   picked,
   onClick,
+  onDragStart,
   style
 }: {
   item: Item
@@ -155,6 +203,7 @@ function Tile({
   selected: boolean
   picked: boolean
   onClick: (e: React.MouseEvent) => void
+  onDragStart: (e: React.DragEvent<HTMLElement>) => void
   style: React.CSSProperties
 }) {
   const [loaded, setLoaded] = useState(false)
@@ -169,6 +218,8 @@ function Tile({
       data-index={index}
       style={style}
       onClick={onClick}
+      draggable
+      onDragStart={onDragStart}
       aria-pressed={picked || undefined}
       className="group relative flex flex-col"
     >

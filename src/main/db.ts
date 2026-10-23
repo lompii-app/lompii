@@ -105,7 +105,10 @@ const MIGRATIONS = [
      item_id integer primary key references items (id) on delete cascade,
      source text not null,
      vector blob not null
-   );`
+   );`,
+
+  // archive: kept, but out of Everything, Stacks and same vibe; only the archive's search finds it
+  `alter table items add column archived_at integer;`
 ]
 
 export const db = new Database(join(DATA, 'tessera.db'))

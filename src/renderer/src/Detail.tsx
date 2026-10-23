@@ -44,6 +44,7 @@ export default function Detail({
   aiReady,
   onSameVibe,
   onClose,
+  onArchive,
   onDelete
 }: {
   item: Item
@@ -53,6 +54,7 @@ export default function Detail({
   aiReady: boolean // an AI key is set
   onSameVibe: (id: number) => void
   onClose: () => void
+  onArchive: (id: number) => void // in, or back out if it's archived
   onDelete: (id: number) => void
 }) {
   const [title, setTitle] = useState('')
@@ -458,6 +460,14 @@ export default function Detail({
             >
               <rect x="8" y="8" width="13" height="13" rx="2" />
               <path d="M4 16V5a2 2 0 0 1 2-2h11" />
+            </IconButton>
+            <IconButton
+              label={item.archived_at ? 'Unarchive' : 'Archive'}
+              active={!!item.archived_at}
+              onClick={() => onArchive(item.id)}
+            >
+              <rect x="3" y="4" width="18" height="5" rx="1" />
+              <path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4" />
             </IconButton>
             <IconButton
               label="Delete"

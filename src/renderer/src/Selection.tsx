@@ -8,6 +8,8 @@ export default function SelectionBar({
   onAddToStack,
   onNewStack,
   onAddTags,
+  archived,
+  onArchive,
   onDelete,
   onClear
 }: {
@@ -16,6 +18,8 @@ export default function SelectionBar({
   onAddToStack: (stackId: number) => void
   onNewStack: (name: string) => Promise<void>
   onAddTags: (tags: string[]) => void
+  archived: boolean // the selection is in the archive: the button takes it back out
+  onArchive: () => void
   onDelete: () => void
   onClear: () => void
 }) {
@@ -93,6 +97,9 @@ export default function SelectionBar({
         </button>
         <button onClick={() => toggle('tags')} className={button}>
           Add tags
+        </button>
+        <button onClick={onArchive} title={archived ? 'Unarchive (A)' : 'Archive (A)'} className={button}>
+          {archived ? 'Unarchive' : 'Archive'}
         </button>
         <button onClick={onDelete} className={`${button} hover:text-red-300`}>
           Delete

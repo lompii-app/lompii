@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { safeStorage } from 'electron'
 import { DEFAULT_MODELS, KEYLESS, type AiProvider, type Settings } from '@shared/api'
 import { DATA } from './db'
+import { isPin, passwordMatches, sealPassword } from './password'
 import { openAtLogin } from './tray'
 
 // settings.json. The AI key is encrypted with the OS keychain (safeStorage) and never
@@ -14,6 +15,7 @@ type Stored = {
   trayHintShown?: boolean
   extensionConnected?: boolean // a browser has connected since the key was last replaced
   freeMemoryInTray?: boolean // closing the window closes it for real and unloads the local models
+  archivePassword?: string // 'salt:hash' in hex (scrypt); the password itself is never stored
   ai?: { active: AiProvider | null; providers: Partial<Record<AiProvider, StoredProvider>> }
 }
 
@@ -50,8 +52,28 @@ export function getSettings(): Settings {
     ai: { active: s.ai?.active ?? null, providers },
     openAtLogin: openAtLogin(),
     extensionConnected: !!s.extensionConnected,
-    freeMemoryInTray: !!s.freeMemoryInTray
+    freeMemoryInTray: !!s.freeMemoryInTray,
+    archiveLocked: !!s.archivePassword
   }
+}
+
+/* the archive's password: an in-app lock, not encryption (the files stay as they are) */
+
+export const archiveHasPassword = (): boolean => !!read().archivePassword
+
+// true when it matches, or when no password is set
+export function checkArchivePassword(pw: unknown): boolean {
+  const stored = read().archivePassword
+  return !stored || passwordMatches(pw, stored)
+}
+
+// next: the new six-digit PIN, or '' to remove the lock; current must match the one set
+export function setArchivePassword(current: unknown, next: unknown): Settings {
+  if (!checkArchivePassword(current)) throw new Error('wrong password')
+  if (next !== '' && !isPin(next)) throw new Error('the PIN must be six digits')
+  const { archivePassword: _, ...s } = read()
+  write(isPin(next) ? { ...s, archivePassword: sealPassword(next) } : s)
+  return getSettings()
 }
 
 export const freeMemoryInTray = (): boolean => !!read().freeMemoryInTray

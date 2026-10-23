@@ -21,6 +21,7 @@ export type Item = {
   note: string | null
   palette: string | null // JSON, main process only; the renderer asks for palette(id)
   deleted_at: number | null // in the trash since; the renderer never sees trashed items
+  archived_at: number | null // in the archive since; shown only in the archive
 }
 
 export const isText = (kind: Kind): boolean => kind === 'quote' || kind === 'snippet'
@@ -54,7 +55,7 @@ export const isHttpUrl = (u: string): boolean => {
   }
 }
 
-export type WindowAction = 'close' | 'minimize' | 'maximize'
+export type WindowAction = 'close' | 'minimize' | 'maximize' | 'quit' // quit: the whole app, not just to the tray
 
 export type Tag = { id: number; dimension: string; value: string }
 
@@ -108,6 +109,7 @@ export type Settings = {
   openAtLogin: boolean | null // null: not available (development build)
   extensionConnected: boolean // a browser has connected since the last Disconnect all
   freeMemoryInTray: boolean // in the tray, the window and local models are unloaded
+  archiveLocked: boolean // opening the archive asks for its password
 }
 
 // the browser extension talks to Tessera on this port, 127.0.0.1 only
@@ -134,6 +136,13 @@ export type TesseraAPI = {
   similar(id: number): Promise<number[]> // the item itself, then its closest matches
   saveAs(id: number): Promise<boolean> // false if the save dialog was cancelled
   copy(id: number): Promise<void> // the image, or the text, to the clipboard
+  archive(ids: number[], on: boolean): Promise<void> // into the archive, or back out
+  // With a PIN set, list() leaves archived items out until unlockArchive gets it right ('wait':
+  // too many wrong tries, try again in 30 s); lockArchive (on leaving the archive) hides them again.
+  unlockArchive(pin: string): Promise<'ok' | 'wrong' | 'wait'>
+  lockArchive(): Promise<void>
+  // next: six digits, or '' to remove it; rejects if current is wrong ('wrong password', 'wait')
+  setArchivePassword(current: string, next: string): Promise<Settings>
   remove(id: number): Promise<void> // to the trash
   restore(ids: number[] | 'all'): Promise<void>
   trashCount(): Promise<number>

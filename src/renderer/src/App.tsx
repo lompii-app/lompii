@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Settings, Stack } from '@shared/api'
 import Detail from './Detail'
-import { PairPrompt } from './Dialogs'
+import { ArchivePrompt, PairPrompt } from './Dialogs'
 import { ActiveFilter, buildFilters, FilterRow, STACK_COLORS, TermChip, type Filter, type TagIndex } from './Filters'
 import Grid from './Grid'
 import Sidebar from './Sidebar'
@@ -15,13 +15,21 @@ import Trash from './Trash'
 import WindowControls from './WindowControls'
 import { useItems } from './useItems'
 
-type View = 'everything' | 'stacks' | 'trash' // trash is reached from the sidebar, not a tab
+type View = 'everything' | 'stacks' | 'archive' | 'trash' // archive and trash are reached from the sidebar
 
 const TABS: [View, string][] = [['everything', 'Everything'], ['stacks', 'Stacks']]
 
 export default function App() {
-  const [items, setItems] = useItems()
+  const [all, setAll] = useItems()
   const [view, setView] = useState<View>('everything')
+  // the archive lives apart: Everything, Stacks and the filters never see it, and in the archive
+  // the search, filters and grid work on it alone (most recently archived first)
+  const items = useMemo(() => all.filter((i) => !i.archived_at), [all])
+  const archived = useMemo(
+    () => all.filter((i) => i.archived_at).sort((a, b) => b.archived_at! - a.archived_at!),
+    [all]
+  )
+  const source = view === 'archive' ? archived : items
   const [query, setQuery] = useState('')
   const [terms, setTerms] = useState<string[]>([]) // search words turned into chips with Enter; all must match
   const [filterKey, setFilterKey] = useState<string | null>(null)
@@ -89,11 +97,12 @@ export default function App() {
     if (settings && !settings.extensionConnected) window.tessera.getSettings().then(setSettings)
   }, [items.length]) // only when the count changes, not on every settings update
   // saves still without a title and tags (never analysed, or it failed), and those in progress
-  const unanalysed = items.filter((i) => i.status === 'pending' || i.status === 'failed').length
-  const analysing = items.filter((i) => i.status === 'analysing').length
+  // (archived ones included: "Analyse all" gets to them too)
+  const unanalysed = all.filter((i) => i.status === 'pending' || i.status === 'failed').length
+  const analysing = all.filter((i) => i.status === 'analysing').length
 
   const refreshStacks = () => setStacksVersion((v) => v + 1)
-  const filters = useMemo(() => buildFilters(items, tagIndex, stacks), [items, tagIndex, stacks])
+  const filters = useMemo(() => buildFilters(source, tagIndex, stacks), [source, tagIndex, stacks])
   // same vibe acts as one more filter, but keeps its own order (closest first)
   const vibeFilter = useMemo((): Filter | null => {
     if (!vibe) return null
@@ -129,7 +138,7 @@ export default function App() {
   const visible = useMemo(() => {
     const words = [...terms, query].map((t) => t.trim().toLowerCase()).filter(Boolean)
     const hit = new Set<number>() // matched the words, not only the description
-    const matches = items.filter((i) => {
+    const matches = source.filter((i) => {
       const tags = tagIndex.get(i.id)
       if (active && !active.test(i, tags)) return false
       const fields = [i.title, i.body, i.note, i.tldr, i.visible_text, i.file_path, ...(tags ?? [])]
@@ -151,12 +160,63 @@ export default function App() {
         (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0) ||
         b.created_at - a.created_at
     )
-  }, [items, tagIndex, active, terms, query, vibe, scores])
+  }, [source, tagIndex, active, terms, query, vibe, scores])
 
+  // searching and filtering happen in Everything, or in the archive when that's open
+  const toSearch = () => setView((v) => (v === 'archive' ? v : 'everything'))
+
+  /* the archive's lock: asked for each time it's opened */
+
+  const [asking, setAsking] = useState(false) // the password prompt is up
+  const openArchive = () => {
+    setVibe(null) // same-vibe results are never archived ones
+    if (settings?.archiveLocked) setAsking(true)
+    else setView('archive')
+  }
+  const unlockArchive = async (pin: string) => {
+    const result = await window.tessera.unlockArchive(pin)
+    if (result !== 'ok') return result
+    setAll(await window.tessera.list()) // now with the archived items
+    setAsking(false)
+    setView('archive')
+    return result
+  }
+  // Closing the prompt hands focus back to the logo, which would keep its ring and "Press Here"
+  // label up; the dialog closes in its own effect, which runs before this one.
+  useEffect(() => {
+    if (!asking) (document.activeElement as HTMLElement | null)?.blur()
+  }, [asking])
+  // Leaving a locked archive locks it again, and its items leave the window. Ones archived since
+  // stay until then, so their undo still works.
+  const inArchive = useRef(false)
+  useEffect(() => {
+    if (view === 'archive') inArchive.current = true
+    else if (inArchive.current) {
+      inArchive.current = false
+      if (!settings?.archiveLocked) return
+      window.tessera.lockArchive()
+      setAll((prev) => prev.filter((i) => !i.archived_at))
+    }
+  }, [view])
+  // and minimising or hiding to the tray leaves it
+  useEffect(() => {
+    if (!settings?.archiveLocked) return
+    const onHide = () => document.hidden && setView((v) => (v === 'archive' ? 'everything' : v))
+    document.addEventListener('visibilitychange', onHide)
+    return () => document.removeEventListener('visibilitychange', onHide)
+  }, [settings?.archiveLocked])
+  // a password set, changed or removed in Settings: the list is fetched again under the new rule
+  const changeSettings = async (next: Settings) => {
+    const relock = next.archiveLocked !== settings?.archiveLocked
+    setSettings(next)
+    if (!relock) return
+    if (next.archiveLocked) setView((v) => (v === 'archive' ? 'everything' : v))
+    setAll(await window.tessera.list())
+  }
   const pickFilter = (key: string | null) => {
     setFilterKey(key)
     setVibe(null)
-    setView('everything')
+    toSearch()
   }
   const clearFilter = () => pickFilter(null)
 
@@ -171,28 +231,34 @@ export default function App() {
     scrollRef.current?.scrollTo({ top: 0 })
   }
 
-  const current = items.find((i) => i.id === selected) ?? null
+  const current = all.find((i) => i.id === selected) ?? null
 
   const openItem = (id: number) => {
     setSelected(id)
     setOpen(true)
   }
 
-  // Deleting moves to the trash; the toast offers an undo for a few seconds.
-  const [undo, setUndo] = useState<{ ids: number[]; label: string } | null>(null)
+  // Deleting moves to the trash, archiving to the archive; the toast offers an undo for a few seconds.
+  const [undo, setUndo] = useState<{ ids: number[]; label: string; archived?: boolean } | null>(null)
   useEffect(() => {
     if (!undo) return
     const timer = setTimeout(() => setUndo(null), 9000)
     return () => clearTimeout(timer)
   }, [undo])
 
+  const labelFor = (ids: number[]) => {
+    if (ids.length > 1) return `${ids.length} items are`
+    const title = all.find((i) => i.id === ids[0])?.title
+    return title ? `“${title.length > 40 ? title.slice(0, 40) + '…' : title}” is` : 'This item is'
+  }
+
   const remove = async (id: number) => {
-    const title = items.find((i) => i.id === id)?.title
+    const label = labelFor([id])
     await window.tessera.remove(id)
-    setItems((prev) => prev.filter((i) => i.id !== id))
+    setAll((prev) => prev.filter((i) => i.id !== id))
     setSelected(null)
     setOpen(false)
-    setUndo({ ids: [id], label: title ? `“${title.length > 40 ? title.slice(0, 40) + '…' : title}” is` : 'This item is' })
+    setUndo({ ids: [id], label })
   }
 
   /* multi-select: Ctrl-click toggles, Shift-click selects a run of the visible order */
@@ -215,15 +281,34 @@ export default function App() {
     anchor.current = id
   }
   const clearPicked = () => setPicked(new Set())
-  const pickedIds = [...picked].filter((id) => items.some((i) => i.id === id))
+  const pickedIds = [...picked].filter((id) => source.some((i) => i.id === id))
 
   const removeMany = async (ids: number[]) => {
+    const label = labelFor(ids)
     for (const id of ids) await window.tessera.remove(id)
     const gone = new Set(ids)
-    setItems((prev) => prev.filter((i) => !gone.has(i.id)))
+    setAll((prev) => prev.filter((i) => !gone.has(i.id)))
     clearPicked()
-    setUndo({ ids, label: ids.length === 1 ? 'This item is' : `${ids.length} items are` })
+    setUndo({ ids, label })
   }
+
+  // into the archive (on) or back out; ids already where they're going are skipped
+  const archive = async (ids: number[], on: boolean) => {
+    const moving = new Set(ids.filter((id) => all.some((i) => i.id === id && !!i.archived_at !== on)))
+    if (!moving.size) return
+    const label = labelFor([...moving])
+    await window.tessera.archive([...moving], on)
+    const at = on ? Date.now() : null
+    setAll((prev) => prev.map((i) => (moving.has(i.id) ? { ...i, archived_at: at } : i)))
+    clearPicked()
+    if (selected != null && moving.has(selected)) {
+      setSelected(null)
+      setOpen(false)
+    }
+    setUndo(on ? { ids: [...moving], label, archived: true } : null)
+  }
+  // the A key, the selection bar and a drop on the logo: in Everything they archive, in the archive they unarchive
+  const toggleArchive = (ids: number[]) => archive(ids, view !== 'archive')
 
   const addManyToStack = async (stackId: number, ids = pickedIds) => {
     for (const id of ids) await window.tessera.setInStack(stackId, id, true)
@@ -252,8 +337,11 @@ export default function App() {
 
   const undoRemove = async () => {
     if (!undo) return
-    await window.tessera.restore(undo.ids)
-    setItems(await window.tessera.list()) // back in their place, not at the top
+    if (undo.archived) await archive(undo.ids, false)
+    else {
+      await window.tessera.restore(undo.ids)
+      setAll(await window.tessera.list()) // back in their place, not at the top
+    }
     setUndo(null)
   }
 
@@ -291,7 +379,7 @@ export default function App() {
     }
   }, [])
 
-  /* Cmd/Ctrl+K, Enter, Esc */
+  /* Cmd/Ctrl+K, Enter, Esc, A */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = ['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)
@@ -311,11 +399,14 @@ export default function App() {
         else if (open) setOpen(false)
         else if (picked.size) clearPicked()
         else setSelected(null)
+      } else if (e.key.toLowerCase() === 'a' && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (view === 'everything' || view === 'archive')
+          toggleArchive(pickedIds.length ? pickedIds : selected != null ? [selected] : [])
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selected, open, query, scrolled, picked])
+  }, [selected, open, query, scrolled, picked, view, all])
 
   // both search fields edit the same query and filter
   const searchField = (which: 'big' | 'pill', className: string) => (
@@ -324,7 +415,7 @@ export default function App() {
       value={query}
       onChange={(e) => {
         setQuery(e.target.value)
-        setView('everything')
+        toSearch()
       }}
       onFocus={() => setFocused(which)}
       onBlur={() => setFocused(null)}
@@ -339,7 +430,13 @@ export default function App() {
         }
       }}
       placeholder={
-        terms.length ? 'Add another…' : active ? `Search ${active.label.toLowerCase()}…` : 'Search my references…'
+        terms.length
+          ? 'Add another…'
+          : active
+            ? `Search ${active.label.toLowerCase()}…`
+            : view === 'archive'
+              ? 'Search the archive…'
+              : 'Describe what you remember…'
       }
       spellCheck={false}
       className={`min-w-0 flex-1 bg-transparent font-serif italic tracking-tight placeholder:text-faint focus:outline-none ${className}`}
@@ -362,6 +459,10 @@ export default function App() {
         onSettings={() => openSettings()}
         onTrash={() => setView((v) => (v === 'trash' ? 'everything' : 'trash'))}
         inTrash={view === 'trash'}
+        onArchive={() => (view === 'archive' ? setView('everything') : openArchive())}
+        inArchive={view === 'archive'}
+        onDropItems={toggleArchive}
+        pill={scrolled && view !== 'trash'}
       />
 
       {/* header and content scroll together; past the header, the floating search takes over */}
@@ -378,7 +479,8 @@ export default function App() {
       >
         <header ref={headerRef} className="pr-20 pl-1">
           <div className="flex justify-end gap-9">
-            {TABS.map(([v, label]) => (
+            {/* the archive has no tab of its own; it shows as one while open */}
+            {[...TABS, ...(view === 'archive' ? [['archive', 'Archive'] as [View, string]] : [])].map(([v, label]) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
@@ -393,6 +495,9 @@ export default function App() {
                 {v === 'everything' && items.length > 0 && (
                   <span className="ml-1.5 text-[12px] text-dim">{items.length}</span>
                 )}
+                {v === 'archive' && archived.length > 0 && (
+                  <span className="ml-1.5 text-[12px] text-dim">{archived.length}</span>
+                )}
               </button>
             ))}
           </div>
@@ -404,7 +509,8 @@ export default function App() {
                 <TermChip key={t} term={t} onRemove={() => setTerms((all) => all.filter((x) => x !== t))} />
               ))}
               {searchField('big', 'min-w-64 text-[60px] leading-tight')}
-              {terms.length > 0 && visible.length > 0 && (
+              {/* not in the archive: stacks leave archived items out */}
+              {terms.length > 0 && visible.length > 0 && view !== 'archive' && (
                 <button
                   onClick={saveSearchAsStack}
                   title={`Put the ${visible.length} results in a stack called “${searchName}”`}
@@ -435,7 +541,7 @@ export default function App() {
         </header>
 
         {view === 'trash' ? (
-          <Trash onExit={() => setView('everything')} onRestored={async () => setItems(await window.tessera.list())} />
+          <Trash onExit={() => setView('everything')} onRestored={async () => setAll(await window.tessera.list())} />
         ) : view === 'stacks' ? (
           <Stacks items={items} stacks={stacks} onOpen={pickFilter} onChange={refreshStacks} />
         ) : visible.length ? (
@@ -455,6 +561,16 @@ export default function App() {
               onDelete={remove}
             />
           </>
+        ) : view === 'archive' && !archived.length ? (
+          <div className="grid place-items-center py-32 pr-20">
+            <div className="max-w-md text-center">
+              <p className="font-serif text-[32px] italic text-dim">Nothing archived yet.</p>
+              <p className="mt-3 text-[14px] leading-relaxed text-fg/80">
+                Drag a card onto the logo, or select some and press A. Archived things stay out of Everything and
+                Stacks, and only this search finds them.
+              </p>
+            </div>
+          </div>
         ) : (
           <div className="grid place-items-center py-32 pr-20">
             <div className={`text-center ${items.length ? 'max-w-md' : 'max-w-xl'}`}>
@@ -523,6 +639,7 @@ export default function App() {
           aiReady={!!settings?.ai.active}
           onSameVibe={sameVibe}
           onClose={() => setOpen(false)}
+          onArchive={(id) => archive([id], !current.archived_at)}
           onDelete={remove}
         />
       )}
@@ -533,30 +650,35 @@ export default function App() {
           className="fixed bottom-6 left-1/2 z-50 flex w-[620px] max-w-[calc(100vw-3rem)] -translate-x-1/2 items-center gap-6 rounded-lg bg-accent py-5 pr-12 pl-7 text-white shadow-lift transition duration-200 starting:translate-y-3 starting:opacity-0"
         >
           <p className="shrink-0 font-serif text-[30px] leading-[1.05]">
-            Gone,
+            {undo.archived ? 'Out of sight,' : 'Gone,'}
             <br />
-            not forgotten.
+            {undo.archived ? 'still yours.' : 'not forgotten.'}
           </p>
           <div className="self-stretch border-l border-white/35" />
           <div className="min-w-0 text-[14px] leading-relaxed">
-            <p className="truncate">{undo.label} in the trash.</p>
+            <p className="truncate">
+              {undo.label} in the {undo.archived ? 'archive' : 'trash'}.
+            </p>
             <p>
               <button onClick={undoRemove} className="font-semibold underline underline-offset-2">
                 Undo
               </button>
-              , or restore it from the{' '}
+              , or find it in the{' '}
               <button
                 onClick={() => {
                   setUndo(null)
-                  setView('trash')
+                  if (undo.archived) openArchive()
+                  else setView('trash')
                 }}
                 className="font-semibold underline underline-offset-2"
               >
-                Trash
+                {undo.archived ? 'Archive' : 'Trash'}
               </button>{' '}
               any time.
             </p>
-            <p className="text-white/80">The trash empties itself after 30 days.</p>
+            <p className="text-white/80">
+              {undo.archived ? 'Click the logo to open it; it has its own search.' : 'The trash empties itself after 30 days.'}
+            </p>
           </div>
           <button
             onClick={() => setUndo(null)}
@@ -585,12 +707,16 @@ export default function App() {
           onAddToStack={addManyToStack}
           onNewStack={newStackWithPicked}
           onAddTags={tagMany}
+          archived={view === 'archive'}
+          onArchive={() => toggleArchive(pickedIds)}
           onDelete={() => removeMany(pickedIds)}
           onClear={clearPicked}
         />
       )}
 
       <TagsDialog ref={tagsRef} onChange={refreshStacks} />
+
+      <ArchivePrompt open={asking} onUnlock={unlockArchive} onCancel={() => setAsking(false)} />
 
       <PairPrompt onAnswered={() => window.tessera.getSettings().then(setSettings)} />
 
@@ -599,7 +725,7 @@ export default function App() {
         onManageTags={() => tagsRef.current?.showModal()}
         settings={settings}
         unanalysed={unanalysed}
-        onChange={setSettings}
+        onChange={changeSettings}
         section={settingsSection}
         onSection={setSettingsSection}
       />
