@@ -88,6 +88,9 @@ export default function App() {
   useEffect(() => {
     if (settings && !settings.extensionConnected) window.tessera.getSettings().then(setSettings)
   }, [items.length]) // only when the count changes, not on every settings update
+  // saves still without a title and tags (never analysed, or it failed), and those in progress
+  const unanalysed = items.filter((i) => i.status === 'pending' || i.status === 'failed').length
+  const analysing = items.filter((i) => i.status === 'analysing').length
 
   const refreshStacks = () => setStacksVersion((v) => v + 1)
   const filters = useMemo(() => buildFilters(items, tagIndex, stacks), [items, tagIndex, stacks])
@@ -411,6 +414,17 @@ export default function App() {
                   {savedSearch === searchName ? 'Saved to stack' : 'Save as stack'}
                 </button>
               )}
+              {settings?.ai.active && (unanalysed > 0 || analysing > 0) && (
+                <button
+                  onClick={() => window.tessera.analyseAll()}
+                  disabled={!unanalysed}
+                  title="Give every save without a title and tags its AI analysis"
+                  className="flex shrink-0 items-center gap-2.5 rounded-full bg-card px-5 py-2.5 text-[13px] tracking-wider text-dim uppercase shadow-card transition enabled:hover:text-fg enabled:hover:shadow-lift"
+                >
+                  <span className={`size-3.5 rounded-full border-2 border-accent ${unanalysed ? '' : 'animate-pulse bg-accent'}`} />
+                  {unanalysed ? `Analyse ${unanalysed} ${unanalysed === 1 ? 'save' : 'saves'}` : `Analysing ${analysing}…`}
+                </button>
+              )}
               <kbd className="shrink-0 rounded-sm bg-fg/[0.06] px-2.5 py-1 font-sans text-[13px] text-dim">
                 Ctrl K
               </kbd>
@@ -584,7 +598,7 @@ export default function App() {
         ref={settingsRef}
         onManageTags={() => tagsRef.current?.showModal()}
         settings={settings}
-        unanalysed={items.filter((i) => i.status === 'pending' || i.status === 'failed').length}
+        unanalysed={unanalysed}
         onChange={setSettings}
         section={settingsSection}
         onSection={setSettingsSection}

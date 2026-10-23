@@ -13,6 +13,7 @@ type Stored = {
   token?: string
   trayHintShown?: boolean
   extensionConnected?: boolean // a browser has connected since the key was last replaced
+  freeMemoryInTray?: boolean // closing the window closes it for real and unloads the local models
   ai?: { active: AiProvider | null; providers: Partial<Record<AiProvider, StoredProvider>> }
 }
 
@@ -48,8 +49,16 @@ export function getSettings(): Settings {
     token: s.token,
     ai: { active: s.ai?.active ?? null, providers },
     openAtLogin: openAtLogin(),
-    extensionConnected: !!s.extensionConnected
+    extensionConnected: !!s.extensionConnected,
+    freeMemoryInTray: !!s.freeMemoryInTray
   }
+}
+
+export const freeMemoryInTray = (): boolean => !!read().freeMemoryInTray
+
+export function setFreeMemoryInTray(on: boolean): Settings {
+  write({ ...read(), freeMemoryInTray: on })
+  return getSettings()
 }
 
 // a fresh extension key; every paired browser has to connect again

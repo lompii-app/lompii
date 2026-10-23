@@ -6,9 +6,20 @@ import sharp from 'sharp'
 import { isHttpUrl, isText, type Item, type PairRequest, type Stack, type WindowAction, type AiProvider } from '@shared/api'
 import { addTags, DATA, db, deleteTag, removeTag, renameTag, tagCounts } from './db'
 import { enqueue, enqueueUnanalysed, imagePrompt, listModels, resumeAnalysis, testProvider } from './ai'
-import { allVectors, embeddingStatus, indexImages, indexText, searchImages, searchMeaning, textChanged, textVectors } from './embed'
+import {
+  allVectors,
+  embeddingStatus,
+  indexImages,
+  indexText,
+  searchImages,
+  searchMeaning,
+  sleepModels,
+  textChanged,
+  textVectors,
+  wakeModels
+} from './embed'
 import { ingestBuffer, ingestFile } from './ingest'
-import { firstClose, getSettings, resetToken, saveProvider, setActiveProvider } from './settings'
+import { firstClose, freeMemoryInTray, getSettings, resetToken, saveProvider, setActiveProvider, setFreeMemoryInTray } from './settings'
 import { createTray, setOpenAtLogin, setTrayIcon, startedHidden, trayHint } from './tray'
 import { followTaskbarTheme } from './taskbarIcon'
 import { jaccard, paletteSimilarity, relevance, rgb, visualSimilarity } from './scoring'
@@ -349,6 +360,7 @@ ipcMain.handle('settings:setOpenAtLogin', (_e, on: boolean) => {
   setOpenAtLogin(!!on)
   return getSettings()
 })
+ipcMain.handle('settings:setFreeMemoryInTray', (_e, on: boolean) => setFreeMemoryInTray(!!on))
 ipcMain.handle('ai:analyse', (_e, id: number) => void enqueue(id))
 ipcMain.handle('ai:analyseAll', () => enqueueUnanalysed())
 ipcMain.handle('ai:test', (_e, p: AiProvider) => testProvider(p))
@@ -381,6 +393,7 @@ let windowIcon: NativeImage | string = icon
 let quitting = false
 
 function show(): void {
+  wakeModels() // catches up on whatever was saved while asleep in the tray
   if (!win) return createWindow(true)
   if (win.isMinimized()) win.restore()
   win.show()
@@ -404,11 +417,16 @@ function createWindow(visible: boolean): void {
   })
   if (visible) win.once('ready-to-show', () => win?.show())
 
-  // closing hides to the tray, so the extension server and the AI queue keep running
+  // closing hides to the tray, so the extension server and the AI queue keep running. With
+  // "Free memory in the tray" the window really closes (its renderer and GPU processes are
+  // most of the RAM) and the local models unload; show() brings both back.
   win.on('close', (e) => {
     if (quitting) return
-    e.preventDefault()
-    win?.hide()
+    if (freeMemoryInTray()) sleepModels()
+    else {
+      e.preventDefault()
+      win?.hide()
+    }
     if (firstClose()) trayHint()
   })
   win.on('closed', () => (win = null))
@@ -487,6 +505,8 @@ else {
 
     serve(askToPair)
     resumeAnalysis()
+    const lean = startedHidden() && freeMemoryInTray() // started at login: no window, no models yet
+    if (lean) sleepModels()
     void indexImages() // backfill same-vibe vectors; downloads the model on first run
     void indexText() // and the text-meaning vectors (another small model, ~23 MB)
     createTray(show, quit)
@@ -495,7 +515,7 @@ else {
       win?.setIcon(w)
       setTrayIcon(t)
     })
-    createWindow(!startedHidden())
+    if (!lean) createWindow(!startedHidden())
     app.on('activate', show)
   })
 }

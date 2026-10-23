@@ -64,6 +64,7 @@ const api: TesseraAPI = {
   saveProvider: (p, patch) => ipcRenderer.invoke('settings:saveProvider', p, patch),
   setActiveProvider: (p) => ipcRenderer.invoke('settings:setActiveProvider', p),
   setOpenAtLogin: (on) => ipcRenderer.invoke('settings:setOpenAtLogin', on),
+  setFreeMemoryInTray: (on) => ipcRenderer.invoke('settings:setFreeMemoryInTray', on),
   analyse: (id) => ipcRenderer.invoke('ai:analyse', id),
   analyseAll: () => ipcRenderer.invoke('ai:analyseAll'),
   testProvider: (p) => ipcRenderer.invoke('ai:test', p),

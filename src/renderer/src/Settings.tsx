@@ -222,9 +222,11 @@ function ProviderCard({
 
   const test = async () => {
     setTesting(true)
+    const start = performance.now()
     const error = await window.tessera.testProvider(p)
+    const secs = ((performance.now() - start) / 1000).toFixed(1)
     setTesting(false)
-    setNote(error ? { ok: false, text: error } : { ok: true, text: `Connected. ${info?.model} answered.` })
+    setNote(error ? { ok: false, text: error } : { ok: true, text: `Connected. ${info?.model} answered in ${secs} s.` })
   }
 
   const toggleModels = () => {
@@ -487,6 +489,16 @@ export default function SettingsDialog({
               on={!!settings?.openAtLogin}
               disabled={settings?.openAtLogin == null}
               onToggle={async (on) => onChange(await window.tessera.setOpenAtLogin(on))}
+            />
+          </Row>
+          <Row
+            label="Free memory in the tray"
+            desc="Closing the window unloads it and the on-device search models. Saving from the browser and AI tagging carry on; search indexing catches up when you open Tessera, which takes a moment longer."
+          >
+            <Switch
+              label="Free memory in the tray"
+              on={!!settings?.freeMemoryInTray}
+              onToggle={async (on) => onChange(await window.tessera.setFreeMemoryInTray(on))}
             />
           </Row>
           <Row label="Tags" desc="Rename, merge or delete tags everywhere.">

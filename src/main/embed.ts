@@ -61,11 +61,12 @@ let running = false
 
 // One image at a time, newest first, until none are left. Safe to call repeatedly.
 export async function indexImages(): Promise<void> {
-  if (running) return
+  if (running || asleep) return
   running = true
   let count = 0
   try {
     for (let item = missing.get() as Item | undefined; item; item = missing.get() as Item | undefined) {
+      if (asleep) break
       if (state !== 'ready') state = 'loading'
       try {
         const vector = await embed(item)
@@ -85,6 +86,7 @@ export async function indexImages(): Promise<void> {
   } finally {
     running = false
     if (count) console.log('[tessera] indexed %d image(s) for same vibe', count)
+    if (asleep && !textRunning) void unload()
   }
 }
 
@@ -179,6 +181,7 @@ let textAgain = false
 
 // Embeds every item whose text changed since it was last embedded. Cheap to call often.
 export async function indexText(): Promise<void> {
+  if (asleep) return // wakeModels() runs it again
   if (textRunning) return void (textAgain = true)
   textRunning = true
   try {
@@ -186,6 +189,7 @@ export async function indexText(): Promise<void> {
       textAgain = false
       const saved = new Map((savedSources.all() as { item_id: number; source: string }[]).map((r) => [r.item_id, r.source]))
       for (const row of docs.all() as DocRow[]) {
+        if (asleep) return
         const id = row.id
         const words = docText(row)
         if (!words) continue
@@ -199,7 +203,32 @@ export async function indexText(): Promise<void> {
     console.error('[tessera] text embedding failed', e instanceof Error ? e.message : e)
   } finally {
     textRunning = false
+    if (asleep && !running) void unload()
   }
+}
+
+/* ---------- tray: models out of memory until the window is back ---------- */
+
+// "Free memory in the tray": the three models hold a few hundred MB once loaded. Asleep, nothing
+// new is indexed; waking catches up on everything saved meanwhile, and models reload on demand.
+let asleep = false
+
+export function sleepModels(): void {
+  asleep = true
+  if (!running && !textRunning) void unload() // otherwise the running loop unloads when it stops
+}
+
+export function wakeModels(): void {
+  if (!asleep) return
+  asleep = false
+  void indexImages()
+  void indexText()
+}
+
+async function unload(): Promise<void> {
+  const loaded: (Promise<{ dispose(): Promise<unknown> }> | null | undefined)[] = [clip?.then((c) => c.vision), clipText?.then((c) => c.text), minilm]
+  clip = clipText = minilm = null
+  for (const m of loaded) await m?.then((x) => x.dispose()).catch(() => {}) // a failed load holds nothing
 }
 
 // a debounced indexText, for after edits and analyses

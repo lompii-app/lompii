@@ -107,6 +107,7 @@ export type Settings = {
   }
   openAtLogin: boolean | null // null: not available (development build)
   extensionConnected: boolean // a browser has connected since the last Disconnect all
+  freeMemoryInTray: boolean // in the tray, the window and local models are unloaded
 }
 
 // the browser extension talks to Tessera on this port, 127.0.0.1 only
@@ -163,6 +164,7 @@ export type TesseraAPI = {
   saveProvider(provider: AiProvider, patch: { key?: string; model?: string; baseUrl?: string }): Promise<Settings>
   setActiveProvider(provider: AiProvider | null): Promise<Settings>
   setOpenAtLogin(on: boolean): Promise<Settings>
+  setFreeMemoryInTray(on: boolean): Promise<Settings>
   analyse(id: number): Promise<void> // queue one item for AI analysis
   analyseAll(): Promise<number> // queue everything not yet analysed; returns how many
   testProvider(provider: AiProvider): Promise<string | null> // null: it answered; else the error
