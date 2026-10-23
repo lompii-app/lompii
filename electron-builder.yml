@@ -18,6 +18,12 @@ asarUnpack:
   - "**/node_modules/sharp/**"
   - "**/node_modules/@img/**"
   - "**/node_modules/onnxruntime-node/**"
+# where the installed app looks for updates (src/main/updates.ts); each release needs the
+# installer, its .blockmap and latest.yml attached
+publish:
+  provider: github
+  owner: Brosski224
+  repo: lompii
 win:
   target: nsis
   # onnxruntime-node ships every platform's binaries (~290 MB); keep the Windows x64 ones

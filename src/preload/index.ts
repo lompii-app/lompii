@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { Item, LompiiAPI } from '@shared/api'
+import type { Item, LompiiAPI, UpdateStatus } from '@shared/api'
 
 const api: LompiiAPI = {
   platform: process.platform,
@@ -75,7 +75,16 @@ const api: LompiiAPI = {
   listModels: (p) => ipcRenderer.invoke('ai:models', p),
   imagePrompt: (id) => ipcRenderer.invoke('ai:prompt', id),
   embeddingStatus: () => ipcRenderer.invoke('embeddings:status'),
-  searchSemantic: (query) => ipcRenderer.invoke('search:semantic', query)
+  searchSemantic: (query) => ipcRenderer.invoke('search:semantic', query),
+
+  updateStatus: () => ipcRenderer.invoke('update:status'),
+  checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  onUpdateChanged: (cb) => {
+    const handler = (_e: unknown, status: UpdateStatus) => cb(status)
+    ipcRenderer.on('update:changed', handler)
+    return () => ipcRenderer.off('update:changed', handler)
+  }
 }
 
 contextBridge.exposeInMainWorld('lompii', api)

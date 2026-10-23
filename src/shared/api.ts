@@ -112,6 +112,15 @@ export type Settings = {
   archiveLocked: boolean // opening the archive asks for its password
 }
 
+export type UpdateStatus = {
+  // dev: a development run, which never updates; latest: the last check found nothing newer
+  state: 'dev' | 'idle' | 'checking' | 'latest' | 'downloading' | 'ready' | 'error'
+  current: string // this copy's version
+  next: string | null // the version found, once there is one
+  percent: number // of the download
+  error: string | null
+}
+
 // the browser extension talks to lompii on this port, 127.0.0.1 only
 export const EXTENSION_PORT = 47821
 
@@ -181,6 +190,11 @@ export type LompiiAPI = {
   imagePrompt(id: number): Promise<string> // a text-to-image prompt that would recreate it; rejects with the reason
   embeddingStatus(): Promise<EmbeddingStatus>
   searchSemantic(query: string): Promise<{ id: number; score: number }[]> // matches by look or meaning, score 0-1
+
+  updateStatus(): Promise<UpdateStatus>
+  checkForUpdates(): Promise<void> // the answer arrives through onUpdateChanged
+  installUpdate(): Promise<void> // quits, installs the downloaded version and opens it
+  onUpdateChanged(cb: (status: UpdateStatus) => void): () => void
 }
 
 declare global {
