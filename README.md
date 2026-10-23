@@ -19,6 +19,10 @@
   <a href="#privacy">Privacy</a>
 </p>
 
+<p align="center">
+  <img src="docs/images/grid.png" alt="lompii's main grid in light mode: posters, patterns, landscapes and a quote by William Morris" />
+</p>
+
 ---
 
 You saved it months ago: a dark site with huge type, a poster in a particular orange, a line
@@ -169,6 +173,8 @@ lompii has no account and no server. Everything lives in `%APPDATA%\lompii\` on 
 - The archive PIN is stored only as a salted hash, and five wrong guesses in a row slow further
   tries. It keeps the archive private inside lompii. It doesn't encrypt the files on disk.
 
+The full policy is in [PRIVACY.md](PRIVACY.md).
+
 ## Build from source
 
 You'll need **Node.js 22** or newer and **Windows**.
@@ -220,8 +226,10 @@ Chrome extension ── HTTP, 127.0.0.1 ──┐
 
 ### Contributing
 
-Issues and pull requests are welcome. A git hook runs the typecheck and tests before every push
-(`npm install` turns it on), so fix what it reports rather than skipping it.
+Issues and pull requests are welcome:
+[Report a problem / suggest an idea](https://github.com/Brosski224/lompii/issues/new/choose).
+A git hook runs the typecheck and tests before every push (`npm install` turns it on), so fix
+what it reports rather than skipping it.
 
 ## Known limitations
 
