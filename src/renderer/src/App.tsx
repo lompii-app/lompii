@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Settings, Stack, UpdateStatus } from '@shared/api'
+import { importNote, type ImportProgress, type Settings, type Stack, type UpdateStatus } from '@shared/api'
 import Detail from './Detail'
 import { ArchivePrompt, PairPrompt, PlanPrompt, WelcomeNote } from './Dialogs'
 import { ActiveFilter, buildFilters, FilterRow, STACK_COLORS, TermChip, type Filter, type TagIndex } from './Filters'
@@ -75,6 +75,18 @@ export default function App() {
     settingsRef.current?.showModal()
   }
   const [setupLater, setSetupLater] = useState(false) // "Later" on the strip: hidden until next launch
+
+  // Add a folder (the empty library's card, Settings → General): its progress shows in the
+  // header, then the summary for a few seconds
+  const [imported, setImported] = useState<ImportProgress | null>(null)
+  const importing = !!imported && !imported.finished
+  useEffect(() => window.lompii.onImportProgress(setImported), [])
+  useEffect(() => {
+    if (!imported?.finished) return
+    const timer = setTimeout(() => setImported(null), 9000)
+    return () => clearTimeout(timer)
+  }, [imported])
+  const importFolder = () => void window.lompii.importFolder()
   const tagsRef = useRef<HTMLDialogElement>(null)
 
   // item:added / item:updated replace `items`, which is also when tags can have changed;
@@ -548,6 +560,15 @@ export default function App() {
                   {unanalysed ? `Analyse ${unanalysed} ${unanalysed === 1 ? 'save' : 'saves'}` : `Analysing ${analysing}…`}
                 </button>
               )}
+              {imported && (
+                <span
+                  role="status"
+                  className="flex shrink-0 items-center gap-2.5 rounded-full bg-card px-5 py-2.5 text-[13px] tracking-wider text-dim uppercase shadow-card"
+                >
+                  <span className={`size-3.5 rounded-full border-2 border-accent bg-accent ${importing ? 'animate-pulse' : ''}`} />
+                  {importNote(imported)}
+                </span>
+              )}
               <kbd className="shrink-0 rounded-sm bg-fg/[0.06] px-2.5 py-1 font-sans text-[13px] text-dim">
                 Ctrl K
               </kbd>
@@ -601,7 +622,9 @@ export default function App() {
                     ? 'Two steps and it starts filling itself. You can also drop or paste an image here any time.'
                     : 'In Chrome, right-click an image or selected text and choose “Add to lompii”, or press Alt+Shift+S to capture part of a page. You can also drop or paste an image here.'}
               </p>
-              {!items.length && steps.length > 0 && <SetupCards steps={steps} onOpen={openSettings} />}
+              {!items.length && (
+                <SetupCards steps={steps} onOpen={openSettings} onImport={importFolder} importing={importing} />
+              )}
             </div>
           </div>
         )}
@@ -756,6 +779,8 @@ export default function App() {
       <SettingsDialog
         ref={settingsRef}
         onManageTags={() => tagsRef.current?.showModal()}
+        imported={imported}
+        onImport={importFolder}
         settings={settings}
         update={update}
         unanalysed={unanalysed}

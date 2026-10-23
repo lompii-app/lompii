@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { safeStorage } from 'electron'
-import { DEFAULT_MODELS, KEYLESS, type AiProvider, type Settings } from '@shared/api'
+import { DEFAULT_MODELS, IMPORT_ANALYSIS, KEYLESS, type AiProvider, type ImportAnalysis, type Settings } from '@shared/api'
 import { DATA } from './db'
 import { isPin, passwordMatches, sealPassword } from './password'
 import { openAtLogin } from './tray'
@@ -16,6 +16,7 @@ type Stored = {
   extensionConnected?: boolean // a browser has connected since the key was last replaced
   freeMemoryInTray?: boolean // closing the window closes it for real and unloads the local models
   archivePassword?: string // 'salt:hash' in hex (scrypt); the password itself is never stored
+  analyseImports?: ImportAnalysis // a folder import's new images analysed straight away; 25 if unset
   ai?: { active: AiProvider | null; providers: Partial<Record<AiProvider, StoredProvider>> }
 }
 
@@ -53,7 +54,8 @@ export function getSettings(): Settings {
     openAtLogin: openAtLogin(),
     extensionConnected: !!s.extensionConnected,
     freeMemoryInTray: !!s.freeMemoryInTray,
-    archiveLocked: !!s.archivePassword
+    archiveLocked: !!s.archivePassword,
+    analyseImports: s.analyseImports ?? 25
   }
 }
 
@@ -80,6 +82,13 @@ export const freeMemoryInTray = (): boolean => !!read().freeMemoryInTray
 
 export function setFreeMemoryInTray(on: boolean): Settings {
   write({ ...read(), freeMemoryInTray: on })
+  return getSettings()
+}
+
+export const analyseImports = (): ImportAnalysis => read().analyseImports ?? 25
+
+export function setAnalyseImports(n: ImportAnalysis): Settings {
+  if (IMPORT_ANALYSIS.includes(n)) write({ ...read(), analyseImports: n })
   return getSettings()
 }
 

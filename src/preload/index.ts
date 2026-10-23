@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { Item, LompiiAPI, UpdateStatus } from '@shared/api'
+import type { ImportProgress, Item, LompiiAPI, UpdateStatus } from '@shared/api'
 
 const api: LompiiAPI = {
   platform: process.platform,
@@ -36,6 +36,12 @@ const api: LompiiAPI = {
   ingestPaths: (paths) => ipcRenderer.invoke('ingest:paths', paths),
   ingestBuffer: (data) => ipcRenderer.invoke('ingest:buffer', data),
   pathForFile: (file) => webUtils.getPathForFile(file),
+  importFolder: () => ipcRenderer.invoke('library:importFolder'),
+  onImportProgress: (cb) => {
+    const handler = (_e: unknown, p: ImportProgress) => cb(p)
+    ipcRenderer.on('import:progress', handler)
+    return () => ipcRenderer.off('import:progress', handler)
+  },
 
   onAdded: (cb) => {
     const handler = (_e: unknown, item: Item) => cb(item)
@@ -69,6 +75,7 @@ const api: LompiiAPI = {
   setActiveProvider: (p) => ipcRenderer.invoke('settings:setActiveProvider', p),
   setOpenAtLogin: (on) => ipcRenderer.invoke('settings:setOpenAtLogin', on),
   setFreeMemoryInTray: (on) => ipcRenderer.invoke('settings:setFreeMemoryInTray', on),
+  setAnalyseImports: (n) => ipcRenderer.invoke('settings:setAnalyseImports', n),
   analyse: (id) => ipcRenderer.invoke('ai:analyse', id),
   analyseAll: () => ipcRenderer.invoke('ai:analyseAll'),
   testProvider: (p) => ipcRenderer.invoke('ai:test', p),
