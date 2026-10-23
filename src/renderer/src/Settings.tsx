@@ -275,6 +275,51 @@ function ActiveModel({ settings, onChange }: { settings: Settings; onChange: (s:
   )
 }
 
+// how many of a folder import's new images are analysed straight away; same menu as ActiveModel
+const LIMIT_TEXT: Record<string, [string, string]> = {
+  '0': ['None', 'All of them wait in Analyse'],
+  '25': ['First 25', 'The rest wait in Analyse'],
+  '100': ['First 100', 'The rest wait in Analyse'],
+  all: ['All', 'Every new image, however many']
+}
+
+function ImportLimit({ value, onChange }: { value: ImportAnalysis; onChange: (s: Settings) => void }) {
+  const menu = useRef<HTMLDivElement>(null)
+  const pick = async (n: ImportAnalysis) => {
+    menu.current?.hidePopover()
+    onChange(await window.lompii.setAnalyseImports(n))
+  }
+  return (
+    <>
+      <button
+        popoverTarget="import-limit"
+        aria-label="Imported images analysed automatically"
+        className={`${BUTTON} flex min-w-56 items-center gap-3 text-left [anchor-name:--import-limit]`}
+      >
+        <span className="min-w-0 flex-1 truncate">{LIMIT_TEXT[String(value)][0]}</span>
+        <Icon d={I.chevron} className="size-4 text-dim" />
+      </button>
+      <div
+        ref={menu}
+        id="import-limit"
+        popover="auto"
+        className="m-0 mt-1.5 min-w-64 rounded-lg border border-line bg-raised p-1 text-fg shadow-lift [position-anchor:--import-limit] [position-area:bottom_span-left]"
+      >
+        {IMPORT_ANALYSIS.map((n) => (
+          <button
+            key={n}
+            onClick={() => pick(n)}
+            className={`flex w-full flex-col items-start rounded-md px-3 py-2 text-left hover:bg-well ${n === value ? 'bg-select' : ''}`}
+          >
+            <span className="text-[13px]">{LIMIT_TEXT[String(n)][0]}</span>
+            <span className="text-[11px] text-dim">{LIMIT_TEXT[String(n)][1]}</span>
+          </button>
+        ))}
+      </div>
+    </>
+  )
+}
+
 /* ---------- one provider ---------- */
 
 function ProviderCard({
@@ -730,21 +775,7 @@ export default function SettingsDialog({
             label="Analyse imported images automatically"
             desc="When you add a folder, how many of its new images are analysed straight away. The rest wait in Analyse, so a big folder doesn't run up your bill."
           >
-            <select
-              aria-label="Imported images analysed automatically"
-              value={String(settings.analyseImports)}
-              onChange={async (e) => {
-                const v = e.target.value
-                onChange(await window.lompii.setAnalyseImports(v === 'all' ? 'all' : (Number(v) as ImportAnalysis)))
-              }}
-              className={`${BUTTON} w-32`}
-            >
-              {IMPORT_ANALYSIS.map((n) => (
-                <option key={n} value={String(n)}>
-                  {n === 0 ? 'None' : n === 'all' ? 'All' : n}
-                </option>
-              ))}
-            </select>
+            <ImportLimit value={settings.analyseImports} onChange={onChange} />
           </Row>
           {settings.ai.active && (
             <Row label="Your library" desc={status || (unanalysed ? `${unanalysed} saves have no title or tags yet.` : 'Everything has been analysed.')}>

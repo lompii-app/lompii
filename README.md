@@ -165,9 +165,12 @@ lompii has no account and no server. Everything lives in `%APPDATA%\lompii\` on 
 | `models/` | the search models, downloaded once on first run (about 170 MB) |
 | `settings.json` | your preferences; AI keys are encrypted with Windows' secure storage |
 
-- **Only one thing leaves your computer:** when an item is analysed, or you ask for a prompt, that
-  item (a resized image or its text) is sent to the AI provider *you* chose. With Ollama or a
-  local server, nothing leaves at all.
+- **Your library stays on your computer.** When an item is analysed, or you ask for a prompt,
+  that item (a resized image or its text) goes to the AI provider *you* chose, with the site's
+  name, the page title and some of your existing tags so it can reuse them. With Ollama, or a
+  server on your own computer, nothing leaves at all.
+- **Two other connections:** the search models download once from Hugging Face, and the
+  installed app checks GitHub for new versions. Neither sends anything from your library.
 - The extension talks to the app over `127.0.0.1` only, with a key handed over when you approve
   the four-digit code. Web pages can't reach your library.
 - The archive PIN is stored only as a salted hash, and five wrong guesses in a row slow further

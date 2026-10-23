@@ -18,7 +18,9 @@ Everything the app keeps is in one folder on your computer, `%APPDATA%\lompii\`:
 | Your settings, including any AI keys | `settings.json` |
 
 - AI keys are encrypted with Windows' own data protection (Electron `safeStorage`) before they're
-  written, and are only ever decrypted inside the app to call the provider you chose.
+  written, and are only ever decrypted inside the app to call the provider you chose. (If
+  Windows' data protection isn't available, which is very rare, the key is stored readable in
+  `settings.json` instead.)
 - The optional archive PIN is never stored. Only a salted hash of it is kept. The PIN locks the
   archive inside lompii; it does not encrypt your files.
 - Deleted items stay in the trash for 30 days, then they and their files are removed.

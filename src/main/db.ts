@@ -1,12 +1,14 @@
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { app } from 'electron'
 import Database from 'better-sqlite3'
 import { KEYLESS } from '@shared/api'
 
 // LOMPII_DATA=<folder> runs lompii on another library, such as a throwaway one to see the first start
-if (process.env.LOMPII_DATA) app.setPath('userData', process.env.LOMPII_DATA)
+// (resolved, so mixed slashes still match the paths the lompii:// handler checks against)
+if (process.env.LOMPII_DATA) app.setPath('userData', resolve(process.env.LOMPII_DATA))
 export const DATA = app.getPath('userData')
+mkdirSync(DATA, { recursive: true }) // a LOMPII_DATA folder may not exist yet
 
 // lompii was called Tessera, and kept its library in a folder of that name. The first start
 // after the rename copies it across; the old folder is left as it was, as a backup. AI keys
@@ -14,7 +16,6 @@ export const DATA = app.getPath('userData')
 // open here; they're cleared and asked for again.
 const OLD = join(app.getPath('appData'), 'tessera')
 if (!process.env.LOMPII_DATA && !existsSync(join(DATA, 'lompii.db')) && existsSync(join(OLD, 'tessera.db'))) {
-  mkdirSync(DATA, { recursive: true })
   for (const dir of ['library', 'thumbs', 'models'])
     if (existsSync(join(OLD, dir))) cpSync(join(OLD, dir), join(DATA, dir), { recursive: true })
   for (const end of ['', '-wal', '-shm']) // the WAL holds the latest writes
