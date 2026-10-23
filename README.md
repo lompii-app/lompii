@@ -242,3 +242,7 @@ Issues and pull requests are welcome. A git hook runs the typecheck and tests be
 - Search runs [CLIP](https://huggingface.co/Xenova/clip-vit-base-patch32) and
   [MiniLM](https://huggingface.co/Xenova/all-MiniLM-L6-v2) through
   [Transformers.js](https://github.com/huggingface/transformers.js).
+
+## License
+
+[MIT](LICENSE) © 2026 Midhun
