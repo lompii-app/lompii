@@ -23,6 +23,14 @@ const STEPS: Record<'extension' | 'ai', Step> = {
   }
 }
 
+// not a step, so it never goes away: shown beside them while the library is empty
+const FOLDER = {
+  title: 'Bring in a folder',
+  desc: 'Every image in a folder and its subfolders, in one go. Ones you already have are skipped.',
+  action: 'Choose a folder',
+  icon: 'M12 10v6M9 13h6M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z'
+}
+
 export const pendingSteps = (s: Settings | null): Step[] =>
   s ? [!s.extensionConnected && STEPS.extension, !s.ai.active && STEPS.ai].filter((x): x is Step => !!x) : []
 
@@ -32,20 +40,36 @@ const Glyph = ({ d, className = 'size-5' }: { d: string; className?: string }) =
   </svg>
 )
 
-// for an empty library: the steps as cards, under "Nothing here yet."
-export function SetupCards({ steps, onOpen }: { steps: Step[]; onOpen: (s: Section) => void }) {
+// for an empty library: the steps as cards, then adding a folder, under "Nothing here yet."
+// A card left alone on its row takes the whole row.
+export function SetupCards({
+  steps,
+  onOpen,
+  onImport,
+  importing
+}: {
+  steps: Step[]
+  onOpen: (s: Section) => void
+  onImport: () => void
+  importing: boolean
+}) {
+  const cards = [
+    ...steps.map((s) => ({ ...s, key: s.section, onClick: () => onOpen(s.section), disabled: false })),
+    { ...FOLDER, key: 'folder', onClick: onImport, disabled: importing }
+  ]
   return (
     <div className="mt-8 grid gap-3 text-left sm:grid-cols-2">
-      {steps.map((s) => (
-        <div key={s.section} className="flex flex-col gap-3 rounded-lg bg-card p-5 shadow-card">
+      {cards.map((s) => (
+        <div key={s.key} className="flex flex-col gap-3 rounded-lg bg-card p-5 shadow-card sm:odd:last:col-span-2">
           <Glyph d={s.icon} />
           <div>
             <p className="text-[15px] font-medium text-fg">{s.title}</p>
             <p className="mt-1 text-[13px] leading-relaxed text-dim">{s.desc}</p>
           </div>
           <button
-            onClick={() => onOpen(s.section)}
-            className="mt-auto self-start rounded-full bg-fg px-4 py-1.5 text-[13px] text-card transition-opacity hover:opacity-85"
+            onClick={s.onClick}
+            disabled={s.disabled}
+            className="mt-auto self-start rounded-full bg-fg px-4 py-1.5 text-[13px] text-card transition-opacity hover:opacity-85 disabled:opacity-40"
           >
             {s.action}
           </button>

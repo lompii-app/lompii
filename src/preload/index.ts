@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { Item, LompiiAPI } from '@shared/api'
+import type { ImportProgress, Item, LompiiAPI } from '@shared/api'
 
 const api: LompiiAPI = {
   platform: process.platform,
@@ -36,6 +36,12 @@ const api: LompiiAPI = {
   ingestPaths: (paths) => ipcRenderer.invoke('ingest:paths', paths),
   ingestBuffer: (data) => ipcRenderer.invoke('ingest:buffer', data),
   pathForFile: (file) => webUtils.getPathForFile(file),
+  importFolder: () => ipcRenderer.invoke('library:importFolder'),
+  onImportProgress: (cb) => {
+    const handler = (_e: unknown, p: ImportProgress) => cb(p)
+    ipcRenderer.on('import:progress', handler)
+    return () => ipcRenderer.off('import:progress', handler)
+  },
 
   onAdded: (cb) => {
     const handler = (_e: unknown, item: Item) => cb(item)

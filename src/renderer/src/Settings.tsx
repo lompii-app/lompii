@@ -7,10 +7,12 @@ import openrouter from './providers/openrouter.svg?raw'
 import { PinTiles } from './Dialogs'
 import {
   AI_PROVIDERS,
+  importNote,
   KEY_PAGES,
   KEYLESS,
   type AiProvider,
   type EmbeddingStatus,
+  type ImportProgress,
   type ModelInfo,
   type Settings
 } from '@shared/api'
@@ -511,6 +513,8 @@ export default function SettingsDialog({
   unanalysed,
   onChange,
   onManageTags,
+  imported,
+  onImport,
   section,
   onSection
 }: {
@@ -519,6 +523,8 @@ export default function SettingsDialog({
   unanalysed: number
   onChange: (s: Settings) => void
   onManageTags: () => void
+  imported: ImportProgress | null // Add a folder's progress, App's; null when none is running or just done
+  onImport: () => void
   section: Section // the page showing; App sets it so a setup reminder opens the right one
   onSection: (s: Section) => void
 }) {
@@ -603,6 +609,14 @@ export default function SettingsDialog({
             />
           </Row>
           <ArchiveLock locked={!!settings?.archiveLocked} onChange={onChange} />
+          <Row
+            label="Import a folder"
+            desc={imported ? importNote(imported) : 'Add every image in a folder and its subfolders. Ones already in your library are skipped.'}
+          >
+            <button onClick={onImport} disabled={!!imported && !imported.finished} className={`${BUTTON} w-32`}>
+              Choose folder
+            </button>
+          </Row>
           <Row label="Tags" desc="Rename, merge or delete tags everywhere.">
             <button onClick={onManageTags} className={`${BUTTON} w-32`}>
               Manage tags

@@ -3,7 +3,7 @@ import { copyFileSync, cpSync, mkdirSync, rmSync, statSync, writeFileSync } from
 import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, clipboard, ClipboardItem, dialog, ipcMain, net, protocol, shell, type NativeImage } from 'electron'
 import sharp from 'sharp'
-import { isHttpUrl, isText, type Item, type PairRequest, type Stack, type WindowAction, type AiProvider } from '@shared/api'
+import { isHttpUrl, isText, type ImportProgress, type Item, type PairRequest, type Stack, type WindowAction, type AiProvider } from '@shared/api'
 import { addTags, DATA, db, deleteTag, removeTag, renameTag, tagCounts } from './db'
 import { enqueue, enqueueUnanalysed, imagePrompt, listModels, resumeAnalysis, testProvider } from './ai'
 import {
@@ -18,6 +18,7 @@ import {
   textVectors,
   wakeModels
 } from './embed'
+import { findImages } from './folder'
 import { ingestBuffer, ingestFile } from './ingest'
 import {
   archiveHasPassword,
@@ -407,6 +408,41 @@ ipcMain.handle('ingest:paths', async (_e, paths: string[]) => {
   return added.filter(Boolean).length
 })
 ipcMain.handle('ingest:buffer', (_e, data: ArrayBuffer) => ingestBuffer(data))
+
+// Add a folder: every image in it and its subfolders (folder.ts picks them), four at a time so
+// the window stays responsive however big it is. Duplicates are found by ingest's hash check.
+let importing = false
+ipcMain.handle('library:importFolder', async (e) => {
+  if (importing) return null
+  const win = BrowserWindow.fromWebContents(e.sender)!
+  const pick = await dialog.showOpenDialog(win, { title: 'Add a folder to lompii', properties: ['openDirectory'] })
+  if (pick.canceled || !pick.filePaths[0] || importing) return null
+  importing = true
+  const p: ImportProgress = { done: 0, total: 0, added: 0, had: 0, skipped: 0, finished: false }
+  const report = () => {
+    for (const w of BrowserWindow.getAllWindows()) w.webContents.send('import:progress', p)
+  }
+  try {
+    report()
+    const { images, skipped } = await findImages(pick.filePaths[0])
+    p.total = images.length
+    p.skipped = skipped
+    for (let i = 0; i < images.length; i += 4) {
+      for (const saved of await Promise.all(images.slice(i, i + 4).map(ingestFile))) {
+        if (!saved) p.skipped++ // not a readable image after all
+        else if (saved.isNew) p.added++
+        else p.had++
+      }
+      p.done = Math.min(i + 4, images.length)
+      report()
+    }
+  } finally {
+    importing = false
+    p.finished = true
+    report()
+  }
+  return p
+})
 
 ipcMain.handle('settings:get', () => getSettings())
 ipcMain.handle('settings:resetToken', () => resetToken())

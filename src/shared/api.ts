@@ -112,6 +112,24 @@ export type Settings = {
   archiveLocked: boolean // opening the archive asks for its password
 }
 
+// Add a folder: where it's got to. total is 0 while the folder is still being looked through;
+// skipped counts other files, shortcuts and images that couldn't be read.
+export type ImportProgress = { done: number; total: number; added: number; had: number; skipped: number; finished: boolean }
+
+// "Added 112 · 8 were already in your library · 3 skipped", leaving out the parts that are 0
+export function importSummary({ added, had, skipped }: ImportProgress): string {
+  const parts = [
+    added && `Added ${added}`,
+    had && `${had} ${had === 1 ? 'was' : 'were'} already in your library`,
+    skipped && `${skipped} skipped`
+  ].filter(Boolean)
+  return parts.length ? parts.join(' · ') : 'No images in that folder'
+}
+
+// "Adding 34 of 120…", then the summary
+export const importNote = (p: ImportProgress): string =>
+  p.finished ? importSummary(p) : p.total ? `Adding ${p.done} of ${p.total}…` : 'Looking through the folder…'
+
 // the browser extension talks to lompii on this port, 127.0.0.1 only
 export const EXTENSION_PORT = 47821
 
@@ -152,6 +170,10 @@ export type LompiiAPI = {
   backup(): Promise<string | null> // the backup folder, or null if cancelled
 
   ingestPaths(paths: string[]): Promise<number>
+  // picks a folder and saves every image in it and its subfolders; null if the picker was
+  // cancelled or a folder is already being added. onImportProgress follows along.
+  importFolder(): Promise<ImportProgress | null>
+  onImportProgress(cb: (p: ImportProgress) => void): () => void
   ingestBuffer(data: ArrayBuffer): Promise<Item | null>
   pathForFile(file: File): string
 
