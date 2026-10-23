@@ -77,7 +77,7 @@ export async function indexImages(): Promise<void> {
         count++
       } catch (e) {
         error = e instanceof Error ? e.message : String(e)
-        console.error('[tessera] embedding failed', item.id, error)
+        console.error('[lompii] embedding failed', item.id, error)
         // a model that won't load fails every item the same way; stop and retry next launch
         if (state !== 'ready') return void (state = 'failed')
         save.run(item.id, Buffer.alloc(0)) // a broken file: mark it so it isn't retried forever
@@ -85,7 +85,7 @@ export async function indexImages(): Promise<void> {
     }
   } finally {
     running = false
-    if (count) console.log('[tessera] indexed %d image(s) for same vibe', count)
+    if (count) console.log('[lompii] indexed %d image(s) for same vibe', count)
     if (asleep && !textRunning) void unload()
   }
 }
@@ -200,7 +200,7 @@ export async function indexText(): Promise<void> {
       }
     } while (textAgain)
   } catch (e) {
-    console.error('[tessera] text embedding failed', e instanceof Error ? e.message : e)
+    console.error('[lompii] text embedding failed', e instanceof Error ? e.message : e)
   } finally {
     textRunning = false
     if (asleep && !running) void unload()

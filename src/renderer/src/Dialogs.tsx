@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PairRequest } from '@shared/api'
 
-// Tessera's own pop-ups, in place of the system's confirm() and message boxes.
+// lompii's own pop-ups, in place of the system's confirm() and message boxes.
 
 const SHELL =
   'm-auto w-[440px] max-w-[calc(100vw-2rem)] rounded-lg bg-card p-8 text-fg shadow-lift backdrop:bg-ink/70 backdrop:backdrop-blur-sm'
@@ -48,14 +48,14 @@ export function Confirm({
 export function PairPrompt({ onAnswered }: { onAnswered: () => void }) {
   const [req, setReq] = useState<PairRequest | null>(null)
   useEffect(() => {
-    const load = () => window.tessera.pairRequest().then(setReq)
+    const load = () => window.lompii.pairRequest().then(setReq)
     load()
-    return window.tessera.onPairChanged(load)
+    return window.lompii.onPairChanged(load)
   }, [])
 
   const answer = (ok: boolean) => {
     if (!req) return
-    window.tessera.answerPair(req.id, ok).then(onAnswered)
+    window.lompii.answerPair(req.id, ok).then(onAnswered)
     setReq(null)
   }
 
@@ -64,7 +64,7 @@ export function PairPrompt({ onAnswered }: { onAnswered: () => void }) {
     <dialog ref={ref} onClose={() => answer(false)} className={SHELL}>
       <h2 className={TITLE}>Connect a browser?</h2>
       <p className="mt-3 text-[14px] leading-relaxed text-dim">
-        A browser extension wants to save to Tessera. Only allow it if the extension shows this same
+        A browser extension wants to save to lompii. Only allow it if the extension shows this same
         code.
       </p>
       <p

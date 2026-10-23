@@ -9,5 +9,5 @@ document.getElementById('settings').addEventListener('click', () => chrome.runti
 
 chrome.runtime.sendMessage({ type: 'ping' }).then(({ ok, message }) => {
   document.getElementById('dot').className = `dot ${ok ? 'ok' : 'bad'}`
-  document.getElementById('status').textContent = ok ? 'Connected to Tessera' : message
+  document.getElementById('status').textContent = ok ? 'Connected to lompii' : message
 })

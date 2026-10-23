@@ -86,8 +86,8 @@ export default function Detail({
     setGen({ state: 'idle', text: '' })
     setTagsOpen(false)
     openId.current = item.id
-    window.tessera.fileSize(item.id).then(setBytes)
-    window.tessera.palette(item.id).then(setPalette)
+    window.lompii.fileSize(item.id).then(setBytes)
+    window.lompii.palette(item.id).then(setPalette)
   }, [item.id])
 
   const confirmFlash = (text: string) => {
@@ -97,7 +97,7 @@ export default function Detail({
 
   // re-runs on item:updated, which is how new tags (from here or the extension) show up
   useEffect(() => {
-    window.tessera.tags(item.id).then(setTags)
+    window.lompii.tags(item.id).then(setTags)
   }, [item])
 
   useLayoutEffect(() => {
@@ -108,7 +108,7 @@ export default function Detail({
   const generatePrompt = () => {
     const id = item.id
     setGen({ state: 'busy', text: '' })
-    window.tessera.imagePrompt(id).then(
+    window.lompii.imagePrompt(id).then(
       (text) => openId.current === id && setGen({ state: 'done', text }),
       // Electron prefixes the main process's message with "Error invoking remote method …: Error: "
       (e) => openId.current === id && setGen({ state: 'failed', text: String(e).replace(/^.*Error: /, '') })
@@ -122,13 +122,13 @@ export default function Detail({
     })
 
   const save = (patch: Partial<Pick<Item, 'title' | 'note'>>, changed: boolean) => {
-    if (changed) window.tessera.update(item.id, patch)
+    if (changed) window.lompii.update(item.id, patch)
   }
 
   const submitTags = () => {
     const next = draft.split(',').map((t) => t.trim()).filter(Boolean)
     setDraft('')
-    if (next.length) window.tessera.addTags(item.id, next)
+    if (next.length) window.lompii.addTags(item.id, next)
   }
 
   const onTagKey = (e: React.KeyboardEvent) => {
@@ -242,7 +242,7 @@ export default function Detail({
               <span title={new Date(item.created_at).toLocaleString()}>{ago(item.created_at)}</span>
               {item.source_url && (
                 <button
-                  onClick={() => window.tessera.openExternal(item.source_url!)}
+                  onClick={() => window.lompii.openExternal(item.source_url!)}
                   title={item.source_url}
                   className="flex min-w-0 items-center gap-1 text-fg/70 transition-colors hover:text-fg"
                 >
@@ -268,7 +268,7 @@ export default function Detail({
                   <p className="text-[13px] leading-relaxed text-red-600">
                     Couldn't analyse this: {item.ai_error ?? 'unknown error'}
                   </p>
-                  <button onClick={() => window.tessera.analyse(item.id)} className="text-[13px] text-fg underline">
+                  <button onClick={() => window.lompii.analyse(item.id)} className="text-[13px] text-fg underline">
                     Try again
                   </button>
                 </div>
@@ -276,7 +276,7 @@ export default function Detail({
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-[15px] leading-relaxed text-faint">Not analysed yet.</p>
                   <button
-                    onClick={() => window.tessera.analyse(item.id)}
+                    onClick={() => window.lompii.analyse(item.id)}
                     className="shrink-0 rounded-full bg-fg px-3 py-1 text-[12px] text-card transition-opacity hover:opacity-85"
                   >
                     Analyse
@@ -377,7 +377,7 @@ export default function Detail({
                     >
                       {t.value}
                       <button
-                        onClick={() => window.tessera.removeTag(item.id, t.value)}
+                        onClick={() => window.lompii.removeTag(item.id, t.value)}
                         aria-label={`Remove tag ${t.value}`}
                         className="grid size-4 place-items-center rounded-full opacity-40 transition hover:bg-fg/10 hover:opacity-100 group-hover:opacity-70"
                       >
@@ -443,7 +443,7 @@ export default function Detail({
             )}
             <IconButton
               label="Download"
-              onClick={() => window.tessera.saveAs(item.id).then((ok) => ok && confirmFlash('Saved'))}
+              onClick={() => window.lompii.saveAs(item.id).then((ok) => ok && confirmFlash('Saved'))}
             >
               <path d="M12 4v12M6 11l6 6 6-6M5 21h14" />
             </IconButton>
@@ -456,7 +456,7 @@ export default function Detail({
             </IconButton>
             <IconButton
               label={isText(item.kind) ? 'Copy text' : 'Copy image'}
-              onClick={() => window.tessera.copy(item.id).then(() => confirmFlash('Copied'))}
+              onClick={() => window.lompii.copy(item.id).then(() => confirmFlash('Copied'))}
             >
               <rect x="8" y="8" width="13" height="13" rx="2" />
               <path d="M4 16V5a2 2 0 0 1 2-2h11" />
@@ -488,13 +488,13 @@ export default function Detail({
 function Thinking() {
   return (
     <div role="status" aria-label="Analysing" className="relative grid h-24 place-items-center overflow-hidden">
-      <div className="absolute size-28 animate-[tessera-glow_2.6s_ease-in-out_infinite] rounded-full bg-[radial-gradient(circle,#e8336b_0%,#7c4dff_45%,transparent_70%)] blur-xl" />
+      <div className="absolute size-28 animate-[lompii-glow_2.6s_ease-in-out_infinite] rounded-full bg-[radial-gradient(circle,#e8336b_0%,#7c4dff_45%,transparent_70%)] blur-xl" />
       <svg viewBox="0 0 48 24" className="relative w-16" fill="none" stroke="white" strokeWidth="1.4" strokeLinecap="round">
         <path
           d="M24 12C20 6 10 6 10 12s10 6 14 0 14-6 14 0-10 6-14 0"
           pathLength={100}
           strokeDasharray="45 55"
-          className="animate-[tessera-trace_2.2s_linear_infinite]"
+          className="animate-[lompii-trace_2.2s_linear_infinite]"
         />
       </svg>
     </div>
@@ -548,15 +548,15 @@ function StackPicker({
   useEffect(() => ref.current?.focus(), [])
 
   const toggle = async (s: Stack) => {
-    await window.tessera.setInStack(s.id, item.id, !s.items.includes(item.id))
+    await window.lompii.setInStack(s.id, item.id, !s.items.includes(item.id))
     onChange()
   }
 
   const create = async () => {
     if (!name.trim()) return
     try {
-      const id = await window.tessera.createStack(name, STACK_COLORS[stacks.length % STACK_COLORS.length])
-      await window.tessera.setInStack(id, item.id, true)
+      const id = await window.lompii.createStack(name, STACK_COLORS[stacks.length % STACK_COLORS.length])
+      await window.lompii.setInStack(id, item.id, true)
       setName('')
       setError('')
       onChange()

@@ -1,6 +1,6 @@
 # Milestones
 
-Where Tessera stands against `project.md`'s milestone order, and the decisions behind it.
+Where lompii stands against `project.md`'s milestone order, and the decisions behind it.
 For setup and features, see [README.md](README.md).
 
 | Milestone | State |
@@ -186,7 +186,7 @@ repaint has a timeout. Marked `ponytail:` in `extension/background.js`.
   macOS, Linux and arm64 binaries, which a mac or arm build would need back.
 - **macOS and Linux are untested.** macOS shows its native traffic lights (the custom ones
   are skipped there); the Windows build drops onnxruntime's other-platform binaries.
-- **No in-app restore** from a backup; it's a manual copy while Tessera is closed.
+- **No in-app restore** from a backup; it's a manual copy while lompii is closed.
 - **Full page** misses pages that scroll an inner element, and stops at about 20,000 CSS px.
 - **The OpenAI default model** (`gpt-4o-mini`) may be outdated.
 - **No end-to-end test of the AI providers** beyond real use; only Anthropic's request shape

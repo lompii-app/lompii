@@ -53,7 +53,7 @@ const meta = (source: unknown, title: unknown) => {
 }
 
 // Pairing: only a browser extension may ask (a web page can't fake its Origin header), one
-// request at a time, and you allow it in Tessera after checking the code it shows matches.
+// request at a time, and you allow it in lompii after checking the code it shows matches.
 export type AskToPair = (code: string, extensionId: string, signal: AbortSignal) => Promise<boolean>
 let pairing = false
 
@@ -132,13 +132,13 @@ export function serve(ask: AskToPair): void {
     } catch (e) {
       if (e instanceof HttpError) send(e.status, { error: e.message })
       else {
-        console.error('[tessera] extension request failed', e)
+        console.error('[lompii] extension request failed', e)
         send(500, { error: 'internal' })
       }
     }
   })
-    .on('error', (e) => console.error('[tessera] extension server:', e.message))
+    .on('error', (e) => console.error('[lompii] extension server:', e.message))
     .listen(EXTENSION_PORT, '127.0.0.1', () =>
-      console.log('[tessera] extension server on 127.0.0.1:%d', EXTENSION_PORT)
+      console.log('[lompii] extension server on 127.0.0.1:%d', EXTENSION_PORT)
     )
 }

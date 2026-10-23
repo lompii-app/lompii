@@ -1,16 +1,16 @@
 <p align="center">
-  <img src="build/icon.png" width="96" alt="Tessera logo" />
+  <img src="build/icon.png" width="96" alt="lompii logo" />
 </p>
 
-<h1 align="center">Tessera</h1>
+<h1 align="center">lompii.</h1>
 
 <p align="center">
-  <strong>Find the thing you half-remember.</strong><br />
+  <strong>Your mind for what you find.</strong><br />
   A private visual library for everything that inspires you. Save from anywhere, find it by describing it.
 </p>
 
 <p align="center">
-  <a href="https://github.com/Brosski224/tessera/releases/latest">Download for Windows</a>
+  <a href="https://github.com/Brosski224/lompii/releases/latest">Download for Windows</a>
   &nbsp;·&nbsp;
   <a href="#features">Features</a>
   &nbsp;·&nbsp;
@@ -23,10 +23,10 @@
 
 You saved it months ago: a dark site with huge type, a poster in a particular orange, a line
 someone wrote that stuck. You don't remember where it was, what it was called, or which folder
-it went into. With Tessera you don't need to. Type what you remember, *"grainy portrait, deep
+it went into. With lompii you don't need to. Type what you remember, *"grainy portrait, deep
 shadow"*, and it comes back.
 
-Tessera is a desktop app for designers, illustrators, photographers, writers and anyone else who
+lompii is a desktop app for designers, illustrators, photographers, writers and anyone else who
 collects references, with a companion Chrome extension for saving from the web.
 
 - **Save from anywhere.** One right-click saves an image, a piece of text or a capture of the page.
@@ -39,7 +39,7 @@ collects references, with a companion Chrome extension for saving from the web.
 
 ### Capture
 
-- **Chrome extension.** Right-click an image or selected text and choose *Add to Tessera*. From
+- **Chrome extension.** Right-click an image or selected text and choose *Add to lompii*. From
   the toolbar, capture the visible area, the full page, a selected area, or the view after a
   3-second delay for hover menus. `Alt+Shift+S` goes straight to area selection.
 - **Drag and drop** image files onto the window, or **paste** one with `Ctrl+V`.
@@ -91,7 +91,7 @@ collects references, with a companion Chrome extension for saving from the web.
 
 ### 1. Install the app
 
-Download the **Tessera Setup** installer (`.exe`) from the [latest release](https://github.com/Brosski224/tessera/releases/latest)
+Download the **lompii Setup** installer (`.exe`) from the [latest release](https://github.com/Brosski224/lompii/releases/latest)
 and run it. The installer isn't code-signed yet, so Windows SmartScreen may warn you the first
 time: choose **More info → Run anyway**.
 
@@ -99,18 +99,18 @@ time: choose **More info → Run anyway**.
 
 The extension comes with the app and needs no build step.
 
-1. In Tessera, open **Settings → Extension** and click **Show folder**.
+1. In lompii, open **Settings → Extension** and click **Show folder**.
 2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and
    choose that folder.
-3. On the page that opens, click **Connect**. Tessera comes forward showing a four-digit code;
+3. On the page that opens, click **Connect**. lompii comes forward showing a four-digit code;
    if it matches the one in the browser, click **Allow**.
 
-That's it. Right-click any image and choose **Add to Tessera**.
+That's it. Right-click any image and choose **Add to lompii**.
 
 | How | What it saves |
 | --- | --- |
-| Right-click an image → *Add to Tessera* | the image, at the largest size the site offers |
-| Select text, right-click → *Add to Tessera* | a quote or a snippet |
+| Right-click an image → *Add to lompii* | the image, at the largest size the site offers |
+| Select text, right-click → *Add to lompii* | a quote or a snippet |
 | Right-click the page → *Capture an area…* | part of the page |
 | Toolbar popup | the visible area, full page, a selected area, a delayed capture, or selected text |
 | `Alt+Shift+S` | a selected area (`Enter` takes the whole view, `Esc` cancels) |
@@ -152,11 +152,11 @@ on older ones.
 
 ## Privacy
 
-Tessera has no account and no server. Everything lives in `%APPDATA%\tessera\` on your computer:
+lompii has no account and no server. Everything lives in `%APPDATA%\lompii\` on your computer:
 
 | Path | What's in it |
 | --- | --- |
-| `tessera.db` | the library: items, tags, stacks and search data (SQLite) |
+| `lompii.db` | the library: items, tags, stacks and search data (SQLite) |
 | `library/`, `thumbs/` | your files and their thumbnails |
 | `models/` | the search models, downloaded once on first run (about 170 MB) |
 | `settings.json` | your preferences; AI keys are encrypted with Windows' secure storage |
@@ -167,15 +167,15 @@ Tessera has no account and no server. Everything lives in `%APPDATA%\tessera\` o
 - The extension talks to the app over `127.0.0.1` only, with a key handed over when you approve
   the four-digit code. Web pages can't reach your library.
 - The archive PIN is stored only as a salted hash, and five wrong guesses in a row slow further
-  tries. It keeps the archive private inside Tessera. It doesn't encrypt the files on disk.
+  tries. It keeps the archive private inside lompii. It doesn't encrypt the files on disk.
 
 ## Build from source
 
 You'll need **Node.js 22** or newer and **Windows**.
 
 ```bash
-git clone https://github.com/Brosski224/tessera.git
-cd tessera
+git clone https://github.com/Brosski224/lompii.git
+cd lompii
 npm install      # also builds the native modules for Electron
 npm run dev      # runs the app, reloading as you edit
 ```
@@ -188,7 +188,7 @@ npm run dev      # runs the app, reloading as you edit
 | `npm run build` | Type-check and build to `out/` |
 | `npm run dist` | Build the Windows installer into `release/` |
 
-After changing anything in `extension/`, click the reload icon on Tessera's card in
+After changing anything in `extension/`, click the reload icon on lompii's card in
 `chrome://extensions`.
 
 ### How it fits together
@@ -201,7 +201,7 @@ Chrome extension ── HTTP, 127.0.0.1 ──┐
 │ ingest.ts  dedupe, thumbnail, colour, SQLite  │
 │ ai.ts      analysis queue and providers       │
 │ embed.ts   local CLIP and MiniLM search       │
-│ index.ts   IPC, window, tessera:// files      │
+│ index.ts   IPC, window, lompii:// files       │
 └───────────────▲───────────────────┬───────────┘
           IPC (preload)        live updates
 ┌───────────────┴───────────────────▼───────────┐

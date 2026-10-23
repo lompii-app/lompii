@@ -132,7 +132,7 @@ function ArchiveLock({ locked, onChange }: { locked: boolean; onChange: (s: Sett
     e.preventDefault()
     if (mode === 'set' && next !== again) return setError("The two new PINs don't match.")
     try {
-      onChange(await window.tessera.setArchivePassword(current, mode === 'set' ? next : ''))
+      onChange(await window.lompii.setArchivePassword(current, mode === 'set' ? next : ''))
       setMode(null)
     } catch (err) {
       const why = String(err)
@@ -160,8 +160,8 @@ function ArchiveLock({ locked, onChange }: { locked: boolean; onChange: (s: Sett
           <div className={LABEL}>Archive PIN</div>
           <div className={`${DESC} mt-0.5`}>
             {locked
-              ? "Opening the archive asks for it. It keeps the archive private inside Tessera; the files themselves aren't encrypted."
-              : "Ask for a 6-digit PIN each time the archive is opened. It keeps the archive private inside Tessera; the files themselves aren't encrypted."}
+              ? "Opening the archive asks for it. It keeps the archive private inside lompii; the files themselves aren't encrypted."
+              : "Ask for a 6-digit PIN each time the archive is opened. It keeps the archive private inside lompii; the files themselves aren't encrypted."}
           </div>
         </div>
         {locked ? (
@@ -233,7 +233,7 @@ function ActiveModel({ settings, onChange }: { settings: Settings; onChange: (s:
   const options = (Object.keys(AI_PROVIDERS) as AiProvider[]).filter((p) => ready(p, providers[p]))
   const pick = async (p: AiProvider | null) => {
     menu.current?.hidePopover()
-    onChange(await window.tessera.setActiveProvider(p))
+    onChange(await window.lompii.setActiveProvider(p))
   }
   const item = (p: AiProvider | null) => (
     <button
@@ -297,7 +297,7 @@ function ProviderCard({
 
   const load = async () => {
     setLoading(true)
-    const r = await window.tessera.listModels(p)
+    const r = await window.lompii.listModels(p)
     setModels(r.models ?? null)
     setListError(r.error ?? '')
     setLoading(false)
@@ -309,7 +309,7 @@ function ProviderCard({
   }, [p])
 
   const save = async (patch: { key?: string; model?: string; baseUrl?: string }) => {
-    onChange(await window.tessera.saveProvider(p, patch))
+    onChange(await window.lompii.saveProvider(p, patch))
     setNote(null)
   }
 
@@ -324,7 +324,7 @@ function ProviderCard({
   const test = async () => {
     setTesting(true)
     const start = performance.now()
-    const error = await window.tessera.testProvider(p)
+    const error = await window.lompii.testProvider(p)
     const secs = ((performance.now() - start) / 1000).toFixed(1)
     setTesting(false)
     setNote(error ? { ok: false, text: error } : { ok: true, text: `Connected. ${info?.model} answered in ${secs} s.` })
@@ -350,7 +350,7 @@ function ProviderCard({
         </div>
         {KEY_PAGES[p] && (
           <button
-            onClick={() => window.tessera.openExternal(KEY_PAGES[p]!)}
+            onClick={() => window.lompii.openExternal(KEY_PAGES[p]!)}
             className="flex items-center gap-1.5 pt-1.5 text-[11px] font-semibold tracking-[0.08em] text-dim uppercase hover:text-fg"
           >
             Get key <Icon d={I.external} className="size-3.5" />
@@ -361,7 +361,7 @@ function ProviderCard({
             <Icon d={I.refresh} className={`size-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         )}
-        <Switch label={`Use ${AI_PROVIDERS[p]}`} on={active} disabled={!ready(p, info)} onToggle={async (on) => onChange(await window.tessera.setActiveProvider(on ? p : null))} />
+        <Switch label={`Use ${AI_PROVIDERS[p]}`} on={active} disabled={!ready(p, info)} onToggle={async (on) => onChange(await window.lompii.setActiveProvider(on ? p : null))} />
       </div>
 
       {keyed && (
@@ -531,7 +531,7 @@ export default function SettingsDialog({
   const [copiedAddress, setCopiedAddress] = useState(false)
 
   useEffect(() => {
-    window.tessera.extensionFolder().then(setExtDir)
+    window.lompii.extensionFolder().then(setExtDir)
   }, [])
 
   // Chrome won't let other apps open its chrome:// pages, so the address is copied instead
@@ -545,7 +545,7 @@ export default function SettingsDialog({
   useEffect(() => {
     const tick = () => {
       if (!ref.current?.open) return
-      window.tessera.embeddingStatus().then(setVision)
+      window.lompii.embeddingStatus().then(setVision)
     }
     const timer = setInterval(tick, 2000)
     return () => clearInterval(timer)
@@ -554,7 +554,7 @@ export default function SettingsDialog({
   const backup = async () => {
     setBackupNote('Backing up…')
     try {
-      const dest = await window.tessera.backup()
+      const dest = await window.lompii.backup()
       setBackupNote(dest ? `Saved to ${dest}` : '')
     } catch {
       setBackupNote('The backup failed. Is there enough space in that folder?')
@@ -564,12 +564,12 @@ export default function SettingsDialog({
   const connected = !!settings?.extensionConnected
 
   const disconnectAll = async () => {
-    onChange(await window.tessera.resetToken())
+    onChange(await window.lompii.resetToken())
     setDisconnect('done')
   }
 
   const analyseAll = async () => {
-    const n = await window.tessera.analyseAll()
+    const n = await window.lompii.analyseAll()
     setStatus(n ? `Analysing ${n} ${n === 1 ? 'item' : 'items'}…` : 'Everything is already analysed.')
   }
 
@@ -579,27 +579,27 @@ export default function SettingsDialog({
   const body: Record<Section, React.ReactNode> = {
     General: (
       <>
-        <Header title="General" desc="How Tessera starts, and looking after your library." />
+        <Header title="General" desc="How lompii starts, and looking after your library." />
         <Panel className="divide-y divide-line">
           <Row
             label="Start at sign-in"
-            desc={`${settings?.openAtLogin == null ? 'Available in the installed app. ' : ''}Closing the window keeps Tessera in the tray, so the extension can always save.`}
+            desc={`${settings?.openAtLogin == null ? 'Available in the installed app. ' : ''}Closing the window keeps lompii in the tray, so the extension can always save.`}
           >
             <Switch
-              label="Start Tessera when you sign in"
+              label="Start lompii when you sign in"
               on={!!settings?.openAtLogin}
               disabled={settings?.openAtLogin == null}
-              onToggle={async (on) => onChange(await window.tessera.setOpenAtLogin(on))}
+              onToggle={async (on) => onChange(await window.lompii.setOpenAtLogin(on))}
             />
           </Row>
           <Row
             label="Free memory in the tray"
-            desc="Closing the window unloads it and the on-device search models. Saving from the browser and AI tagging carry on; search indexing catches up when you open Tessera, which takes a moment longer."
+            desc="Closing the window unloads it and the on-device search models. Saving from the browser and AI tagging carry on; search indexing catches up when you open lompii, which takes a moment longer."
           >
             <Switch
               label="Free memory in the tray"
               on={!!settings?.freeMemoryInTray}
-              onToggle={async (on) => onChange(await window.tessera.setFreeMemoryInTray(on))}
+              onToggle={async (on) => onChange(await window.lompii.setFreeMemoryInTray(on))}
             />
           </Row>
           <ArchiveLock locked={!!settings?.archiveLocked} onChange={onChange} />
@@ -621,7 +621,7 @@ export default function SettingsDialog({
             {!vision
               ? 'Checking…'
               : vision.state === 'failed'
-                ? `Couldn't load the model: ${vision.error ?? 'unknown error'}. It will retry next time Tessera starts.`
+                ? `Couldn't load the model: ${vision.error ?? 'unknown error'}. It will retry next time lompii starts.`
                 : visionDone
                   ? `All ${vision.total} images indexed`
                   : vision.state === 'loading' && vision.done === 0
@@ -690,7 +690,7 @@ export default function SettingsDialog({
 
     Extension: (
       <>
-        <Header title="Browser extension" desc="Save images, text and pages from any site with the Tessera extension." />
+        <Header title="Browser extension" desc="Save images, text and pages from any site with the lompii extension." />
         <Panel className="mb-5">
           <div className={LABEL}>Install it in Chrome</div>
           <ol className="mt-3 list-decimal space-y-3 pl-5 text-[13px] leading-relaxed marker:text-dim">
@@ -716,23 +716,23 @@ export default function SettingsDialog({
                 <code className={`${INPUT} flex-1 truncate py-1.5 text-[12px] select-all`} title={extDir}>
                   {extDir || '…'}
                 </code>
-                <button onClick={() => window.tessera.showExtensionFolder()} className={`${BUTTON} py-1.5 text-[12px]`}>
+                <button onClick={() => window.lompii.showExtensionFolder()} className={`${BUTTON} py-1.5 text-[12px]`}>
                   Show folder
                 </button>
               </div>
             </li>
             <li>
-              Pin Tessera from the puzzle-piece menu in the toolbar, then connect it below.
+              Pin lompii from the puzzle-piece menu in the toolbar, then connect it below.
             </li>
           </ol>
           <p className={`${DESC} mt-4`}>
-            After Tessera updates, click the reload arrow on the extension's card in chrome://extensions.
+            After lompii updates, click the reload arrow on the extension's card in chrome://extensions.
           </p>
         </Panel>
         <Panel className="divide-y divide-line">
           <Row
             label="Connect a browser"
-            desc="Open the extension's options and click Connect. Tessera asks you to allow it: check the code matches the one the extension shows, then click Allow."
+            desc="Open the extension's options and click Connect. lompii asks you to allow it: check the code matches the one the extension shows, then click Allow."
           >
             {/* the dot carries the state; the words stay in the text colour so both themes read */}
             <span className="flex shrink-0 items-center gap-2 rounded-full bg-fg/[0.06] px-3 py-1 text-[12px] font-medium">
@@ -749,7 +749,7 @@ export default function SettingsDialog({
                   ? 'No browser is connected.'
                   : disconnect === 'ask'
                     ? 'Every connected browser stops saving until you connect it again.'
-                    : 'Stop every connected browser from saving to Tessera.'
+                    : 'Stop every connected browser from saving to lompii.'
             }
           >
             {disconnect === 'ask' && connected ? (
@@ -797,12 +797,12 @@ export default function SettingsDialog({
             <Icon d={nav[s]} /> {s}
           </button>
         ))}
-        {/* closing the window only hides Tessera in the tray; this stops it, and saving from the browser with it */}
+        {/* closing the window only hides lompii in the tray; this stops it, and saving from the browser with it */}
         <button
-          onClick={() => window.tessera.windowControl('quit')}
+          onClick={() => window.lompii.windowControl('quit')}
           className="mt-auto flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] text-fg/70 transition-colors hover:bg-select/60 hover:text-fg"
         >
-          <Icon d={I.power} /> Quit Tessera
+          <Icon d={I.power} /> Quit lompii
         </button>
       </nav>
       <section className="min-w-0 flex-1 overflow-y-auto p-8">{body[section]}</section>

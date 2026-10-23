@@ -1,8 +1,30 @@
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { app } from 'electron'
 import Database from 'better-sqlite3'
+import { KEYLESS } from '@shared/api'
 
 export const DATA = app.getPath('userData')
+
+// lompii was called Tessera, and kept its library in a folder of that name. The first start
+// after the rename copies it across; the old folder is left as it was, as a backup. AI keys
+// don't come along: they're sealed with a key that lives in the old folder, so they'd fail to
+// open here; they're cleared and asked for again.
+const OLD = join(app.getPath('appData'), 'tessera')
+if (!existsSync(join(DATA, 'lompii.db')) && existsSync(join(OLD, 'tessera.db'))) {
+  mkdirSync(DATA, { recursive: true })
+  for (const dir of ['library', 'thumbs', 'models'])
+    if (existsSync(join(OLD, dir))) cpSync(join(OLD, dir), join(DATA, dir), { recursive: true })
+  for (const end of ['', '-wal', '-shm']) // the WAL holds the latest writes
+    if (existsSync(join(OLD, 'tessera.db' + end))) copyFileSync(join(OLD, 'tessera.db' + end), join(DATA, 'lompii.db' + end))
+  try {
+    const s = JSON.parse(readFileSync(join(OLD, 'settings.json'), 'utf8'))
+    for (const p of Object.values(s.ai?.providers ?? {}) as { key?: string }[]) p.key = ''
+    if (s.ai?.active && !KEYLESS.has(s.ai.active)) s.ai.active = null // its key is gone
+    writeFileSync(join(DATA, 'settings.json'), JSON.stringify(s, null, 2))
+  } catch {} // no settings yet
+  console.log('[lompii] copied the library from', OLD)
+}
 
 const MIGRATIONS = [
   `create table items (
@@ -111,7 +133,7 @@ const MIGRATIONS = [
   `alter table items add column archived_at integer;`
 ]
 
-export const db = new Database(join(DATA, 'tessera.db'))
+export const db = new Database(join(DATA, 'lompii.db'))
 db.pragma('journal_mode = WAL')
 db.pragma('foreign_keys = ON')
 
@@ -120,7 +142,7 @@ for (let v = db.pragma('user_version', { simple: true }) as number; v < MIGRATIO
     db.exec(sql)
     db.pragma(`user_version = ${v + 1}`)
   })(MIGRATIONS[v])
-  console.log('[tessera] migrated to v' + (v + 1))
+  console.log('[lompii] migrated to v' + (v + 1))
 }
 
 /* ---------- user tags ---------- */

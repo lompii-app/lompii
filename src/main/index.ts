@@ -39,7 +39,7 @@ import { serve } from './server'
 import icon from '../../build/icon.png?asset'
 
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'tessera', privileges: { standard: true, secure: true, supportFetchAPI: true } }
+  { scheme: 'lompii', privileges: { standard: true, secure: true, supportFetchAPI: true } }
 ])
 
 /* ---------- ipc ---------- */
@@ -295,7 +295,7 @@ ipcMain.handle('items:saveAs', async (e, id: number) => {
   const item = byId(id)
   if (!item) return false
   const ext = isText(item.kind) ? '.txt' : extname(item.file_path)
-  const name = (item.title ?? 'tessera').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 80) || 'tessera'
+  const name = (item.title ?? 'lompii').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 80) || 'lompii'
   const win = BrowserWindow.fromWebContents(e.sender)!
   const { canceled, filePath } = await dialog.showSaveDialog(win, { defaultPath: name + ext })
   if (canceled || !filePath) return false
@@ -389,14 +389,14 @@ ipcMain.handle('trash:delete', (_e, ids: number[]) => {
 ipcMain.handle('library:backup', async (e) => {
   const win = BrowserWindow.fromWebContents(e.sender)!
   const pick = await dialog.showOpenDialog(win, {
-    title: 'Back up Tessera to…',
+    title: 'Back up lompii to…',
     properties: ['openDirectory', 'createDirectory']
   })
   if (pick.canceled || !pick.filePaths[0]) return null
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ').replace(':', '.')
-  const dest = join(pick.filePaths[0], `Tessera backup ${stamp}`)
+  const dest = join(pick.filePaths[0], `lompii backup ${stamp}`)
   mkdirSync(dest, { recursive: true })
-  await db.backup(join(dest, 'tessera.db')) // SQLite's online backup: safe while the app is writing
+  await db.backup(join(dest, 'lompii.db')) // SQLite's online backup: safe while the app is writing
   for (const dir of ['library', 'thumbs']) cpSync(join(DATA, dir), join(dest, dir), { recursive: true })
   void shell.openPath(dest)
   return dest
@@ -442,7 +442,7 @@ ipcMain.handle('search:semantic', async (_e, query: string) => {
   if (visual.status === 'fulfilled') add(visual.value, 0.2, 0.32)
   if (meaning.status === 'fulfilled') add(meaning.value, 0.15, 0.65)
   for (const r of [visual, meaning])
-    if (r.status === 'rejected') console.error('[tessera] semantic search failed', r.reason) // keyword search still works
+    if (r.status === 'rejected') console.error('[lompii] semantic search failed', r.reason) // keyword search still works
   return [...best].map(([id, score]) => ({ id, score }))
 })
 
@@ -500,7 +500,7 @@ function createWindow(visible: boolean): void {
   else win.loadFile(join(__dirname, '../renderer/index.html'))
 }
 
-// The extension asks to connect: bring Tessera forward, even from the tray, and let the person
+// The extension asks to connect: bring lompii forward, even from the tray, and let the person
 // compare the code the extension shows with this one before allowing it. The window draws the
 // question itself (Dialogs.tsx); the request waits here, since the window may still be loading.
 // ponytail: one request at a time; a newer one declines the older. Queue them if that bites.
@@ -540,10 +540,10 @@ function quit(): void {
   app.quit()
 }
 
-// One Tessera at a time: a second copy would fight over the database and port 47821.
+// One lompii at a time: a second copy would fight over the database and port 47821.
 // Launching it again just brings the running one forward.
 // Windows groups taskbar buttons (and pins) by this id; without it, dev runs count as Electron
-if (process.platform === 'win32') app.setAppUserModelId('com.tessera.app')
+if (process.platform === 'win32') app.setAppUserModelId('com.lompii.app')
 
 if (!app.requestSingleInstanceLock()) app.quit()
 else {
@@ -551,8 +551,8 @@ else {
   app.on('before-quit', () => (quitting = true))
 
   app.whenReady().then(() => {
-    // tessera://library/<hash>.png  ->  <userData>/library/<hash>.png
-    protocol.handle('tessera', (req) => {
+    // lompii://library/<hash>.png  ->  <userData>/library/<hash>.png
+    protocol.handle('lompii', (req) => {
       const { host, pathname } = new URL(req.url)
       const file = resolve(DATA, host + decodeURIComponent(pathname))
       if (file !== DATA && !file.startsWith(DATA + sep)) return new Response(null, { status: 403 })
@@ -560,13 +560,13 @@ else {
     })
 
     console.log(
-      '[tessera] db v%d, %d items',
+      '[lompii] db v%d, %d items',
       db.pragma('user_version', { simple: true }),
       (db.prepare('select count(*) as n from items').get() as { n: number }).n
     )
 
     const purged = purge('deleted_at < ?', Date.now() - TRASH_DAYS * 86_400_000)
-    if (purged) console.log('[tessera] emptied %d item(s) from the trash', purged)
+    if (purged) console.log('[lompii] emptied %d item(s) from the trash', purged)
 
     serve(askToPair)
     resumeAnalysis()

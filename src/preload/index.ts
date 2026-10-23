@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { Item, TesseraAPI } from '@shared/api'
+import type { Item, LompiiAPI } from '@shared/api'
 
-const api: TesseraAPI = {
+const api: LompiiAPI = {
   platform: process.platform,
   list: () => ipcRenderer.invoke('items:list'),
   tags: (id) => ipcRenderer.invoke('items:tags', id),
@@ -78,4 +78,4 @@ const api: TesseraAPI = {
   searchSemantic: (query) => ipcRenderer.invoke('search:semantic', query)
 }
 
-contextBridge.exposeInMainWorld('tessera', api)
+contextBridge.exposeInMainWorld('lompii', api)

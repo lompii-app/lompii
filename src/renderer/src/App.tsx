@@ -73,7 +73,7 @@ export default function App() {
   // stacksVersion covers stack edits, which touch no item
   useEffect(() => {
     let live = true
-    Promise.all([window.tessera.tagIndex(), window.tessera.stacks()]).then(([rows, list]) => {
+    Promise.all([window.lompii.tagIndex(), window.lompii.stacks()]).then(([rows, list]) => {
       const index: TagIndex = new Map()
       for (const { item, value } of rows) {
         const tags = index.get(item) ?? new Set<string>()
@@ -89,12 +89,12 @@ export default function App() {
   }, [items, stacksVersion])
 
   useEffect(() => {
-    window.tessera.getSettings().then(setSettings)
+    window.lompii.getSettings().then(setSettings)
   }, [])
   // what's left to set up; a save from the browser proves it's connected, so check again then
   const steps = pendingSteps(settings)
   useEffect(() => {
-    if (settings && !settings.extensionConnected) window.tessera.getSettings().then(setSettings)
+    if (settings && !settings.extensionConnected) window.lompii.getSettings().then(setSettings)
   }, [items.length]) // only when the count changes, not on every settings update
   // saves still without a title and tags (never analysed, or it failed), and those in progress
   // (archived ones included: "Analyse all" gets to them too)
@@ -122,7 +122,7 @@ export default function App() {
     let live = true
     const timer = setTimeout(
       () =>
-        window.tessera.searchSemantic(phrase).then((hits) => {
+        window.lompii.searchSemantic(phrase).then((hits) => {
           if (live) setVisual({ phrase, scores: new Map(hits.map((h) => [h.id, h.score])) })
         }),
       250
@@ -174,9 +174,9 @@ export default function App() {
     else setView('archive')
   }
   const unlockArchive = async (pin: string) => {
-    const result = await window.tessera.unlockArchive(pin)
+    const result = await window.lompii.unlockArchive(pin)
     if (result !== 'ok') return result
-    setAll(await window.tessera.list()) // now with the archived items
+    setAll(await window.lompii.list()) // now with the archived items
     setAsking(false)
     setView('archive')
     return result
@@ -194,7 +194,7 @@ export default function App() {
     else if (inArchive.current) {
       inArchive.current = false
       if (!settings?.archiveLocked) return
-      window.tessera.lockArchive()
+      window.lompii.lockArchive()
       setAll((prev) => prev.filter((i) => !i.archived_at))
     }
   }, [view])
@@ -211,7 +211,7 @@ export default function App() {
     setSettings(next)
     if (!relock) return
     if (next.archiveLocked) setView((v) => (v === 'archive' ? 'everything' : v))
-    setAll(await window.tessera.list())
+    setAll(await window.lompii.list())
   }
   const pickFilter = (key: string | null) => {
     setFilterKey(key)
@@ -221,7 +221,7 @@ export default function App() {
   const clearFilter = () => pickFilter(null)
 
   const sameVibe = async (id: number) => {
-    const ids = await window.tessera.similar(id)
+    const ids = await window.lompii.similar(id)
     setOpen(false)
     setQuery('')
     setTerms([])
@@ -254,7 +254,7 @@ export default function App() {
 
   const remove = async (id: number) => {
     const label = labelFor([id])
-    await window.tessera.remove(id)
+    await window.lompii.remove(id)
     setAll((prev) => prev.filter((i) => i.id !== id))
     setSelected(null)
     setOpen(false)
@@ -285,7 +285,7 @@ export default function App() {
 
   const removeMany = async (ids: number[]) => {
     const label = labelFor(ids)
-    for (const id of ids) await window.tessera.remove(id)
+    for (const id of ids) await window.lompii.remove(id)
     const gone = new Set(ids)
     setAll((prev) => prev.filter((i) => !gone.has(i.id)))
     clearPicked()
@@ -297,7 +297,7 @@ export default function App() {
     const moving = new Set(ids.filter((id) => all.some((i) => i.id === id && !!i.archived_at !== on)))
     if (!moving.size) return
     const label = labelFor([...moving])
-    await window.tessera.archive([...moving], on)
+    await window.lompii.archive([...moving], on)
     const at = on ? Date.now() : null
     setAll((prev) => prev.map((i) => (moving.has(i.id) ? { ...i, archived_at: at } : i)))
     clearPicked()
@@ -311,7 +311,7 @@ export default function App() {
   const toggleArchive = (ids: number[]) => archive(ids, view !== 'archive')
 
   const addManyToStack = async (stackId: number, ids = pickedIds) => {
-    for (const id of ids) await window.tessera.setInStack(stackId, id, true)
+    for (const id of ids) await window.lompii.setInStack(stackId, id, true)
     refreshStacks()
   }
 
@@ -321,26 +321,26 @@ export default function App() {
   const [savedSearch, setSavedSearch] = useState<string | null>(null)
   const saveSearchAsStack = async () => {
     const existing = stacks.find((s) => s.name.toLowerCase() === searchName.toLowerCase())
-    const id = existing?.id ?? (await window.tessera.createStack(searchName, STACK_COLORS[stacks.length % STACK_COLORS.length]))
+    const id = existing?.id ?? (await window.lompii.createStack(searchName, STACK_COLORS[stacks.length % STACK_COLORS.length]))
     await addManyToStack(id, visible.map((i) => i.id))
     setSavedSearch(searchName)
   }
 
   const newStackWithPicked = async (name: string) => {
-    const id = await window.tessera.createStack(name, STACK_COLORS[stacks.length % STACK_COLORS.length])
+    const id = await window.lompii.createStack(name, STACK_COLORS[stacks.length % STACK_COLORS.length])
     await addManyToStack(id)
   }
 
   const tagMany = async (tags: string[]) => {
-    for (const id of pickedIds) await window.tessera.addTags(id, tags)
+    for (const id of pickedIds) await window.lompii.addTags(id, tags)
   }
 
   const undoRemove = async () => {
     if (!undo) return
     if (undo.archived) await archive(undo.ids, false)
     else {
-      await window.tessera.restore(undo.ids)
-      setAll(await window.tessera.list()) // back in their place, not at the top
+      await window.lompii.restore(undo.ids)
+      setAll(await window.lompii.list()) // back in their place, not at the top
     }
     setUndo(null)
   }
@@ -357,12 +357,12 @@ export default function App() {
       e.preventDefault()
       depth = 0
       setDragging(false)
-      const paths = [...(e.dataTransfer?.files ?? [])].map((f) => window.tessera.pathForFile(f))
-      if (paths.length) window.tessera.ingestPaths(paths.filter(Boolean))
+      const paths = [...(e.dataTransfer?.files ?? [])].map((f) => window.lompii.pathForFile(f))
+      if (paths.length) window.lompii.ingestPaths(paths.filter(Boolean))
     }
     const onPaste = (e: ClipboardEvent) => {
       for (const f of e.clipboardData?.files ?? []) {
-        if (f.type.startsWith('image/')) f.arrayBuffer().then((b) => window.tessera.ingestBuffer(b))
+        if (f.type.startsWith('image/')) f.arrayBuffer().then((b) => window.lompii.ingestBuffer(b))
       }
     }
     window.addEventListener('dragover', stop)
@@ -448,7 +448,7 @@ export default function App() {
     <div className="flex h-full pt-10">
       {/* stands in for the hidden title bar; z-50 keeps the controls above the detail overlay */}
       <div className="fixed inset-x-0 top-0 z-50 flex h-10 items-center justify-end pr-4 [-webkit-app-region:drag]">
-        {window.tessera.platform !== 'darwin' && <WindowControls />}
+        {window.lompii.platform !== 'darwin' && <WindowControls />}
       </div>
 
       <Sidebar
@@ -522,7 +522,7 @@ export default function App() {
               )}
               {settings?.ai.active && (unanalysed > 0 || analysing > 0) && (
                 <button
-                  onClick={() => window.tessera.analyseAll()}
+                  onClick={() => window.lompii.analyseAll()}
                   disabled={!unanalysed}
                   title="Give every save without a title and tags its AI analysis"
                   className="flex shrink-0 items-center gap-2.5 rounded-full bg-card px-5 py-2.5 text-[13px] tracking-wider text-dim uppercase shadow-card transition enabled:hover:text-fg enabled:hover:shadow-lift"
@@ -541,7 +541,7 @@ export default function App() {
         </header>
 
         {view === 'trash' ? (
-          <Trash onExit={() => setView('everything')} onRestored={async () => setAll(await window.tessera.list())} />
+          <Trash onExit={() => setView('everything')} onRestored={async () => setAll(await window.lompii.list())} />
         ) : view === 'stacks' ? (
           <Stacks items={items} stacks={stacks} onOpen={pickFilter} onChange={refreshStacks} />
         ) : visible.length ? (
@@ -582,7 +582,7 @@ export default function App() {
                   ? 'Try another word, or clear the search and filter.'
                   : steps.length
                     ? 'Two steps and it starts filling itself. You can also drop or paste an image here any time.'
-                    : 'In Chrome, right-click an image or selected text and choose “Add to Tessera”, or press Alt+Shift+S to capture part of a page. You can also drop or paste an image here.'}
+                    : 'In Chrome, right-click an image or selected text and choose “Add to lompii”, or press Alt+Shift+S to capture part of a page. You can also drop or paste an image here.'}
               </p>
               {!items.length && steps.length > 0 && <SetupCards steps={steps} onOpen={openSettings} />}
             </div>
@@ -718,7 +718,7 @@ export default function App() {
 
       <ArchivePrompt open={asking} onUnlock={unlockArchive} onCancel={() => setAsking(false)} />
 
-      <PairPrompt onAnswered={() => window.tessera.getSettings().then(setSettings)} />
+      <PairPrompt onAnswered={() => window.lompii.getSettings().then(setSettings)} />
 
       <SettingsDialog
         ref={settingsRef}

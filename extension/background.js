@@ -2,11 +2,11 @@
 const API = 'http://127.0.0.1:47821'
 
 const MESSAGES = {
-  nokey: 'Connect the extension to Tessera in its options first.',
-  badkey: 'Tessera disconnected this browser. Connect it again in the options.',
-  offline: "Couldn't reach Tessera. Is the app open?",
+  nokey: 'Connect the extension to lompii in its options first.',
+  badkey: 'lompii disconnected this browser. Connect it again in the options.',
+  offline: "Couldn't reach lompii. Is the app open?",
   download: "Couldn't download this image.",
-  capture: "Chrome wouldn't let Tessera capture this page.",
+  capture: "Chrome wouldn't let lompii capture this page.",
   'not an image': "That doesn't look like an image.",
   'empty text': 'Select some text first.',
   noimage: "There's no picture under the pointer to save."
@@ -16,8 +16,8 @@ const MESSAGES = {
 // (and some browser restarts) can drop the items without firing onInstalled.
 chrome.contextMenus.removeAll(() => {
   // links too: many sites wrap pictures in links or cover them, so the browser sees only a link
-  chrome.contextMenus.create({ id: 'save', title: 'Add to Tessera', contexts: ['image', 'selection', 'link'] })
-  // page background only, so right-clicking an image still offers "Add to Tessera" directly
+  chrome.contextMenus.create({ id: 'save', title: 'Add to lompii', contexts: ['image', 'selection', 'link'] })
+  // page background only, so right-clicking an image still offers "Add to lompii" directly
   chrome.contextMenus.create({ id: 'capture-area', title: 'Capture an area…', contexts: ['page', 'frame'] })
   chrome.contextMenus.create({ id: 'capture-view', title: 'Capture visible area', contexts: ['page', 'frame'] })
 })
@@ -68,7 +68,7 @@ const postImage = (blob, meta) =>
     body: blob
   })
 
-// Fetched here rather than by Tessera so the browser's cookies apply to the image request.
+// Fetched here rather than by lompii so the browser's cookies apply to the image request.
 async function saveImage(src, meta) {
   let blob
   try {
@@ -109,7 +109,7 @@ async function pictureUnderPointer(info, tabId) {
   try {
     const [r] = await chrome.scripting.executeScript({
       target: { tabId, frameIds: [info.frameId ?? 0] },
-      func: () => globalThis.tesseraImage ?? null
+      func: () => globalThis.lompiiImage ?? null
     })
     return r?.result ?? null
   } catch {
@@ -172,8 +172,8 @@ async function capturePage(tab) {
           if (!first)
             for (const el of document.querySelectorAll('body *')) {
               const { position } = getComputedStyle(el)
-              if ((position === 'fixed' || position === 'sticky') && !el.hasAttribute('data-tessera-hidden')) {
-                el.setAttribute('data-tessera-hidden', el.style.visibility)
+              if ((position === 'fixed' || position === 'sticky') && !el.hasAttribute('data-lompii-hidden')) {
+                el.setAttribute('data-lompii-hidden', el.style.visibility)
                 el.style.visibility = 'hidden'
               }
             }
@@ -192,9 +192,9 @@ async function capturePage(tab) {
     await run(
       tab.id,
       (from) => {
-        for (const el of document.querySelectorAll('[data-tessera-hidden]')) {
-          el.style.visibility = el.getAttribute('data-tessera-hidden')
-          el.removeAttribute('data-tessera-hidden')
+        for (const el of document.querySelectorAll('[data-lompii-hidden]')) {
+          el.style.visibility = el.getAttribute('data-lompii-hidden')
+          el.removeAttribute('data-lompii-hidden')
         }
         scrollTo(0, from)
       },
@@ -302,9 +302,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
 // dragged rect, 'view' for the whole visible area (Enter), or null if cancelled (Esc).
 function pickArea() {
   return new Promise((resolve) => {
-    if (document.getElementById('tessera-pick')) return resolve(null) // already picking
+    if (document.getElementById('lompii-pick')) return resolve(null) // already picking
     const host = document.createElement('div')
-    host.id = 'tessera-pick'
+    host.id = 'lompii-pick'
     host.style.cssText = 'all:initial;position:fixed;inset:0;z-index:2147483647;cursor:crosshair'
     const root = host.attachShadow({ mode: 'closed' })
     root.innerHTML = `<style>
@@ -374,9 +374,9 @@ function pickArea() {
 
 // Injected into the page, so it must be self-contained: no outer variables.
 function toast(state) {
-  document.getElementById('tessera-toast')?.remove()
+  document.getElementById('lompii-toast')?.remove()
   const host = document.createElement('div')
-  host.id = 'tessera-toast'
+  host.id = 'lompii-toast'
   host.style.cssText = 'all:initial;position:fixed;top:16px;right:16px;z-index:2147483647'
   const root = host.attachShadow({ mode: 'closed' })
   root.innerHTML = `<style>
@@ -403,7 +403,7 @@ function toast(state) {
 
   const card = root.querySelector('.card')
   const msg = root.querySelector('.msg')
-  msg.textContent = state.ok ? 'Saved to Tessera' : state.message
+  msg.textContent = state.ok ? 'Saved to lompii' : state.message
 
   let timer
   const close = () => host.remove()

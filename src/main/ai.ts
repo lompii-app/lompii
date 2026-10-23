@@ -316,7 +316,7 @@ async function analyse(id: number): Promise<void> {
   } catch (e) {
     if (!byId(id)) return
     const message = e instanceof Error ? e.message : String(e)
-    console.error('[tessera] analysis failed', id, message)
+    console.error('[lompii] analysis failed', id, message)
     db.prepare(`update items set status = 'failed', ai_error = ? where id = ?`).run(message.slice(0, 300), id)
   }
   broadcast(id)

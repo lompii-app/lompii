@@ -14,7 +14,7 @@ Creative people broadly: designers, illustrators, photographers, writers and any
 
 ## Product Purpose
 
-A personal visual memory. Save anything; Tessera understands it; find it when you need it. The problem isn't storing references but finding them again later, when you remember "a dark website with huge typography" but not the site, the file name or the folder. Success is finding the thing you half-remember, fast.
+A personal visual memory. Save anything; lompii understands it; find it when you need it. The problem isn't storing references but finding them again later, when you remember "a dark website with huge typography" but not the site, the file name or the folder. Success is finding the thing you half-remember, fast.
 
 ## Positioning
 
@@ -26,7 +26,7 @@ A personal visual memory. Save anything; Tessera understands it; find it when yo
 ## Operating Context
 
 - Saving happens mostly from the browser via the Chrome extension: right-click an image or selected text, or capture a visible area, full page or selected area (Alt+Shift+S). Drag-and-drop and paste also work.
-- Tessera runs in the tray so the extension can always save; the home is opened to browse, search, and pull references into work.
+- lompii runs in the tray so the extension can always save; the home is opened to browse, search, and pull references into work.
 - Used alongside design tools and the browser, at desk scale, often in short visits: open, find, copy or open the source, leave.
 
 ## Capabilities and Constraints
@@ -41,8 +41,8 @@ A personal visual memory. Save anything; Tessera understands it; find it when yo
 
 ## Brand Commitments
 
-- Name: Tessera (a single tile in a mosaic). The current mark is a 2×2 tile grid with one orange tile (`build/icon.png`, `extension/icons/`).
-- The current interface is explicitly a mymind-like clone and is to be replaced with Tessera's own identity. mymind is an anti-reference, not a model.
+- Name: lompii (a single tile in a mosaic). The current mark is a 2×2 tile grid with one orange tile (`build/icon.png`, `extension/icons/`).
+- The current interface is explicitly a mymind-like clone and is to be replaced with lompii's own identity. mymind is an anti-reference, not a model.
 - Visual direction (chosen by the user, 22 Oct 2026): simple, clean and premium, in the spirit of the current app rather than a themed world. The polish bar is set by Linear, Arc, Things 3 / Apple's apps, and Raycast / Eagle. Themed concepts (museum register, design annual, acetate manual, split-flap board) were shown and declined.
 
 ## Evidence on Hand

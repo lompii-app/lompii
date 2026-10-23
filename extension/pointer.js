@@ -1,10 +1,10 @@
-// Remembers the picture under the pointer at each right-click, so "Add to Tessera" also works on
+// Remembers the picture under the pointer at each right-click, so "Add to lompii" also works on
 // pictures the browser doesn't offer as images: inside links, under overlays (Pinterest covers
 // every pin with one), or drawn as CSS backgrounds. background.js reads it on a menu click.
 // Wrapped and guarded: background.js also injects this into tabs already open at install.
 ;(() => {
-  if (globalThis.tesseraPointer) return
-  globalThis.tesseraPointer = true
+  if (globalThis.lompiiPointer) return
+  globalThis.lompiiPointer = true
 
   const big = (r) => r.width >= 48 && r.height >= 48 // skip icons and avatars
   const covers = (r, x, y) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
@@ -48,5 +48,5 @@
     return best && srcOf(best)
   }
 
-  addEventListener('contextmenu', (e) => (globalThis.tesseraImage = imageAt(e.clientX, e.clientY)), true)
+  addEventListener('contextmenu', (e) => (globalThis.lompiiImage = imageAt(e.clientX, e.clientY)), true)
 })()

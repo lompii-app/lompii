@@ -13,7 +13,7 @@ export default function WindowControls() {
       {BUTTONS.map(([action, label, color, glyph]) => (
         <button
           key={action}
-          onClick={() => window.tessera.windowControl(action)}
+          onClick={() => window.lompii.windowControl(action)}
           aria-label={label}
           title={label}
           className={`grid size-3 place-items-center rounded-full border-[0.5px] ${color}`}

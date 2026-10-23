@@ -15,7 +15,7 @@ const TEXT = 200 // first guess only; text tiles are measured once rendered
 const TALLEST = 2 // height / width; full-page captures show their top, like a bookmark preview
 
 // cards dragged inside the window carry their ids under this type; the sidebar logo takes them
-export const ITEMS_TYPE = 'application/x-tessera-items'
+export const ITEMS_TYPE = 'application/x-lompii-items'
 
 // A small square of the card follows the pointer instead of the whole tile, so the logo it's
 // dropped on stays in view. Several cards carry their count.

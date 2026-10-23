@@ -1,11 +1,11 @@
-appId: com.tessera.app
-productName: Tessera
+appId: com.lompii.app
+productName: lompii
 directories:
   output: release
 files:
   - out/**
   - package.json
-  # the browser build of onnxruntime; Tessera runs CLIP through onnxruntime-node
+  # the browser build of onnxruntime; lompii runs CLIP through onnxruntime-node
   - "!**/node_modules/onnxruntime-web/**"
   # better-sqlite3's C sources; the compiled module is all that's loaded
   - "!**/node_modules/better-sqlite3/{deps,src}/**"

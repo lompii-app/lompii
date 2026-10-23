@@ -11,26 +11,26 @@ function show(text, { ok = false, connect = false, disconnect = false } = {}) {
 
 async function check() {
   const { token } = await chrome.storage.local.get('token')
-  if (!token) return show('Not connected to Tessera yet.', { connect: true })
+  if (!token) return show('Not connected to lompii yet.', { connect: true })
   try {
     const res = await fetch(`${API}/ping`, { headers: { authorization: `Bearer ${token}` } })
-    if (res.ok) show('Connected to Tessera.', { ok: true, disconnect: true })
-    else if (res.status === 401) show('Tessera disconnected this browser.', { connect: true })
+    if (res.ok) show('Connected to lompii.', { ok: true, disconnect: true })
+    else if (res.status === 401) show('lompii disconnected this browser.', { connect: true })
     else show(`Unexpected response (${res.status}).`, { connect: true })
   } catch {
-    show("Couldn't reach Tessera. Is the app open?", { connect: true })
+    show("Couldn't reach lompii. Is the app open?", { connect: true })
   }
 }
 
 const REFUSED = {
   declined: "Not allowed. Connect again when you're ready.",
-  busy: 'Tessera is already asking about another connection. Answer that first.'
+  busy: 'lompii is already asking about another connection. Answer that first.'
 }
 
-// Tessera asks you to allow this browser, showing the same code, and hands back its key if you do.
+// lompii asks you to allow this browser, showing the same code, and hands back its key if you do.
 async function connect() {
   const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 10000).padStart(4, '0')
-  show('Waiting for you to allow it in Tessera…')
+  show('Waiting for you to allow it in lompii…')
   $('code').textContent = code
   $('pairing').hidden = false
   try {
@@ -44,7 +44,7 @@ async function connect() {
     await chrome.storage.local.set({ token: data.token })
     check()
   } catch {
-    show("Couldn't reach Tessera. Open it, then try again.", { connect: true })
+    show("Couldn't reach lompii. Open it, then try again.", { connect: true })
   }
 }
 

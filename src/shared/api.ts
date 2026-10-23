@@ -112,10 +112,10 @@ export type Settings = {
   archiveLocked: boolean // opening the archive asks for its password
 }
 
-// the browser extension talks to Tessera on this port, 127.0.0.1 only
+// the browser extension talks to lompii on this port, 127.0.0.1 only
 export const EXTENSION_PORT = 47821
 
-export type TesseraAPI = {
+export type LompiiAPI = {
   platform: string // process.platform: macOS draws its own window buttons
   list(): Promise<Item[]>
   tags(itemId: number): Promise<Tag[]>
@@ -185,6 +185,6 @@ export type TesseraAPI = {
 
 declare global {
   interface Window {
-    tessera: TesseraAPI
+    lompii: LompiiAPI
   }
 }

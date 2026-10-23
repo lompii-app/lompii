@@ -40,7 +40,7 @@ export default function TagsDialog({
   const [mergeInto, setMergeInto] = useState('')
   const [confirm, setConfirm] = useState<string[] | null>(null) // tags waiting for "Remove"
 
-  const load = () => window.tessera.tagCounts().then(setTags) // most used first
+  const load = () => window.lompii.tagCounts().then(setTags) // most used first
 
   // reload each time the dialog opens
   useEffect(() => {
@@ -59,12 +59,12 @@ export default function TagsDialog({
   }
 
   const merge = async (from: string[], into: string) => {
-    for (const f of from) if (f !== into.trim().toLowerCase()) await window.tessera.renameTag(f, into)
+    for (const f of from) if (f !== into.trim().toLowerCase()) await window.lompii.renameTag(f, into)
     await done()
   }
 
   const remove = async (values: string[]) => {
-    for (const v of values) await window.tessera.deleteTag(v)
+    for (const v of values) await window.lompii.deleteTag(v)
     await done()
   }
 
@@ -146,7 +146,7 @@ export default function TagsDialog({
                 <div className="text-[12px] text-dim">These differ only by an ending. Each merges into its most used spelling.</div>
               </div>
               <button onClick={async () => {
-                for (const s of suggestions) for (const f of s.from) await window.tessera.renameTag(f.value, s.into.value)
+                for (const s of suggestions) for (const f of s.from) await window.lompii.renameTag(f.value, s.into.value)
                 await done()
               }} className={BUTTON}>
                 Merge all

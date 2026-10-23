@@ -1,6 +1,6 @@
 import { app, Menu, nativeImage, Tray, type NativeImage } from 'electron'
 
-// Tessera keeps running in the tray when its window is closed, so the extension can always
+// lompii keeps running in the tray when its window is closed, so the extension can always
 // save. Quit is in the tray menu.
 
 // the extension's 32 px icon, inlined so the packaged app needs no extra resource file
@@ -25,11 +25,11 @@ let tray: Tray | null = null // module-level, or it's garbage-collected and vani
 
 export function createTray(show: () => void, quit: () => void): Tray {
   tray = new Tray(nativeImage.createFromDataURL(ICON))
-  tray.setToolTip('Tessera')
+  tray.setToolTip('lompii')
   const rebuild = () =>
     tray!.setContextMenu(
       Menu.buildFromTemplate([
-        { label: 'Open Tessera', click: show },
+        { label: 'Open lompii', click: show },
         { type: 'separator' },
         {
           label: canOpenAtLogin() ? 'Start at login' : 'Start at login (installed app only)',
@@ -42,7 +42,7 @@ export function createTray(show: () => void, quit: () => void): Tray {
           }
         },
         { type: 'separator' },
-        { label: 'Quit Tessera', click: quit }
+        { label: 'Quit lompii', click: quit }
       ])
     )
   rebuild()
@@ -56,7 +56,7 @@ export const setTrayIcon = (img: NativeImage): void => tray?.setImage(img)
 // first close only: explain where the window went
 export function trayHint(): void {
   tray?.displayBalloon({
-    title: 'Tessera is still running',
+    title: 'lompii is still running',
     content: 'It keeps saving from your browser. Open it from here, or quit from this menu.',
     iconType: 'info'
   })

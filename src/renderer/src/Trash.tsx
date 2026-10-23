@@ -3,7 +3,7 @@ import { isText, quoteParts, type Item } from '@shared/api'
 import { Confirm } from './Dialogs'
 import { url } from './useItems'
 
-const TIP_KEY = 'tessera.trashTipDismissed'
+const TIP_KEY = 'lompii.trashTipDismissed'
 
 const PILL = 'rounded-full px-4 py-2 text-[13px] font-medium transition-opacity hover:opacity-85'
 
@@ -21,7 +21,7 @@ export default function Trash({ onExit, onRestored }: { onExit: () => void; onRe
     }
   })
 
-  const load = () => window.tessera.trashList().then(setItems)
+  const load = () => window.lompii.trashList().then(setItems)
   useEffect(() => {
     load()
   }, [])
@@ -32,18 +32,18 @@ export default function Trash({ onExit, onRestored }: { onExit: () => void; onRe
   }
 
   const restore = async (ids: number[]) => {
-    await window.tessera.restore(ids)
+    await window.lompii.restore(ids)
     drop(ids)
     onRestored()
   }
 
   const destroy = async () => {
     if (confirm === 'all') {
-      await window.tessera.emptyTrash()
+      await window.lompii.emptyTrash()
       setItems([])
       setPicked(new Set())
     } else if (confirm) {
-      await window.tessera.deleteForever(confirm)
+      await window.lompii.deleteForever(confirm)
       drop(confirm)
     }
     setConfirm(null)

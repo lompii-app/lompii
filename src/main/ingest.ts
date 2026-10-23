@@ -104,7 +104,7 @@ export async function ingestFile(path: string): Promise<Item | null> {
       title: basename(path, extname(path))
     })
   } catch (e) {
-    console.error('[tessera] ingest failed:', path, e)
+    console.error('[lompii] ingest failed:', path, e)
     return null
   }
 }
@@ -113,7 +113,7 @@ export async function ingestBuffer(data: ArrayBuffer | Buffer, meta: Meta = {}):
   try {
     return await ingest(Buffer.isBuffer(data) ? data : Buffer.from(data), Date.now(), meta)
   } catch (e) {
-    console.error('[tessera] ingest failed: buffer', e)
+    console.error('[lompii] ingest failed: buffer', e)
     return null
   }
 }

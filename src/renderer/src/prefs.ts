@@ -19,7 +19,7 @@ const set = (key: string, value: string) => {
 
 // an explicit choice wins; otherwise follow the system
 export const loadTheme = (): Theme => {
-  const saved = get('tessera.theme')
+  const saved = get('lompii.theme')
   if (saved === 'light' || saved === 'dark') return saved
   return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
@@ -29,15 +29,15 @@ export function applyTheme(theme: Theme): void {
 }
 
 export function saveTheme(theme: Theme): void {
-  set('tessera.theme', theme)
+  set('lompii.theme', theme)
   applyTheme(theme)
 }
 
 export const loadDensity = (): Density => {
-  const saved = get('tessera.density')
+  const saved = get('lompii.density')
   return saved === 'large' || saved === 'small' ? saved : 'medium'
 }
 
-export const saveDensity = (density: Density) => set('tessera.density', density)
+export const saveDensity = (density: Density) => set('lompii.density', density)
 
 export const NEXT_DENSITY: Record<Density, Density> = { large: 'medium', medium: 'small', small: 'large' }

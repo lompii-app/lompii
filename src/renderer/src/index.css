@@ -76,7 +76,7 @@ body {
 }
 
 /* AI "analysing" state in the detail overlay */
-@keyframes tessera-glow {
+@keyframes lompii-glow {
   0%,
   100% {
     transform: scale(0.85);
@@ -87,7 +87,7 @@ body {
     opacity: 1;
   }
 }
-@keyframes tessera-trace {
+@keyframes lompii-trace {
   to {
     stroke-dashoffset: -100;
   }

@@ -1,14 +1,14 @@
-# Tessera
+# lompii
 
 ## Product
 
-Tessera is a personal visual memory: a desktop app and a Chrome extension for saving the things that inspire you, and finding them again by describing what you remember.
+lompii is a personal visual memory: a desktop app and a Chrome extension for saving the things that inspire you, and finding them again by describing what you remember.
 
 It is for creative people broadly: designers, illustrators, photographers, writers, anyone who collects inspiration.
 
 ### Core promise
 
-> Save anything. Tessera understands it. Find it when you need it.
+> Save anything. lompii understands it. Find it when you need it.
 
 ### What it stands on
 
@@ -31,13 +31,13 @@ A user may remember:
 
 > "I saved a dark website with huge typography and an interesting hero."
 
-But not the website's name, the file name, the folder, the date or where they saved it. Tessera lets them describe what they remember and get it back.
+But not the website's name, the file name, the folder, the date or where they saved it. lompii lets them describe what they remember and get it back.
 
 ---
 
 # Core Product Philosophy
 
-Tessera is a personal visual memory. It is not a social network, discovery feed, generic gallery or project-management tool.
+lompii is a personal visual memory. It is not a social network, discovery feed, generic gallery or project-management tool.
 
 It prioritises, in order:
 
@@ -60,10 +60,10 @@ The product succeeds when something saved today is found months later.
 
 Saving is deliberate and happens mostly from the browser. (An early version watched the Screenshots folder; it was removed because most screenshots are taken for something else and flooded the library.)
 
-- **Chrome extension:** right-click an image or selected text → *Add to Tessera*; or capture the visible area, the full page, a selected area (`Alt+Shift+S`), the visible area after a 3-second delay, or the selected text, from the toolbar popup. A toast on the page offers *Add tags*.
+- **Chrome extension:** right-click an image or selected text → *Add to lompii*; or capture the visible area, the full page, a selected area (`Alt+Shift+S`), the visible area after a 3-second delay, or the selected text, from the toolbar popup. A toast on the page offers *Add tags*.
 - **In the app:** drag and drop image files, or paste an image.
 - Everything from the web keeps its source URL and page title.
-- Tessera runs in the tray so the extension can always save.
+- lompii runs in the tray so the extension can always save.
 
 ---
 
@@ -102,7 +102,7 @@ Rate limits and overloaded providers are retried. Failures show the provider's e
 
 # Retrieval
 
-Search is the primary way people use Tessera.
+Search is the primary way people use lompii.
 
 - **Words** match titles, tags, TLDRs, notes, quote and snippet text, and text inside images. `Enter` turns a word into a chip; chips combine, so every one must match.
 - **Description**: the phrase also goes to CLIP (images that look like it) and MiniLM (items whose words mean it). "mountains landscape" finds the mountain illustration; "an AI meeting assistant" finds the Natively pages. Word matches rank first, then relevance.
@@ -123,9 +123,9 @@ No projects, sub-sections or nested stacks. Revisit if users ask for structure i
 
 ---
 
-# What Tessera Is NOT
+# What lompii Is NOT
 
-Do not turn Tessera into:
+Do not turn lompii into:
 
 * A Pinterest clone
 * A social network
@@ -135,7 +135,7 @@ Do not turn Tessera into:
 * A generic AI chatbot
 * A discovery or recommendation engine
 
-Do not build an Explore page based on attribute combinations and counts. Do not build "show me things unlike my usual references". Do not make filter panels the primary interface. Do not add analytics about the user's library. And do not look like mymind: Tessera has its own identity.
+Do not build an Explore page based on attribute combinations and counts. Do not build "show me things unlike my usual references". Do not make filter panels the primary interface. Do not add analytics about the user's library. And do not look like mymind: lompii has its own identity.
 
 Stay focused on:
 
@@ -154,7 +154,7 @@ Stay focused on:
 
 Also done: trash with undo, backup, multi-select, tag manager, light and dark mode, three card sizes, a verified Windows installer. Details and decisions: [MILESTONE.md](MILESTONE.md). Setup: [README.md](README.md).
 
-Under way: replacing the mymind-like interface with Tessera's own visual identity, starting with the home.
+Under way: replacing the mymind-like interface with lompii's own visual identity, starting with the home.
 
 ## Later
 
@@ -182,4 +182,4 @@ A user should be able to:
 4. Describe what they remember.
 5. Find the reference quickly.
 
-If that works, Tessera is solving its core problem.
+If that works, lompii is solving its core problem.

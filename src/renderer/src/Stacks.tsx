@@ -168,8 +168,8 @@ function StackDialog({
     e.preventDefault()
     if (!name.trim()) return setError('Give the stack a name.')
     try {
-      if (editing) await window.tessera.updateStack(editing.id, { name, color })
-      else await window.tessera.createStack(name, color)
+      if (editing) await window.lompii.updateStack(editing.id, { name, color })
+      else await window.lompii.createStack(name, color)
       done()
     } catch (err) {
       setError(String(err).includes('stack exists') ? 'A stack with that name already exists.' : 'Could not save the stack.')
@@ -180,7 +180,7 @@ function StackDialog({
   const remove = async () => {
     setConfirming(false)
     if (!editing) return
-    await window.tessera.deleteStack(editing.id)
+    await window.lompii.deleteStack(editing.id)
     done()
   }
 
