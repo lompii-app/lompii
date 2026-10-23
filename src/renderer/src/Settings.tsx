@@ -540,13 +540,13 @@ function About({ update }: { update: UpdateStatus | null }) {
     <>
       <Header title="About" desc="Your mind for what you find." />
       <Panel>
-        <Row label={`lompii ${update?.current ?? ''}`} desc={updateNote(update)}>
+        <Row label={`Version ${update?.current ?? ''}`} desc={updateNote(update)}>
           {update?.state === 'ready' ? (
-            <button onClick={() => window.lompii.installUpdate()} className="shrink-0 rounded-lg bg-accent px-3.5 py-2 text-[13px] font-medium text-white hover:opacity-85">
+            <button key="install" onClick={() => window.lompii.installUpdate()} className="shrink-0 rounded-lg bg-accent px-3.5 py-2 text-[13px] font-medium text-white hover:opacity-85">
               Restart to update
             </button>
           ) : (
-            <button onClick={() => window.lompii.checkForUpdates()} disabled={!update || update.state === 'dev' || busy} className={BUTTON}>
+            <button key="check" onClick={() => window.lompii.checkForUpdates()} disabled={!update || update.state === 'dev' || busy} className={BUTTON}>
               {update?.state === 'downloading' ? 'Downloading…' : busy ? 'Checking…' : 'Check for updates'}
             </button>
           )}
