@@ -1,0 +1,54 @@
+name: Bug report
+description: Something in lompii or its Chrome extension doesn't work as it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include any error message lompii or the extension showed.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Right-click an image on ...
+        2. Choose Add to lompii
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: lompii version
+      placeholder: e.g. 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: e.g. Windows 11 24H2
+    validations:
+      required: true
+  - type: dropdown
+    id: extension
+    attributes:
+      label: Is the Chrome extension involved?
+      options:
+        - "No, it's in the app"
+        - "Yes"
+        - "Not sure"
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: Please don't paste API keys, and only attach screenshots of your library you're happy to make public.
