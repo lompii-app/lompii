@@ -22,16 +22,17 @@ const insert = db.prepare(`insert or ignore into items
 const byHash = (hash: string): Item | undefined =>
   db.prepare('select * from items where hash = ?').get(hash) as Item | undefined
 
-function added(id: number | bigint): Item {
+function added(id: number | bigint, analyse: boolean): Item {
   const item = db.prepare('select * from items where id = ?').get(id) as Item
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send('item:added', item)
-  enqueue(item.id) // AI analysis, when a key is set
+  if (analyse) enqueue(item.id) // AI analysis, when a key is set; else it stays pending
   if (item.kind === 'image' || item.kind === 'capture') void indexImages() // same-vibe vector
   textChanged() // and its words, for search by meaning
   return item
 }
 
-type Meta = { title?: string | null; source?: string | null; kind?: 'image' | 'capture' }
+// analyse: false leaves a new item pending, for the folder import to queue (or not) itself
+type Meta = { title?: string | null; source?: string | null; kind?: 'image' | 'capture'; analyse?: boolean }
 
 // A save that matches an item in the trash restores it rather than doing nothing.
 function revive(item: Item): Item {
@@ -51,7 +52,7 @@ type Saved = { item: Item; isNew: boolean }
 async function ingest(
   buf: Buffer,
   createdAt: number,
-  { title = null, source = null, kind = 'image' }: Meta
+  { title = null, source = null, kind = 'image', analyse = true }: Meta
 ): Promise<Saved | null> {
   const hash = createHash('sha256').update(buf).digest('hex').slice(0, 32)
   const existing = byHash(hash)
@@ -83,7 +84,7 @@ async function ingest(
     kind,
     null
   )
-  if (info.changes) return { item: added(info.lastInsertRowid), isNew: true }
+  if (info.changes) return { item: added(info.lastInsertRowid, analyse), isNew: true }
   const raced = byHash(hash) // lost a dedupe race
   return raced ? { item: raced, isNew: false } : null
 }
@@ -99,15 +100,16 @@ export function ingestText(text: string, meta: Meta): Item {
   const kind = textKind(text)
   const body = kind === 'quote' ? unwrap(text) : text
   const info = insert.run('', '', hash, 0, 0, '#ffffff', meta.source ?? null, meta.title ?? null, Date.now(), kind, body)
-  return info.changes ? added(info.lastInsertRowid) : byHash(hash)!
+  return info.changes ? added(info.lastInsertRowid, true) : byHash(hash)!
 }
 
-export async function ingestFile(path: string): Promise<Saved | null> {
+export async function ingestFile(path: string, analyse = true): Promise<Saved | null> {
   if (!IMAGE.test(path)) return null
   try {
     const [buf, { mtimeMs }] = await Promise.all([readFile(path), stat(path)])
     return await ingest(buf, Math.round(mtimeMs), {
-      title: basename(path, extname(path))
+      title: basename(path, extname(path)),
+      analyse
     })
   } catch (e) {
     console.error('[lompii] ingest failed:', path, e)

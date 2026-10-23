@@ -3,7 +3,7 @@ import { copyFileSync, cpSync, mkdirSync, rmSync, statSync, writeFileSync } from
 import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, clipboard, ClipboardItem, dialog, ipcMain, net, protocol, shell, type NativeImage } from 'electron'
 import sharp from 'sharp'
-import { isHttpUrl, isText, type ImportProgress, type Item, type PairRequest, type Stack, type WindowAction, type AiProvider } from '@shared/api'
+import { isHttpUrl, isText, type ImportAnalysis, type ImportProgress, type Item, type PairRequest, type Stack, type WindowAction, type AiProvider } from '@shared/api'
 import { addTags, DATA, db, deleteTag, removeTag, renameTag, tagCounts } from './db'
 import { enqueue, enqueueUnanalysed, imagePrompt, listModels, resumeAnalysis, testProvider } from './ai'
 import {
@@ -18,9 +18,11 @@ import {
   textVectors,
   wakeModels
 } from './embed'
-import { findImages } from './folder'
+import { findImages, toAnalyse } from './folder'
 import { ingestBuffer, ingestFile } from './ingest'
 import {
+  aiConfig,
+  analyseImports,
   archiveHasPassword,
   checkArchivePassword,
   firstClose,
@@ -29,6 +31,7 @@ import {
   resetToken,
   saveProvider,
   setActiveProvider,
+  setAnalyseImports,
   setArchivePassword,
   setFreeMemoryInTray
 } from './settings'
@@ -404,13 +407,14 @@ ipcMain.handle('library:backup', async (e) => {
 })
 
 ipcMain.handle('ingest:paths', async (_e, paths: string[]) => {
-  const added = await Promise.all(paths.map(ingestFile))
+  const added = await Promise.all(paths.map((p) => ingestFile(p)))
   return added.filter(Boolean).length
 })
 ipcMain.handle('ingest:buffer', (_e, data: ArrayBuffer) => ingestBuffer(data))
 
 // Add a folder: every image in it and its subfolders (folder.ts picks them), four at a time so
 // the window stays responsive however big it is. Duplicates are found by ingest's hash check.
+// Only the first few new ones go to the AI (the setting): a big folder could cost a lot.
 let importing = false
 ipcMain.handle('library:importFolder', async (e) => {
   if (importing) return null
@@ -418,7 +422,18 @@ ipcMain.handle('library:importFolder', async (e) => {
   const pick = await dialog.showOpenDialog(win, { title: 'Add a folder to lompii', properties: ['openDirectory'] })
   if (pick.canceled || !pick.filePaths[0] || importing) return null
   importing = true
-  const p: ImportProgress = { done: 0, total: 0, added: 0, had: 0, skipped: 0, finished: false }
+  const p: ImportProgress = {
+    done: 0,
+    total: 0,
+    added: 0,
+    analysing: 0,
+    waiting: 0,
+    had: 0,
+    notImages: 0,
+    unreadable: 0,
+    finished: false
+  }
+  const limit = analyseImports()
   const report = () => {
     for (const w of BrowserWindow.getAllWindows()) w.webContents.send('import:progress', p)
   }
@@ -426,12 +441,20 @@ ipcMain.handle('library:importFolder', async (e) => {
     report()
     const { images, skipped } = await findImages(pick.filePaths[0])
     p.total = images.length
-    p.skipped = skipped
+    p.notImages = skipped
     for (let i = 0; i < images.length; i += 4) {
-      for (const saved of await Promise.all(images.slice(i, i + 4).map(ingestFile))) {
-        if (!saved) p.skipped++ // not a readable image after all
-        else if (saved.isNew) p.added++
+      const fresh: number[] = []
+      for (const saved of await Promise.all(images.slice(i, i + 4).map((f) => ingestFile(f, false)))) {
+        if (!saved) p.unreadable++
+        else if (saved.isNew) fresh.push(saved.item.id)
         else p.had++
+      }
+      p.added += fresh.length
+      const now = new Set(toAnalyse(fresh, p.analysing, limit))
+      const ai = !!aiConfig()
+      for (const id of fresh) {
+        if (now.has(id) && enqueue(id)) p.analysing++
+        else if (ai) p.waiting++ // stays pending: "Analyse N saves" offers it
       }
       p.done = Math.min(i + 4, images.length)
       report()
@@ -458,6 +481,7 @@ ipcMain.handle('settings:setOpenAtLogin', (_e, on: boolean) => {
   return getSettings()
 })
 ipcMain.handle('settings:setFreeMemoryInTray', (_e, on: boolean) => setFreeMemoryInTray(!!on))
+ipcMain.handle('settings:setAnalyseImports', (_e, n: ImportAnalysis) => setAnalyseImports(n))
 ipcMain.handle('ai:analyse', (_e, id: number) => void enqueue(id))
 ipcMain.handle('ai:analyseAll', () => enqueueUnanalysed())
 ipcMain.handle('ai:test', (_e, p: AiProvider) => testProvider(p))

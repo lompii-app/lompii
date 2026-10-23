@@ -110,18 +110,39 @@ export type Settings = {
   extensionConnected: boolean // a browser has connected since the last Disconnect all
   freeMemoryInTray: boolean // in the tray, the window and local models are unloaded
   archiveLocked: boolean // opening the archive asks for its password
+  analyseImports: ImportAnalysis
 }
 
-// Add a folder: where it's got to. total is 0 while the folder is still being looked through;
-// skipped counts other files, shortcuts and images that couldn't be read.
-export type ImportProgress = { done: number; total: number; added: number; had: number; skipped: number; finished: boolean }
+// How many of a folder import's new images are analysed straight away (Settings → AI
+// providers); the rest stay pending, for the "Analyse N saves" pill. Other saves always are.
+export type ImportAnalysis = 0 | 25 | 100 | 'all'
+export const IMPORT_ANALYSIS: ImportAnalysis[] = [0, 25, 100, 'all']
 
-// "Added 112 · 8 were already in your library · 3 skipped", leaving out the parts that are 0
-export function importSummary({ added, had, skipped }: ImportProgress): string {
+// Add a folder: where it's got to. total is 0 while the folder is still being looked through.
+// Of the added: analysing were queued, waiting weren't (both 0 with no AI provider).
+// notImages: other files, shortcuts and links; unreadable: image names sharp couldn't read.
+export type ImportProgress = {
+  done: number
+  total: number
+  added: number
+  analysing: number
+  waiting: number
+  had: number
+  notImages: number
+  unreadable: number
+  finished: boolean
+}
+
+// "Added 112 · 25 being analysed · 87 waiting in Analyse · 8 were already in your library ·
+// 3 weren't images", leaving out the parts that are 0
+export function importSummary(p: ImportProgress): string {
   const parts = [
-    added && `Added ${added}`,
-    had && `${had} ${had === 1 ? 'was' : 'were'} already in your library`,
-    skipped && `${skipped} skipped`
+    p.added && `Added ${p.added}`,
+    p.analysing && `${p.analysing} being analysed`,
+    p.waiting && `${p.waiting} waiting in Analyse`,
+    p.had && `${p.had} ${p.had === 1 ? 'was' : 'were'} already in your library`,
+    p.notImages && `${p.notImages} ${p.notImages === 1 ? "wasn't an image" : "weren't images"}`,
+    p.unreadable && `${p.unreadable} couldn't be read`
   ].filter(Boolean)
   return parts.length ? parts.join(' · ') : 'No images in that folder'
 }
@@ -196,6 +217,7 @@ export type LompiiAPI = {
   setActiveProvider(provider: AiProvider | null): Promise<Settings>
   setOpenAtLogin(on: boolean): Promise<Settings>
   setFreeMemoryInTray(on: boolean): Promise<Settings>
+  setAnalyseImports(n: ImportAnalysis): Promise<Settings>
   analyse(id: number): Promise<void> // queue one item for AI analysis
   analyseAll(): Promise<number> // queue everything not yet analysed; returns how many
   testProvider(provider: AiProvider): Promise<string | null> // null: it answered; else the error

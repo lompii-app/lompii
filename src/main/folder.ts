@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process'
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
+import type { ImportAnalysis } from '@shared/api'
 
 // No Electron in here, so npm test can run it.
 
@@ -47,3 +48,8 @@ export async function findImages(root: string): Promise<{ images: string[]; skip
   }
   return { images, skipped }
 }
+
+// Of a batch of newly imported items, the ones to analyse now: the first `limit` of the whole
+// import, `queued` being how many earlier batches already sent
+export const toAnalyse = (ids: number[], queued: number, limit: ImportAnalysis): number[] =>
+  limit === 'all' ? ids : ids.slice(0, Math.max(0, limit - queued))

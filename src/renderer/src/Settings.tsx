@@ -7,11 +7,13 @@ import openrouter from './providers/openrouter.svg?raw'
 import { PinTiles } from './Dialogs'
 import {
   AI_PROVIDERS,
+  IMPORT_ANALYSIS,
   importNote,
   KEY_PAGES,
   KEYLESS,
   type AiProvider,
   type EmbeddingStatus,
+  type ImportAnalysis,
   type ImportProgress,
   type ModelInfo,
   type Settings
@@ -657,6 +659,26 @@ export default function SettingsDialog({
         <Panel className="divide-y divide-line">
           <Row label="Active model" desc="Used for everything you save from now on.">
             <ActiveModel settings={settings} onChange={onChange} />
+          </Row>
+          <Row
+            label="Analyse imported images automatically"
+            desc="When you add a folder, how many of its new images are analysed straight away. The rest wait in Analyse, so a big folder doesn't run up your bill."
+          >
+            <select
+              aria-label="Imported images analysed automatically"
+              value={String(settings.analyseImports)}
+              onChange={async (e) => {
+                const v = e.target.value
+                onChange(await window.lompii.setAnalyseImports(v === 'all' ? 'all' : (Number(v) as ImportAnalysis)))
+              }}
+              className={`${BUTTON} w-32`}
+            >
+              {IMPORT_ANALYSIS.map((n) => (
+                <option key={n} value={String(n)}>
+                  {n === 0 ? 'None' : n === 'all' ? 'All' : n}
+                </option>
+              ))}
+            </select>
           </Row>
           {settings.ai.active && (
             <Row label="Your library" desc={status || (unanalysed ? `${unanalysed} saves have no title or tags yet.` : 'Everything has been analysed.')}>

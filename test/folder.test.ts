@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { test } from 'node:test'
 import { importSummary } from '../src/shared/api.ts'
-import { findImages } from '../src/main/folder.ts'
+import { findImages, toAnalyse } from '../src/main/folder.ts'
 
 test('a folder: its images and its subfolders’, nothing hidden, no links followed', async () => {
   const root = mkdtempSync(join(tmpdir(), 'lompii-folder-'))
@@ -35,8 +35,22 @@ test('a folder: its images and its subfolders’, nothing hidden, no links follo
 })
 
 test('the summary leaves out what is 0', () => {
-  const p = { done: 123, total: 123, finished: true }
-  assert.equal(importSummary({ ...p, added: 112, had: 8, skipped: 3 }), 'Added 112 · 8 were already in your library · 3 skipped')
-  assert.equal(importSummary({ ...p, added: 0, had: 1, skipped: 0 }), '1 was already in your library')
-  assert.equal(importSummary({ ...p, added: 0, had: 0, skipped: 0 }), 'No images in that folder')
+  const p = { done: 0, total: 0, added: 0, analysing: 0, waiting: 0, had: 0, notImages: 0, unreadable: 0, finished: true }
+  assert.equal(
+    importSummary({ ...p, added: 112, analysing: 25, waiting: 87, had: 8, notImages: 3, unreadable: 1 }),
+    "Added 112 · 25 being analysed · 87 waiting in Analyse · 8 were already in your library · 3 weren't images · 1 couldn't be read"
+  )
+  assert.equal(importSummary({ ...p, had: 1, notImages: 1 }), "1 was already in your library · 1 wasn't an image")
+  assert.equal(importSummary(p), 'No images in that folder')
+})
+
+test('a folder import analyses only its first new items, across batches', () => {
+  // batches of 4 against the default 25: whole batches, then the 25th alone, then none
+  assert.deepEqual(toAnalyse([1, 2, 3, 4], 0, 25), [1, 2, 3, 4])
+  assert.deepEqual(toAnalyse([21, 22, 23, 24], 20, 25), [21, 22, 23, 24])
+  assert.deepEqual(toAnalyse([25, 26, 27, 28], 24, 25), [25])
+  assert.deepEqual(toAnalyse([29, 30], 25, 25), [])
+  assert.deepEqual(toAnalyse([1, 2], 0, 0), [])
+  assert.deepEqual(toAnalyse([1, 2], 1000, 'all'), [1, 2])
+  assert.deepEqual(toAnalyse([1, 2, 3], 98, 100), [1, 2])
 })
