@@ -35,6 +35,7 @@ import { createTray, setOpenAtLogin, setTrayIcon, startedHidden, trayHint } from
 import { followTaskbarTheme } from './taskbarIcon'
 import { jaccard, paletteSimilarity, relevance, rgb, visualSimilarity } from './scoring'
 import { serve } from './server'
+import { checkForUpdates, installUpdate, startUpdates, updateStatus } from './updates'
 // bundled next to the main build; the window and taskbar use it (the .exe gets it from electron-builder)
 import icon from '../../build/icon.png?asset'
 
@@ -428,6 +429,9 @@ ipcMain.handle('ai:test', (_e, p: AiProvider) => testProvider(p))
 ipcMain.handle('ai:models', (_e, p: AiProvider) => listModels(p))
 ipcMain.handle('ai:prompt', (_e, id: number) => imagePrompt(id))
 ipcMain.handle('embeddings:status', () => embeddingStatus())
+ipcMain.handle('update:status', () => updateStatus())
+ipcMain.handle('update:check', () => checkForUpdates())
+ipcMain.handle('update:install', () => installUpdate())
 
 // Search by description: CLIP for how images look, MiniLM for what any item's words mean.
 // Their raw scores live on different scales, so each maps onto 0-1 relevance first.
@@ -581,6 +585,7 @@ else {
       setTrayIcon(t)
     })
     if (!lean) createWindow(!startedHidden())
+    startUpdates()
     app.on('activate', show)
   })
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Settings, Stack } from '@shared/api'
+import type { Settings, Stack, UpdateStatus } from '@shared/api'
 import Detail from './Detail'
 import { ArchivePrompt, PairPrompt, PlanPrompt, WelcomeNote } from './Dialogs'
 import { ActiveFilter, buildFilters, FilterRow, STACK_COLORS, TermChip, type Filter, type TagIndex } from './Filters'
@@ -9,7 +9,7 @@ import { loadDensity, loadStarAsk, loadTheme, loadWelcomed, NEXT_DENSITY, saveDe
 import SelectionBar from './Selection'
 import Stacks from './Stacks'
 import SettingsDialog, { type Section } from './Settings'
-import { pendingSteps, SetupCards, SetupStrip, StarToast, starDue } from './Setup'
+import { pendingSteps, SetupCards, SetupStrip, StarToast, starDue, UpdateToast } from './Setup'
 import TagsDialog from './Tags'
 import Trash from './Trash'
 import WindowControls from './WindowControls'
@@ -99,6 +99,15 @@ export default function App() {
   useEffect(() => {
     window.lompii.getSettings().then(setSettings)
   }, [])
+
+  // a downloaded update: the toast offers to restart into it; "Later" leaves it for the next quit
+  const [update, setUpdate] = useState<UpdateStatus | null>(null)
+  const [updateLater, setUpdateLater] = useState(false)
+  useEffect(() => {
+    window.lompii.updateStatus().then(setUpdate)
+    return window.lompii.onUpdateChanged(setUpdate)
+  }, [])
+  const updateToast = update?.state === 'ready' && !updateLater
   // what's left to set up; a save from the browser proves it's connected, so check again then
   const steps = pendingSteps(settings)
   useEffect(() => {
@@ -723,7 +732,10 @@ export default function App() {
       )}
 
       {/* out of the way of the overlay, the undo banner and the selection bar */}
-      {view === 'everything' && !open && !undo && !pickedIds.length && starDue(starAsk, all.length) && (
+      {!open && !undo && !pickedIds.length && updateToast && (
+        <UpdateToast version={update.next!} onRestart={() => window.lompii.installUpdate()} onLater={() => setUpdateLater(true)} />
+      )}
+      {view === 'everything' && !open && !undo && !pickedIds.length && !updateToast && starDue(starAsk, all.length) && (
         <StarToast answer={answerStar} />
       )}
       <WelcomeNote
@@ -745,6 +757,7 @@ export default function App() {
         ref={settingsRef}
         onManageTags={() => tagsRef.current?.showModal()}
         settings={settings}
+        update={update}
         unanalysed={unanalysed}
         onChange={changeSettings}
         section={settingsSection}

@@ -5,6 +5,7 @@ import ollama from './providers/ollama.svg?raw'
 import openai from './providers/openai.svg?raw'
 import openrouter from './providers/openrouter.svg?raw'
 import { PinTiles } from './Dialogs'
+import { REPO } from './Setup'
 import {
   AI_PROVIDERS,
   KEY_PAGES,
@@ -12,7 +13,8 @@ import {
   type AiProvider,
   type EmbeddingStatus,
   type ModelInfo,
-  type Settings
+  type Settings,
+  type UpdateStatus
 } from '@shared/api'
 
 type ProviderInfo = Settings['ai']['providers'][AiProvider]
@@ -24,7 +26,7 @@ const INPUT =
 const BUTTON =
   'shrink-0 rounded-lg border border-line bg-control px-3.5 py-2 text-[13px] font-medium transition-colors outline-none hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-40'
 
-const SECTIONS = ['General', 'AI providers', 'Extension'] as const
+const SECTIONS = ['General', 'AI providers', 'Extension', 'About'] as const
 export type Section = (typeof SECTIONS)[number]
 
 const CLOUD: AiProvider[] = ['anthropic', 'openai', 'gemini']
@@ -69,6 +71,7 @@ const I = {
   refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7',
   power: 'M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0',
   sliders: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4',
+  info: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M12 11v5M12 8h.01',
   sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z',
   // Lucide's puzzle piece (ISC licence)
   puzzle:
@@ -503,11 +506,73 @@ function ProviderCard({
   )
 }
 
+/* ---------- about ---------- */
+
+const LINKS: [string, string][] = [
+  ['GitHub', REPO],
+  ['Report a problem', `${REPO}/issues/new/choose`],
+  ['Licence (MIT)', `${REPO}/blob/main/LICENSE`],
+  ['Privacy policy', `${REPO}/blob/main/PRIVACY.md`]
+]
+
+const updateNote = (u: UpdateStatus | null): string => {
+  switch (u?.state) {
+    case 'dev':
+      return 'Updates only work in the installed app.'
+    case 'checking':
+      return 'Checking for updates…'
+    case 'latest':
+      return "You're up to date."
+    case 'downloading':
+      return `Downloading lompii ${u.next}… ${Math.round(u.percent)}%`
+    case 'ready':
+      return `lompii ${u.next} is ready. Restart to update.`
+    case 'error':
+      return `Couldn't check for updates: ${u.error}`
+    default:
+      return 'lompii looks for updates on its own every few hours.'
+  }
+}
+
+function About({ update }: { update: UpdateStatus | null }) {
+  const busy = update?.state === 'checking' || update?.state === 'downloading'
+  return (
+    <>
+      <Header title="About" desc="Your mind for what you find." />
+      <Panel>
+        <Row label={`Version ${update?.current ?? ''}`} desc={updateNote(update)}>
+          {update?.state === 'ready' ? (
+            <button key="install" onClick={() => window.lompii.installUpdate()} className="shrink-0 rounded-lg bg-accent px-3.5 py-2 text-[13px] font-medium text-white hover:opacity-85">
+              Restart to update
+            </button>
+          ) : (
+            <button key="check" onClick={() => window.lompii.checkForUpdates()} disabled={!update || update.state === 'dev' || busy} className={BUTTON}>
+              {update?.state === 'downloading' ? 'Downloading…' : busy ? 'Checking…' : 'Check for updates'}
+            </button>
+          )}
+        </Row>
+      </Panel>
+      <Panel className="mt-4 divide-y divide-line py-2">
+        {LINKS.map(([label, url]) => (
+          <button
+            key={url}
+            onClick={() => window.lompii.openExternal(url)}
+            className="flex w-full items-center justify-between py-3 text-left text-[13px] text-fg/80 transition-colors hover:text-fg"
+          >
+            {label} <Icon d={I.external} className="size-3.5 text-dim" />
+          </button>
+        ))}
+      </Panel>
+    </>
+  )
+}
+
 /* ---------- the dialog ---------- */
 
 export default function SettingsDialog({
   ref,
   settings,
+  update,
   unanalysed,
   onChange,
   onManageTags,
@@ -516,6 +581,7 @@ export default function SettingsDialog({
 }: {
   ref: React.RefObject<HTMLDialogElement | null>
   settings: Settings | null
+  update: UpdateStatus | null
   unanalysed: number
   onChange: (s: Settings) => void
   onManageTags: () => void
@@ -574,7 +640,7 @@ export default function SettingsDialog({
   }
 
   const visionDone = !!vision && vision.state !== 'failed' && vision.done >= vision.total
-  const nav: Record<Section, string> = { General: I.sliders, 'AI providers': I.sparkle, Extension: I.puzzle }
+  const nav: Record<Section, string> = { General: I.sliders, 'AI providers': I.sparkle, Extension: I.puzzle, About: I.info }
 
   const body: Record<Section, React.ReactNode> = {
     General: (
@@ -770,7 +836,9 @@ export default function SettingsDialog({
           </Row>
         </Panel>
       </>
-    )
+    ),
+
+    About: <About update={update} />
   }
 
   return (

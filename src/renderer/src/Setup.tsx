@@ -113,6 +113,29 @@ export function StarToast({ answer }: { answer: (value: string) => void }) {
   )
 }
 
+// a new version has downloaded (main/updates.ts); "Later" installs it at the next quit instead
+export function UpdateToast({ version, onRestart, onLater }: { version: string; onRestart: () => void; onLater: () => void }) {
+  return (
+    <div
+      role="status"
+      className="fixed bottom-6 left-24 z-30 w-[300px] max-w-[calc(100vw-7rem)] rounded-lg bg-card px-6 py-4 shadow-lift transition duration-200 starting:translate-y-3 starting:opacity-0"
+    >
+      <p className="font-serif text-[22px] leading-tight text-fg italic">lompii {version} is ready</p>
+      <div className="mt-3 flex items-center gap-1">
+        <button
+          onClick={onRestart}
+          className="cursor-pointer rounded-full bg-accent px-4 py-1.5 text-[13px] font-medium text-white transition-opacity hover:opacity-85"
+        >
+          Restart to update
+        </button>
+        <button onClick={onLater} className="cursor-pointer rounded-full px-3 py-1.5 text-[13px] text-dim transition-colors hover:text-fg">
+          Later
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // above a library that has things in it: one quiet line, which "Later" hides until next launch
 export function SetupStrip({ steps, onOpen, onLater }: { steps: Step[]; onOpen: (s: Section) => void; onLater: () => void }) {
   return (
