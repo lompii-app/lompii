@@ -40,4 +40,13 @@ export const loadDensity = (): Density => {
 
 export const saveDensity = (density: Density) => set('lompii.density', density)
 
+// Asking for a star on GitHub: the plan screen on first start, then the toast. 'done' once
+// answered for good, else the time "later" was chosen; null if never asked.
+export const loadStarAsk = () => get('lompii.star')
+export const saveStarAsk = (value: string) => set('lompii.star', value)
+
+// the founder's welcome note, shown once on the first start, before the plan screen
+export const loadWelcomed = () => get('lompii.welcomed') === '1'
+export const saveWelcomed = () => set('lompii.welcomed', '1')
+
 export const NEXT_DENSITY: Record<Density, Density> = { large: 'medium', medium: 'small', small: 'large' }

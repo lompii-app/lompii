@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Settings, Stack } from '@shared/api'
 import Detail from './Detail'
-import { ArchivePrompt, PairPrompt } from './Dialogs'
+import { ArchivePrompt, PairPrompt, PlanPrompt, WelcomeNote } from './Dialogs'
 import { ActiveFilter, buildFilters, FilterRow, STACK_COLORS, TermChip, type Filter, type TagIndex } from './Filters'
 import Grid from './Grid'
 import Sidebar from './Sidebar'
-import { loadDensity, loadTheme, NEXT_DENSITY, saveDensity, saveTheme } from './prefs'
+import { loadDensity, loadStarAsk, loadTheme, loadWelcomed, NEXT_DENSITY, saveDensity, saveStarAsk, saveTheme, saveWelcomed } from './prefs'
 import SelectionBar from './Selection'
 import Stacks from './Stacks'
 import SettingsDialog, { type Section } from './Settings'
-import { pendingSteps, SetupCards, SetupStrip } from './Setup'
+import { pendingSteps, SetupCards, SetupStrip, StarToast, starDue } from './Setup'
 import TagsDialog from './Tags'
 import Trash from './Trash'
 import WindowControls from './WindowControls'
@@ -45,6 +45,14 @@ export default function App() {
   const [dragging, setDragging] = useState(false)
   const [theme, setTheme] = useState(loadTheme)
   const [density, setDensity] = useState(loadDensity)
+  // the first start: the founder's note, then the plan screen asking for a GitHub star (and,
+  // after a "later", the toast in Setup.tsx)
+  const [welcomed, setWelcomed] = useState(loadWelcomed)
+  const [starAsk, setStarAsk] = useState(loadStarAsk)
+  const answerStar = (value: string) => {
+    saveStarAsk(value)
+    setStarAsk(value)
+  }
 
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark'
@@ -713,6 +721,19 @@ export default function App() {
           onClear={clearPicked}
         />
       )}
+
+      {/* out of the way of the overlay, the undo banner and the selection bar */}
+      {view === 'everything' && !open && !undo && !pickedIds.length && starDue(starAsk, all.length) && (
+        <StarToast answer={answerStar} />
+      )}
+      <WelcomeNote
+        open={!welcomed}
+        onDone={() => {
+          saveWelcomed()
+          setWelcomed(true)
+        }}
+      />
+      <PlanPrompt open={welcomed && starAsk === null} onAnswer={answerStar} />
 
       <TagsDialog ref={tagsRef} onChange={refreshStacks} />
 

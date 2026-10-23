@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PairRequest } from '@shared/api'
+import { GitHubMark, REPO } from './Setup'
 
 // lompii's own pop-ups, in place of the system's confirm() and message boxes.
 
@@ -185,6 +186,147 @@ export function ArchivePrompt({
           Cancel
         </button>
       </div>
+    </dialog>
+  )
+}
+
+// The very first start: a note from the founder, before the plan screen. "Copy link to share"
+// puts the GitHub address on the clipboard for passing lompii on.
+export function WelcomeNote({ open, onDone }: { open: boolean; onDone: () => void }) {
+  const ref = useModal(open)
+  const [copied, setCopied] = useState(false)
+  const share = () =>
+    navigator.clipboard.writeText(REPO).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    })
+  return (
+    <dialog ref={ref} onClose={() => open && onDone()} className={SHELL.replace('w-[440px]', 'w-[540px]')}>
+      <svg viewBox="0 0 24 24" aria-hidden className="size-9">
+        <rect x="2" y="2" width="9" height="9" rx="2.4" className="fill-fg" />
+        <rect x="13" y="2" width="9" height="9" rx="2.4" className="fill-accent" />
+        <rect x="2" y="13" width="9" height="9" rx="2.4" className="fill-fg" />
+        <rect x="13" y="13" width="9" height="9" rx="2.4" className="fill-fg" />
+      </svg>
+      <h2 className={`${TITLE} mt-5`}>Hi, I'm Midhun.</h2>
+      <div className="mt-4 space-y-3.5 text-[14px] leading-relaxed text-fg/85">
+        <p>
+          I made lompii because I kept losing the things that inspired me: a poster, a website, a line someone wrote. I
+          knew I'd seen them. I just couldn't find them again.
+        </p>
+        <p>
+          You're one of the very first people to use it, and that means a lot. Thank you for giving something new from a
+          small, independent maker a try.
+        </p>
+        <p>
+          If lompii helps you, tell a friend, a classmate or your team about it. That's how a small app like this grows.
+          And if something's missing or broken, tell me on GitHub. I read every message.
+        </p>
+      </div>
+      <p className="mt-5 font-serif text-[20px] text-fg italic">Midhun, maker of lompii</p>
+      <div className="mt-7 flex items-center gap-2">
+        <button
+          onClick={share}
+          className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-line px-4 text-[14px] text-fg transition-colors hover:bg-ink"
+        >
+          <GitHubMark />
+          {copied ? 'Link copied' : 'Copy link to share'}
+        </button>
+        <button autoFocus onClick={onDone} className={`${GO} ml-auto h-10 cursor-pointer font-medium`}>
+          Let's go
+        </button>
+      </div>
+    </dialog>
+  )
+}
+
+const CHECK = 'M20 6 9 17l-5-5'
+const STAR = 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z'
+const FREE = ['Unlimited saves', 'Search by description, on your computer', 'Your own AI, or a local model', 'Stacks, archive, trash and backups']
+const STARRED = ['Everything in Free', 'Helps other people find lompii', 'Keeps a small, free project going', 'Never asked again']
+
+const Features = ({ lines, tick }: { lines: string[]; tick: string }) => (
+  <ul className="mt-5 flex-1 space-y-2.5 text-[14px] text-fg">
+    {lines.map((line) => (
+      <li key={line} className="flex gap-2.5">
+        <svg viewBox="0 0 24 24" className={`mt-0.5 size-4 shrink-0 ${tick}`} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d={CHECK} />
+        </svg>
+        {line}
+      </li>
+    ))}
+  </ul>
+)
+
+// The first start: a pricing page whose two plans are the same app, one paid for with a star on
+// GitHub. Paying opens the repo and ends the asking. "Star later" turns into "Pinky promise?",
+// and clicking that closes it; the toast asks again in a week. Esc puts it off without the joke.
+export function PlanPrompt({ open, onAnswer }: { open: boolean; onAnswer: (value: string) => void }) {
+  const ref = useModal(open)
+  const [promised, setPromised] = useState(false)
+  const later = () => onAnswer(String(Date.now()))
+
+  return (
+    <dialog ref={ref} onClose={() => open && later()} className={SHELL.replace('w-[440px]', 'w-[700px]')}>
+      <div className="text-center">
+        <svg viewBox="0 0 24 24" aria-hidden className="mx-auto mb-3.5 size-9">
+          <rect x="2" y="2" width="9" height="9" rx="2.4" className="fill-fg" />
+          <rect x="13" y="2" width="9" height="9" rx="2.4" className="fill-accent" />
+          <rect x="2" y="13" width="9" height="9" rx="2.4" className="fill-fg" />
+          <rect x="13" y="13" width="9" height="9" rx="2.4" className="fill-fg" />
+        </svg>
+        <h2 className={TITLE}>Pick how you pay</h2>
+        <p className="mt-2 text-[14px] text-dim">Same app, same features. One of them makes our day.</p>
+      </div>
+
+      <div className="mt-7 grid grid-cols-2 gap-4">
+        <div className="flex flex-col rounded-xl border border-line p-6">
+          <span className="text-[11px] font-semibold tracking-[0.12em] text-dim uppercase">Free</span>
+          <span className="mt-2.5 flex items-baseline gap-1.5">
+            <span className="font-serif text-[44px] leading-none text-fg">0</span>
+            <span className="text-[13px] text-dim">nothing, ever</span>
+          </span>
+          <Features lines={FREE} tick="text-dim" />
+          <button
+            onClick={() => (promised ? later() : setPromised(true))}
+            className={`mt-6 h-11 w-full cursor-pointer rounded-lg border text-[14px] font-medium transition-colors ${
+              promised
+                ? 'border-accent bg-accent/5 text-accent hover:bg-accent/15'
+                : 'border-line text-fg hover:border-fg/30 hover:bg-fg/[0.05]'
+            }`}
+          >
+            {promised ? 'Pinky promise?' : 'Star later'}
+          </button>
+        </div>
+
+        <div className="relative flex flex-col rounded-xl bg-accent/5 p-6 ring-2 ring-accent">
+          <span className="absolute -top-3 right-5 rounded-full bg-fg px-2.5 py-1 text-[11px] font-semibold tracking-wide text-card">
+            Most loved
+          </span>
+          <span className="text-[11px] font-semibold tracking-[0.12em] text-accent uppercase">Starred</span>
+          <span className="mt-2.5 flex items-baseline gap-1.5">
+            <svg viewBox="0 0 24 24" className="size-6 self-center text-accent" fill="currentColor" aria-hidden>
+              <path d={STAR} />
+            </svg>
+            <span className="font-serif text-[44px] leading-none text-fg">1</span>
+            <span className="text-[13px] text-dim">star, once</span>
+          </span>
+          <Features lines={STARRED} tick="text-accent" />
+          <button
+            autoFocus
+            onClick={() => {
+              window.lompii.openExternal(REPO)
+              onAnswer('done')
+            }}
+            className={`${GO} mt-6 flex h-11 w-full cursor-pointer items-center justify-center gap-2 font-medium`}
+          >
+            <GitHubMark />
+            Pay with a star
+          </button>
+        </div>
+      </div>
+
+      <p className="mt-5 text-center text-[12px] text-dim">No card, no account. The star is given on GitHub, in your browser.</p>
     </dialog>
   )
 }

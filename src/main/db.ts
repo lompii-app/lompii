@@ -4,6 +4,8 @@ import { app } from 'electron'
 import Database from 'better-sqlite3'
 import { KEYLESS } from '@shared/api'
 
+// LOMPII_DATA=<folder> runs lompii on another library, such as a throwaway one to see the first start
+if (process.env.LOMPII_DATA) app.setPath('userData', process.env.LOMPII_DATA)
 export const DATA = app.getPath('userData')
 
 // lompii was called Tessera, and kept its library in a folder of that name. The first start
@@ -11,7 +13,7 @@ export const DATA = app.getPath('userData')
 // don't come along: they're sealed with a key that lives in the old folder, so they'd fail to
 // open here; they're cleared and asked for again.
 const OLD = join(app.getPath('appData'), 'tessera')
-if (!existsSync(join(DATA, 'lompii.db')) && existsSync(join(OLD, 'tessera.db'))) {
+if (!process.env.LOMPII_DATA && !existsSync(join(DATA, 'lompii.db')) && existsSync(join(OLD, 'tessera.db'))) {
   mkdirSync(DATA, { recursive: true })
   for (const dir of ['library', 'thumbs', 'models'])
     if (existsSync(join(OLD, dir))) cpSync(join(OLD, dir), join(DATA, dir), { recursive: true })
