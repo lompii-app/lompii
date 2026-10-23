@@ -164,13 +164,20 @@ export default function App() {
   // results for an older phrase would flash wrong matches while the new ones load
   const scores = visual?.phrase === phrase ? visual.scores : null
 
+  // the stacks each item is in, by name: searching a stack's name finds what's in it
+  const stackNames = useMemo(() => {
+    const names = new Map<number, string[]>()
+    for (const st of stacks) for (const id of st.items) names.set(id, [...(names.get(id) ?? []), st.name])
+    return names
+  }, [stacks])
+
   const visible = useMemo(() => {
     const words = [...terms, query].map((t) => t.trim().toLowerCase()).filter(Boolean)
     const hit = new Set<number>() // matched the words, not only the description
     const matches = source.filter((i) => {
       const tags = tagIndex.get(i.id)
       if (active && !active.test(i, tags)) return false
-      const fields = [i.title, i.body, i.note, i.tldr, i.visible_text, i.file_path, ...(tags ?? [])]
+      const fields = [i.title, i.body, i.note, i.tldr, i.visible_text, i.file_path, ...(tags ?? []), ...(stackNames.get(i.id) ?? [])]
       if (words.every((w) => fields.some((s) => s?.toLowerCase().includes(w)))) {
         hit.add(i.id)
         return true
@@ -189,7 +196,7 @@ export default function App() {
         (scores.get(b.id) ?? 0) - (scores.get(a.id) ?? 0) ||
         b.created_at - a.created_at
     )
-  }, [source, tagIndex, active, terms, query, vibe, scores])
+  }, [source, tagIndex, stackNames, active, terms, query, vibe, scores])
 
   // searching and filtering happen in Everything, or in the archive when that's open
   const toSearch = () => setView((v) => (v === 'archive' ? v : 'everything'))

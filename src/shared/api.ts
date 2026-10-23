@@ -124,8 +124,8 @@ export type UpdateStatus = {
 
 // How many of a folder import's new images are analysed straight away (Settings → AI
 // providers); the rest stay pending, for the "Analyse N saves" pill. Other saves always are.
-export type ImportAnalysis = 0 | 25 | 100 | 'all'
-export const IMPORT_ANALYSIS: ImportAnalysis[] = [0, 25, 100, 'all']
+export type ImportAnalysis = 5 | 25 | 100 | 'all'
+export const IMPORT_ANALYSIS: ImportAnalysis[] = [5, 25, 100, 'all'] // the slider's stops, in order
 
 // Add a folder: where it's got to. total is 0 while the folder is still being looked through.
 // Of the added: analysing were queued, waiting weren't (both 0 with no AI provider).

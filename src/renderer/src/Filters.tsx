@@ -10,7 +10,17 @@ export type Filter = {
   test: (item: Item, tags: Set<string> | undefined) => boolean
 }
 
-export const STACK_COLORS = ['#2fb36c', '#ff5a1f', '#e66aa0', '#1d2026', '#4a7fe0', '#9b6cf0', '#d9a21b']
+// each shows as a ring on both light and dark backgrounds (near-black used to vanish in dark mode)
+export const STACK_COLORS = ['#2fb36c', '#ff5a1f', '#e66aa0', '#14a3a3', '#4a7fe0', '#9b6cf0', '#d9a21b']
+export const STACK_COLOR_NAMES: Record<string, string> = {
+  '#2fb36c': 'Green',
+  '#ff5a1f': 'Orange',
+  '#e66aa0': 'Pink',
+  '#14a3a3': 'Teal',
+  '#4a7fe0': 'Blue',
+  '#9b6cf0': 'Purple',
+  '#d9a21b': 'Amber'
+}
 
 export const KINDS: Record<Kind, { label: string; plural: string; icon: Glyph }> = {
   image: { label: 'Image', plural: 'Images', icon: 'image' },

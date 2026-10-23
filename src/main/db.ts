@@ -133,7 +133,10 @@ const MIGRATIONS = [
    );`,
 
   // archive: kept, but out of Everything, Stacks and same vibe; only the archive's search finds it
-  `alter table items add column archived_at integer;`
+  `alter table items add column archived_at integer;`,
+
+  // the near-black stack colour vanished in dark mode; those stacks become teal
+  `update stacks set color = '#14a3a3' where lower(color) = '#1d2026';`
 ]
 
 export const db = new Database(join(DATA, 'lompii.db'))

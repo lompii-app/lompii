@@ -55,7 +55,7 @@ export function getSettings(): Settings {
     extensionConnected: !!s.extensionConnected,
     freeMemoryInTray: !!s.freeMemoryInTray,
     archiveLocked: !!s.archivePassword,
-    analyseImports: s.analyseImports ?? 25
+    analyseImports: analyseImports()
   }
 }
 
@@ -85,7 +85,11 @@ export function setFreeMemoryInTray(on: boolean): Settings {
   return getSettings()
 }
 
-export const analyseImports = (): ImportAnalysis => read().analyseImports ?? 25
+// 25 when unset, or when it's a value the slider no longer has (an earlier 'None' was 0)
+export const analyseImports = (): ImportAnalysis => {
+  const n = read().analyseImports
+  return n !== undefined && IMPORT_ANALYSIS.includes(n) ? n : 25
+}
 
 export function setAnalyseImports(n: ImportAnalysis): Settings {
   if (IMPORT_ANALYSIS.includes(n)) write({ ...read(), analyseImports: n })

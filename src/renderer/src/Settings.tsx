@@ -5,7 +5,7 @@ import ollama from './providers/ollama.svg?raw'
 import openai from './providers/openai.svg?raw'
 import openrouter from './providers/openrouter.svg?raw'
 import { PinTiles } from './Dialogs'
-import { REPO } from './Setup'
+import { GitHubMark, REPO } from './Setup'
 import {
   AI_PROVIDERS,
   IMPORT_ANALYSIS,
@@ -30,7 +30,7 @@ const INPUT =
 const BUTTON =
   'shrink-0 rounded-lg border border-line bg-control px-3.5 py-2 text-[13px] font-medium transition-colors outline-none hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-40'
 
-const SECTIONS = ['General', 'AI providers', 'Extension', 'About'] as const
+const SECTIONS = ['General', 'Import', 'AI providers', 'Extension', 'About'] as const
 export type Section = (typeof SECTIONS)[number]
 
 const CLOUD: AiProvider[] = ['anthropic', 'openai', 'gemini']
@@ -74,6 +74,8 @@ const I = {
   image: 'M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M15 9h.01',
   refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7',
   power: 'M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0',
+  folder: 'M12 10v6M9 13h6M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z',
+  alert: 'M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z',
   sliders: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4',
   info: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M12 11v5M12 8h.01',
   sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z',
@@ -275,48 +277,61 @@ function ActiveModel({ settings, onChange }: { settings: Settings; onChange: (s:
   )
 }
 
-// how many of a folder import's new images are analysed straight away; same menu as ActiveModel
-const LIMIT_TEXT: Record<string, [string, string]> = {
-  '0': ['None', 'All of them wait in Analyse'],
-  '25': ['First 25', 'The rest wait in Analyse'],
-  '100': ['First 100', 'The rest wait in Analyse'],
-  all: ['All', 'Every new image, however many']
-}
-
-function ImportLimit({ value, onChange }: { value: ImportAnalysis; onChange: (s: Settings) => void }) {
-  const menu = useRef<HTMLDivElement>(null)
-  const pick = async (n: ImportAnalysis) => {
-    menu.current?.hidePopover()
-    onChange(await window.lompii.setAnalyseImports(n))
-  }
+// How many of a folder import's new images are analysed straight away: a slider over the
+// IMPORT_ANALYSIS stops, with what that costs. Images past the limit wait in Analyse.
+function ImportLimit({ settings, onChange }: { settings: Settings; onChange: (s: Settings) => void }) {
+  const at = Math.max(0, IMPORT_ANALYSIS.indexOf(settings.analyseImports))
+  const n = IMPORT_ANALYSIS[at]
+  const active = settings.ai.active
+  // a paid provider bills each image; Ollama runs here, so it doesn't
+  const paid = !!active && active !== 'ollama'
+  const big = n === 100 || n === 'all'
   return (
-    <>
-      <button
-        popoverTarget="import-limit"
+    <div className="py-3.5 first:pt-0 last:pb-0">
+      <div className="flex items-baseline justify-between gap-6">
+        <div className={LABEL}>Analyse imported images automatically</div>
+        <span className="text-[13px] font-medium">{n === 'all' ? 'Every new image' : `First ${n} new images`}</span>
+      </div>
+      <p className={`${DESC} mt-0.5`}>
+        When you add a folder, this many of its new images get AI titles, summaries and tags straight away. The rest
+        are saved and searchable, and wait in Analyse until you choose to run them.
+      </p>
+      <input
+        type="range"
+        min={0}
+        max={IMPORT_ANALYSIS.length - 1}
+        step={1}
+        value={at}
+        onChange={async (e) => onChange(await window.lompii.setAnalyseImports(IMPORT_ANALYSIS[Number(e.target.value)]))}
         aria-label="Imported images analysed automatically"
-        className={`${BUTTON} flex min-w-56 items-center gap-3 text-left [anchor-name:--import-limit]`}
-      >
-        <span className="min-w-0 flex-1 truncate">{LIMIT_TEXT[String(value)][0]}</span>
-        <Icon d={I.chevron} className="size-4 text-dim" />
-      </button>
-      <div
-        ref={menu}
-        id="import-limit"
-        popover="auto"
-        className="m-0 mt-1.5 min-w-64 rounded-lg border border-line bg-raised p-1 text-fg shadow-lift [position-anchor:--import-limit] [position-area:bottom_span-left]"
-      >
-        {IMPORT_ANALYSIS.map((n) => (
-          <button
-            key={n}
-            onClick={() => pick(n)}
-            className={`flex w-full flex-col items-start rounded-md px-3 py-2 text-left hover:bg-well ${n === value ? 'bg-select' : ''}`}
-          >
-            <span className="text-[13px]">{LIMIT_TEXT[String(n)][0]}</span>
-            <span className="text-[11px] text-dim">{LIMIT_TEXT[String(n)][1]}</span>
-          </button>
+        aria-valuetext={n === 'all' ? 'All' : String(n)}
+        className="mt-4 w-full cursor-pointer accent-accent"
+      />
+      <div aria-hidden className="mt-1 flex justify-between px-0.5 text-[12px] text-dim">
+        {IMPORT_ANALYSIS.map((stop) => (
+          <span key={stop} className={stop === n ? 'font-medium text-fg' : ''}>
+            {stop === 'all' ? 'All' : stop}
+          </span>
         ))}
       </div>
-    </>
+      <div
+        role="note"
+        className={`mt-4 flex gap-2.5 rounded-lg px-3.5 py-3 text-[12px] leading-relaxed ${
+          paid && big ? 'bg-accent/10 text-fg ring-1 ring-accent/40' : 'bg-control text-fg/80'
+        }`}
+      >
+        <Icon d={I.alert} className={`mt-px size-4 ${paid && big ? 'text-accent' : 'text-dim'}`} />
+        <span>
+          {!active
+            ? 'No AI provider is set up yet, so nothing is analysed or charged. Once you add one, each analysed image is a request to it.'
+            : !paid
+              ? `${AI_PROVIDERS[active]} runs on this computer, so analysing costs nothing, only time.`
+              : n === 'all'
+                ? `Cost warning: every new image is a paid request to ${AI_PROVIDERS[active]}, billed to your API key. A folder of 2,000 new images means 2,000 requests at once.`
+                : `Each analysed image is a paid request to ${AI_PROVIDERS[active]}, billed to your API key. At this setting a folder import costs at most ${n} requests; the rest wait until you choose.`}
+        </span>
+      </div>
+    </div>
   )
 }
 
@@ -557,11 +572,18 @@ function ProviderCard({
 
 /* ---------- about ---------- */
 
-const LINKS: [string, string][] = [
-  ['GitHub', REPO],
-  ['Report a problem', `${REPO}/issues/new/choose`],
-  ['Licence (MIT)', `${REPO}/blob/main/LICENSE`],
-  ['Privacy policy', `${REPO}/blob/main/PRIVACY.md`]
+const LINKS: { label: string; desc: string; url: string; icon: string | null }[] = [
+  { label: 'GitHub', desc: "The code, releases and what's coming", url: REPO, icon: null },
+  { label: 'Report a problem', desc: 'Or suggest an idea', url: `${REPO}/issues/new/choose`, icon: 'M8 8a4 4 0 0 1 8 0v6a4 4 0 0 1-8 0zM4 12h4M16 12h4M5 6l3 2M19 6l-3 2M5 19l3-2M19 19l-3-2' },
+  { label: 'Licence', desc: 'MIT: free to use and change', url: `${REPO}/blob/main/LICENSE`, icon: 'M14 3H6v18h12V7zM14 3v4h4M9 13h6M9 17h6' },
+  { label: 'Privacy policy', desc: "What stays here, and what doesn't", url: `${REPO}/blob/main/PRIVACY.md`, icon: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z' }
+]
+
+const PROMISES: [string, string, string][] = [
+  ['M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4', 'Private by design', 'Your library and its search stay on this computer.'],
+  ['M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z', 'Free, with your own AI', 'Bring a key, or run a model locally.'],
+  ['M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14', 'Open source', 'Every line of it is on GitHub, under MIT.'],
+  ['M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10z', 'Independent', 'Made by one person, for people who collect.']
 ]
 
 const updateNote = (u: UpdateStatus | null): string => {
@@ -585,33 +607,101 @@ const updateNote = (u: UpdateStatus | null): string => {
 
 function About({ update }: { update: UpdateStatus | null }) {
   const busy = update?.state === 'checking' || update?.state === 'downloading'
+  const [copied, setCopied] = useState(false)
+  const share = () =>
+    navigator.clipboard.writeText(REPO).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    })
+
   return (
     <>
-      <Header title="About" desc="Your mind for what you find." />
-      <Panel>
-        <Row label={`Version ${update?.current ?? ''}`} desc={updateNote(update)}>
-          {update?.state === 'ready' ? (
-            <button key="install" onClick={() => window.lompii.installUpdate()} className="shrink-0 rounded-lg bg-accent px-3.5 py-2 text-[13px] font-medium text-white hover:opacity-85">
-              Restart to update
-            </button>
-          ) : (
-            <button key="check" onClick={() => window.lompii.checkForUpdates()} disabled={!update || update.state === 'dev' || busy} className={BUTTON}>
-              {update?.state === 'downloading' ? 'Downloading…' : busy ? 'Checking…' : 'Check for updates'}
-            </button>
-          )}
-        </Row>
+      {/* who it is: logo, name, line, version and updates */}
+      <Panel className="flex items-center gap-6 p-7">
+        <svg viewBox="0 0 24 24" aria-hidden className="size-20 shrink-0">
+          <rect x="2" y="2" width="9" height="9" rx="2.4" className="fill-fg" />
+          <rect x="13" y="2" width="9" height="9" rx="2.4" className="fill-accent" />
+          <rect x="2" y="13" width="9" height="9" rx="2.4" className="fill-fg" />
+          <rect x="13" y="13" width="9" height="9" rx="2.4" className="fill-fg" />
+        </svg>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-serif text-[40px] leading-none italic">lompii.</h3>
+          <p className="mt-2 font-serif text-[17px] text-fg/80 italic">Your mind for what you find.</p>
+          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="rounded-full bg-fg/[0.07] px-2.5 py-1 font-mono text-[12px]">Version {update?.current ?? ''}</span>
+            <span className="text-[12px] text-dim">{updateNote(update)}</span>
+          </div>
+        </div>
+        {update?.state === 'ready' ? (
+          <button key="install" onClick={() => window.lompii.installUpdate()} className="shrink-0 cursor-pointer rounded-lg bg-accent px-3.5 py-2 text-[13px] font-medium text-white hover:opacity-85">
+            Restart to update
+          </button>
+        ) : (
+          <button key="check" onClick={() => window.lompii.checkForUpdates()} disabled={!update || update.state === 'dev' || busy} className={`${BUTTON} cursor-pointer`}>
+            {update?.state === 'downloading' ? 'Downloading…' : busy ? 'Checking…' : 'Check for updates'}
+          </button>
+        )}
       </Panel>
-      <Panel className="mt-4 divide-y divide-line py-2">
-        {LINKS.map(([label, url]) => (
+
+      <p className="mt-5 text-[14px] leading-relaxed text-fg/80">
+        lompii is a private library for everything that inspires you: images, screenshots, quotes and the odd
+        line you can't forget. Save from anywhere, and find it again by describing what you remember, even
+        months later, even if you never named it.
+      </p>
+
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        {PROMISES.map(([icon, title, desc]) => (
+          <div key={title} className="flex gap-3 rounded-xl border border-line bg-well p-4">
+            <Icon d={icon} className="mt-0.5 size-[18px] text-accent" />
+            <div>
+              <div className="text-[13px] font-medium">{title}</div>
+              <div className="mt-0.5 text-[12px] leading-relaxed text-dim">{desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* the maker, and passing it on */}
+      <Panel className="mt-4 flex flex-wrap items-center gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="font-serif text-[19px] italic">Made by Midhun</div>
+          <p className="mt-1 text-[12px] leading-relaxed text-dim">
+            If lompii helps you, a star on GitHub or a friend you tell about it keeps it going.
+          </p>
+        </div>
+        <button onClick={share} className={`${BUTTON} cursor-pointer`}>
+          {copied ? 'Link copied' : 'Copy link to share'}
+        </button>
+        <button
+          onClick={() => window.lompii.openExternal(REPO)}
+          className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg bg-accent px-3.5 py-2 text-[13px] font-medium text-white transition-opacity hover:opacity-85"
+        >
+          <GitHubMark /> Star on GitHub
+        </button>
+      </Panel>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        {LINKS.map((l) => (
           <button
-            key={url}
-            onClick={() => window.lompii.openExternal(url)}
-            className="flex w-full items-center justify-between py-3 text-left text-[13px] text-fg/80 transition-colors hover:text-fg"
+            key={l.url}
+            onClick={() => window.lompii.openExternal(l.url)}
+            className="group flex cursor-pointer items-center gap-3 rounded-xl border border-line bg-well p-4 text-left transition-colors hover:border-fg/25 hover:bg-raised"
           >
-            {label} <Icon d={I.external} className="size-3.5 text-dim" />
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-control text-fg/80">
+              {l.icon ? <Icon d={l.icon} className="size-[18px]" /> : <GitHubMark className="size-[18px]" />}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13px] font-medium">{l.label}</span>
+              <span className="block truncate text-[12px] text-dim">{l.desc}</span>
+            </span>
+            <Icon d={I.external} className="size-3.5 text-dim transition-colors group-hover:text-fg" />
           </button>
         ))}
-      </Panel>
+      </div>
+
+      <p className="mt-6 text-center text-[11px] leading-relaxed text-faint">
+        © 2026 Midhun · MIT licence · Search runs CLIP and MiniLM through Transformers.js · Provider logos from Lobe Icons
+      </p>
     </>
   )
 }
@@ -693,7 +783,7 @@ export default function SettingsDialog({
   }
 
   const visionDone = !!vision && vision.state !== 'failed' && vision.done >= vision.total
-  const nav: Record<Section, string> = { General: I.sliders, 'AI providers': I.sparkle, Extension: I.puzzle, About: I.info }
+  const nav: Record<Section, string> = { General: I.sliders, Import: I.folder, 'AI providers': I.sparkle, Extension: I.puzzle, About: I.info }
 
   const body: Record<Section, React.ReactNode> = {
     General: (
@@ -722,14 +812,6 @@ export default function SettingsDialog({
             />
           </Row>
           <ArchiveLock locked={!!settings?.archiveLocked} onChange={onChange} />
-          <Row
-            label="Import a folder"
-            desc={imported ? importNote(imported) : 'Add every image in a folder and its subfolders. Ones already in your library are skipped.'}
-          >
-            <button onClick={onImport} disabled={!!imported && !imported.finished} className={`${BUTTON} w-32`}>
-              Choose folder
-            </button>
-          </Row>
           <Row label="Tags" desc="Rename, merge or delete tags everywhere.">
             <button onClick={onManageTags} className={`${BUTTON} w-32`}>
               Manage tags
@@ -764,18 +846,31 @@ export default function SettingsDialog({
       </>
     ),
 
+    Import: settings && (
+      <>
+        <Header title="Import" desc="Bring in the images you already have." />
+        <Panel>
+          <Row
+            label="Add a folder"
+            desc={imported ? importNote(imported) : 'Every image in a folder and its subfolders. Ones already in your library are skipped.'}
+          >
+            <button onClick={onImport} disabled={!!imported && !imported.finished} className={`${BUTTON} w-32`}>
+              Choose folder
+            </button>
+          </Row>
+        </Panel>
+        <Panel className="mt-4">
+          <ImportLimit settings={settings} onChange={onChange} />
+        </Panel>
+      </>
+    ),
+
     'AI providers': settings && (
       <>
         <Header title="AI providers" desc="Pick the model that titles, summarises and tags what you save, and connect the providers you want available." />
         <Panel className="divide-y divide-line">
           <Row label="Active model" desc="Used for everything you save from now on.">
             <ActiveModel settings={settings} onChange={onChange} />
-          </Row>
-          <Row
-            label="Analyse imported images automatically"
-            desc="When you add a folder, how many of its new images are analysed straight away. The rest wait in Analyse, so a big folder doesn't run up your bill."
-          >
-            <ImportLimit value={settings.analyseImports} onChange={onChange} />
           </Row>
           {settings.ai.active && (
             <Row label="Your library" desc={status || (unanalysed ? `${unanalysed} saves have no title or tags yet.` : 'Everything has been analysed.')}>

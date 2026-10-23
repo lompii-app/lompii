@@ -50,7 +50,7 @@ test('a folder import analyses only its first new items, across batches', () => 
   assert.deepEqual(toAnalyse([21, 22, 23, 24], 20, 25), [21, 22, 23, 24])
   assert.deepEqual(toAnalyse([25, 26, 27, 28], 24, 25), [25])
   assert.deepEqual(toAnalyse([29, 30], 25, 25), [])
-  assert.deepEqual(toAnalyse([1, 2], 0, 0), [])
+  assert.deepEqual(toAnalyse([1, 2, 3, 4, 5, 6, 7], 0, 5), [1, 2, 3, 4, 5])
   assert.deepEqual(toAnalyse([1, 2], 1000, 'all'), [1, 2])
   assert.deepEqual(toAnalyse([1, 2, 3], 98, 100), [1, 2])
 })

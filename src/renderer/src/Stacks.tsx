@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { isText, quoteParts, type Item, type Stack } from '@shared/api'
 import { Confirm } from './Dialogs'
-import { STACK_COLORS } from './Filters'
+import { STACK_COLOR_NAMES, STACK_COLORS } from './Filters'
 import { url } from './useItems'
 
 // Back to front. Each layer spans the stack box; its card is centred inside, so rotating the
@@ -212,10 +212,10 @@ function StackDialog({
               type="button"
               role="radio"
               aria-checked={c === color}
-              aria-label={c}
+              aria-label={STACK_COLOR_NAMES[c]}
               onClick={() => setColor(c)}
               className={`size-7 rounded-full border-[3px] transition-transform hover:scale-110 ${
-                c === color ? 'ring-2 ring-fg/20 ring-offset-2' : ''
+                c === color ? 'ring-2 ring-fg/25 ring-offset-2 ring-offset-card' : ''
               }`}
               style={{ borderColor: c, background: c === color ? c : 'transparent' }}
             />
