@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import chromeLogo from './browsers/chrome.svg?raw'
+import firefoxLogo from './browsers/firefox.svg?raw'
 import claude from './providers/claude-color.svg?raw'
 import gemini from './providers/gemini-color.svg?raw'
 import ollama from './providers/ollama.svg?raw'
@@ -29,6 +31,11 @@ const INPUT =
   'min-w-0 rounded-lg border border-line bg-control px-3 py-2 font-mono text-[13px] placeholder:text-faint focus:outline-2 focus:-outline-offset-1 focus:outline-accent'
 const BUTTON =
   'shrink-0 rounded-lg border border-line bg-control px-3.5 py-2 text-[13px] font-medium transition-colors outline-none hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-40'
+
+// Mozilla serves unlisted add-ons only to their developer, so the signed file rides along on the
+// GitHub release. ponytail: every release needs it attached under this name or this link breaks;
+// once lompii is listed on addons.mozilla.org, point this at its page there instead
+const FIREFOX_XPI = 'https://github.com/lompii-app/lompii/releases/latest/download/lompii-firefox.xpi'
 
 const SECTIONS = ['General', 'Import', 'AI providers', 'Extension', 'About'] as const
 export type Section = (typeof SECTIONS)[number]
@@ -120,6 +127,27 @@ const Row = ({ label, desc, children }: { label: string; desc?: React.ReactNode;
     {children}
   </div>
 )
+
+// one numbered install step: what to do, a line of detail, and its button on the end side
+const Step = ({ n, last, title, desc, children }: { n: number; last?: boolean; title: React.ReactNode; desc?: React.ReactNode; children?: React.ReactNode }) => (
+  <li className="flex items-center gap-3.5 border-b border-line py-3 last:border-0">
+    {/* the last step, connecting, is the one that matters: it takes the accent */}
+    <span className={`grid size-6 shrink-0 place-items-center rounded-full text-[12px] font-semibold ${last ? 'bg-accent text-[#1d2026]' : 'bg-fg text-raised'}`}>{n}</span>
+    <div className="min-w-0 flex-1">
+      <div className="text-[13px] font-medium">{title}</div>
+      {desc && <div className={`${DESC} mt-0.5`}>{desc}</div>}
+    </div>
+    {children}
+  </li>
+)
+
+// what the extension can do, for the Extension section
+const WAYS: [title: string, desc: string, keys?: string[]][] = [
+  ['Right-click an image or text', 'Choose Add to lompii. Works on links that hide a picture too.'],
+  ['Capture an area', 'Drag over any part of the page.', ['Alt', 'Shift', 'S']],
+  ['The toolbar button', 'Visible area, full page, or a delayed capture for menus.'],
+  ['Tag as you save', 'Type tags into the Saved to lompii card before it fades.']
+]
 
 // Set, change or remove the archive's 6-digit PIN; changing or removing it asks for the current one.
 function ArchiveLock({ locked, onChange }: { locked: boolean; onChange: (s: Settings) => void }) {
@@ -737,17 +765,19 @@ export default function SettingsDialog({
   const [vision, setVision] = useState<EmbeddingStatus | null>(null)
   const [backupNote, setBackupNote] = useState('')
   const [extDir, setExtDir] = useState('')
-  const [copiedAddress, setCopiedAddress] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
+  const [browser, setBrowser] = useState<'chrome' | 'firefox'>('chrome')
 
   useEffect(() => {
     window.lompii.extensionFolder().then(setExtDir)
   }, [])
 
-  // Chrome won't let other apps open its chrome:// pages, so the address is copied instead
-  const copyAddress = () =>
-    navigator.clipboard.writeText('chrome://extensions').then(() => {
-      setCopiedAddress(true)
-      setTimeout(() => setCopiedAddress(false), 1500)
+  // Chrome won't let other apps open its chrome:// pages, and opening the Firefox link would use
+  // whichever browser is the default, so both are copied for pasting instead
+  const copy = (text: string) =>
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(text)
+      setTimeout(() => setCopied(null), 1500)
     })
 
   // indexing progress, refreshed while the dialog is open
@@ -918,69 +948,30 @@ export default function SettingsDialog({
 
     Extension: (
       <>
-        <Header title="Browser extension" desc="Save images, text and pages from any site with the lompii extension." />
-        <Panel className="mb-5">
-          <div className={LABEL}>Install it in Chrome</div>
-          <ol className="mt-3 list-decimal space-y-3 pl-5 text-[13px] leading-relaxed marker:text-dim">
-            <li>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                <span>
-                  In Chrome, go to <code className="font-mono text-[12px]">chrome://extensions</code>
-                </span>
-                <button onClick={copyAddress} className={`${BUTTON} py-1 text-[12px]`}>
-                  {copiedAddress ? 'Copied' : 'Copy address'}
-                </button>
-              </div>
-              <p className={DESC}>Paste it into the address bar. In Edge use edge://extensions, in Brave brave://extensions.</p>
-            </li>
-            <li>
-              Turn on <b className="font-medium">Developer mode</b>, the switch at the top right.
-            </li>
-            <li>
-              <span>
-                Click <b className="font-medium">Load unpacked</b> and choose this folder:
-              </span>
-              <div className="mt-1.5 flex items-center gap-2">
-                <code className={`${INPUT} flex-1 truncate py-1.5 text-[12px] select-all`} title={extDir}>
-                  {extDir || '…'}
-                </code>
-                <button onClick={() => window.lompii.showExtensionFolder()} className={`${BUTTON} py-1.5 text-[12px]`}>
-                  Show folder
-                </button>
-              </div>
-            </li>
-            <li>
-              Pin lompii from the puzzle-piece menu in the toolbar, then connect it below.
-            </li>
-          </ol>
-          <p className={`${DESC} mt-4`}>
-            After lompii updates, click the reload arrow on the extension's card in chrome://extensions.
-          </p>
-        </Panel>
-        <Panel className="divide-y divide-line">
-          <Row
-            label="Connect a browser"
-            desc="Open the extension's options and click Connect. lompii asks you to allow it: check the code matches the one the extension shows, then click Allow."
-          >
-            {/* the dot carries the state; the words stay in the text colour so both themes read */}
-            <span className="flex shrink-0 items-center gap-2 rounded-full bg-fg/[0.06] px-3 py-1 text-[12px] font-medium">
-              <span className={`size-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-faint'}`} />
-              {connected ? 'Connected' : 'Not connected'}
-            </span>
-          </Row>
-          <Row
-            label="Disconnect all"
-            desc={
-              disconnect === 'done'
-                ? 'Disconnected. Browsers stop saving until you connect them again.'
+        <Header title="Browser extension" desc="Save images, text and pages from any site." />
+        <div className="flex items-center gap-4 rounded-xl border border-line bg-raised px-5 py-4.5">
+          {/* the lompii mark, with the connection on its corner */}
+          <div aria-hidden className="relative grid size-10 shrink-0 grid-cols-2 gap-[3px]">
+            <span className="rounded bg-fg" />
+            <span className="rounded bg-accent" />
+            <span className="rounded bg-fg" />
+            <span className="rounded bg-fg" />
+            <span className={`absolute -right-1 -bottom-1 size-3.5 rounded-full border-[3px] border-raised ${connected ? 'bg-emerald-500' : 'bg-faint'}`} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[15px] font-semibold">{connected ? 'Connected' : disconnect === 'done' ? 'Disconnected' : 'Not connected'}</div>
+            <div className={`${DESC} mt-0.5`}>
+              {disconnect === 'done'
+                ? 'Browsers stop saving until you connect them again.'
                 : !connected
-                  ? 'No browser is connected.'
+                  ? 'Install the extension below, then click Connect in its options.'
                   : disconnect === 'ask'
                     ? 'Every connected browser stops saving until you connect it again.'
-                    : 'Stop every connected browser from saving to lompii.'
-            }
-          >
-            {disconnect === 'ask' && connected ? (
+                    : 'Your browsers can save to lompii, even while the window is closed.'}
+            </div>
+          </div>
+          {connected &&
+            (disconnect === 'ask' ? (
               <div className="flex gap-2">
                 <button onClick={() => setDisconnect(null)} className={BUTTON}>
                   Cancel
@@ -990,13 +981,116 @@ export default function SettingsDialog({
                 </button>
               </div>
             ) : (
-              // nothing to disconnect: off, so a second click can't look like it did nothing
-              <button onClick={() => setDisconnect('ask')} disabled={!connected} className={`${BUTTON} w-32`}>
-                {disconnect === 'done' ? 'Disconnected' : 'Disconnect all'}
+              <button onClick={() => setDisconnect('ask')} className={BUTTON}>
+                Disconnect all
               </button>
-            )}
-          </Row>
-        </Panel>
+            ))}
+        </div>
+
+        <h4 className={`${LABEL} mt-6 mb-2.5`}>Ways to save</h4>
+        <div className="grid grid-cols-2 gap-2.5">
+          {WAYS.map(([title, desc, keys]) => (
+            <div key={title} className="rounded-xl border border-line bg-well px-4 py-3.5">
+              <div className="flex items-center gap-2 text-[13px] font-medium">
+                {title}
+                {keys && (
+                  <span className="ml-auto flex gap-1">
+                    {keys.map((k) => (
+                      <kbd key={k} className="rounded-[5px] border border-line bg-control px-1.5 py-px font-mono text-[11px]">
+                        {k}
+                      </kbd>
+                    ))}
+                  </span>
+                )}
+              </div>
+              <div className={`${DESC} mt-0.5`}>{desc}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 mb-3 flex items-baseline justify-between gap-4">
+          <h4 className="text-[15px] font-semibold">Add a browser</h4>
+          <span className="text-[12px] text-dim">{browser === 'chrome' ? 'Also Edge, Brave, Opera, Vivaldi and Arc' : 'Also Zen, LibreWolf and Floorp'}</span>
+        </div>
+        <div role="tablist" className="grid grid-cols-2 gap-1 rounded-xl border border-line bg-well p-1">
+          {(
+            [
+              ['chrome', 'Chrome and similar', chromeLogo],
+              ['firefox', 'Firefox and similar', firefoxLogo]
+            ] as const
+          ).map(([id, label, logo]) => (
+            <button
+              key={id}
+              role="tab"
+              aria-selected={browser === id}
+              onClick={() => setBrowser(id)}
+              className={`flex items-center justify-center gap-2 rounded-lg py-2 text-[13px] font-medium transition-colors ${
+                browser === id ? 'bg-raised text-fg shadow-sm' : 'text-dim hover:text-fg'
+              }`}
+            >
+              <span aria-hidden className="size-4 [&>svg]:size-full" dangerouslySetInnerHTML={{ __html: logo }} /> {label}
+            </button>
+          ))}
+        </div>
+        <ol className="mt-3 rounded-xl border border-line bg-well px-5 py-1.5">
+          {browser === 'chrome' ? (
+            <>
+              <Step
+                n={1}
+                title={
+                  <>
+                    Open <code className="rounded-[5px] bg-control px-1.5 py-0.5 font-mono text-[12px]">chrome://extensions</code>
+                  </>
+                }
+                desc="Edge: edge://extensions · Brave: brave://extensions · Opera: opera://extensions"
+              >
+                <button onClick={() => copy('chrome://extensions')} className={`${BUTTON} py-1.5 text-[12px]`}>
+                  {copied === 'chrome://extensions' ? 'Copied' : 'Copy address'}
+                </button>
+              </Step>
+              <Step n={2} title="Turn on Developer mode" desc="The switch at the top right of that page." />
+              <Step
+                n={3}
+                title="Click Load unpacked and choose this folder"
+                desc={
+                  <span className="block truncate font-mono text-[11px] select-all" title={extDir}>
+                    {extDir || '…'}
+                  </span>
+                }
+              >
+                <button onClick={() => window.lompii.showExtensionFolder()} className={`${BUTTON} py-1.5 text-[12px]`}>
+                  Show folder
+                </button>
+              </Step>
+              <Step
+                n={4}
+                last
+                title="Pin it and connect"
+                desc="Pin lompii from the puzzle-piece menu, open its options and click Connect. Check the code matches, then click Allow here."
+              />
+            </>
+          ) : (
+            <>
+              <Step n={1} title="Copy the install link" desc="Paste it into Firefox's address bar. It's signed by Mozilla.">
+                <button onClick={() => copy(FIREFOX_XPI)} className="shrink-0 rounded-lg bg-fg px-3.5 py-1.5 text-[12px] font-medium text-raised hover:opacity-85">
+                  {copied === FIREFOX_XPI ? 'Copied' : 'Copy link'}
+                </button>
+              </Step>
+              <Step n={2} title="Open the download and click Add" desc="It's under the downloads arrow in Firefox's toolbar." />
+              <Step
+                n={3}
+                last
+                title="Connect it"
+                desc="Open lompii's options in Firefox and click Connect. Check the code matches, then click Allow here."
+              />
+            </>
+          )}
+        </ol>
+        <p className={`${DESC} mt-3`}>
+          {browser === 'chrome'
+            ? "After lompii updates, click the reload arrow on lompii's card in the extensions page."
+            : 'To update it, install it again from the same link.'}
+        </p>
       </>
     ),
 
