@@ -6,7 +6,7 @@
 
 web
 
-(An Electron desktop app, Windows first, with a Chrome extension. Its design language is web, not native iOS or Android.)
+(An Electron desktop app, Windows first, with a browser extension for Chrome and Firefox. Its design language is web, not native iOS or Android.)
 
 ## Users
 
@@ -25,7 +25,7 @@ A personal visual memory. Save anything; lompii understands it; find it when you
 
 ## Operating Context
 
-- Saving happens mostly from the browser via the Chrome extension: right-click an image or selected text, or capture a visible area, full page or selected area (Alt+Shift+S). Drag-and-drop and paste also work.
+- Saving happens mostly from the browser via the browser extension: right-click an image or selected text, or capture a visible area, full page or selected area (Alt+Shift+S). Drag-and-drop and paste also work.
 - lompii runs in the tray so the extension can always save; the home is opened to browse, search, and pull references into work.
 - Used alongside design tools and the browser, at desk scale, often in short visits: open, find, copy or open the source, leave.
 

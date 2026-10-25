@@ -1,9 +1,9 @@
 # lompii privacy policy
 
-**Effective date:** 24 October 2026
+**Effective date:** 25 October 2026
 
-lompii is a Windows desktop app and a companion Chrome extension for saving and finding visual
-references. This policy covers both. The short version: your library stays on your computer.
+lompii is a Windows desktop app and a companion browser extension (for Chrome, Firefox and the
+browsers built on them) for saving and finding visual references. This policy covers both. The short version: your library stays on your computer.
 There is no lompii account, no lompii server, no analytics, and nothing is sold.
 
 ## What lompii stores, and where
@@ -28,7 +28,7 @@ Everything the app keeps is in one folder on your computer, `%APPDATA%\lompii\`:
 - Uninstalling lompii leaves this folder in place. Delete `%APPDATA%\lompii\` to remove your
   library for good.
 
-The Chrome extension stores one thing in the browser (`chrome.storage.local`): the key lompii
+The browser extension stores one thing in the browser (`storage.local`): the key lompii
 gives it when you approve the connection. It keeps no record of what you save or browse.
 
 ## What never leaves your computer
@@ -64,9 +64,10 @@ lompii makes these connections, and no others:
 4. **Links you open.** Opening an item's source page, an AI provider's key page, or lompii's
    GitHub page opens it in your default browser, which then works as it always does.
 
-## The Chrome extension
+## The browser extension
 
-The extension asks for these permissions:
+The same extension runs in Chrome, Firefox and the browsers built on them, and works the same way
+in each. It asks for these permissions:
 
 | Permission | Why |
 | --- | --- |
@@ -75,7 +76,7 @@ The extension asks for these permissions:
 | `scripting` | To show the area picker and the "Saved to lompii" note on the page, and to read your selection. |
 | `contextMenus` | The *Add to lompii* and capture items in the right-click menu. |
 | `storage` | To keep the key from connecting to the app. |
-| `offscreen` | A hidden page that tells the extension whether Chrome is in dark mode, to pick the right toolbar icon. |
+| `offscreen` | Chrome and browsers built on it only: a hidden page that tells the extension whether the browser is in dark mode, to pick the right toolbar icon. Firefox doesn't use it. |
 
 The extension acts only when you use it: a right-click menu item, the toolbar popup or the
 `Alt+Shift+S` shortcut. Then it sends what you chose to save (the image, capture or text, the
@@ -88,7 +89,9 @@ The app only accepts the extension after you approve it in lompii by matching a 
 Web pages can't connect to it.
 
 Data the extension handles is used only to save what you asked to save. It isn't sold, shared
-with third parties, used for advertising, or used to decide creditworthiness or lending.
+with third parties, used for advertising, or used to decide creditworthiness or lending. In
+Firefox, the extension declares to Mozilla that it collects no data, since nothing it handles
+leaves your computer.
 
 ## What lompii doesn't do
 
@@ -100,8 +103,8 @@ with third parties, used for advertising, or used to decide creditworthiness or 
 ## Changes
 
 If this policy changes, the new version will be published in this file, with a new effective date.
-Its history is in the [repository](https://github.com/Brosski224/lompii/commits/main/PRIVACY.md).
+Its history is in the [repository](https://github.com/lompii-app/lompii/commits/main/PRIVACY.md).
 
 ## Contact
 
-Questions or concerns: open an issue at <https://github.com/Brosski224/lompii/issues>.
+Questions or concerns: open an issue at <https://github.com/lompii-app/lompii/issues>.

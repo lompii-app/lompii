@@ -2,7 +2,7 @@
 
 ## Product
 
-lompii is a personal visual memory: a desktop app and a Chrome extension for saving the things that inspire you, and finding them again by describing what you remember.
+lompii is a personal visual memory: a desktop app and a browser extension for saving the things that inspire you, and finding them again by describing what you remember.
 
 It is for creative people broadly: designers, illustrators, photographers, writers, anyone who collects inspiration.
 
@@ -60,7 +60,7 @@ The product succeeds when something saved today is found months later.
 
 Saving is deliberate and happens mostly from the browser. (An early version watched the Screenshots folder; it was removed because most screenshots are taken for something else and flooded the library.)
 
-- **Chrome extension:** right-click an image or selected text → *Add to lompii*; or capture the visible area, the full page, a selected area (`Alt+Shift+S`), the visible area after a 3-second delay, or the selected text, from the toolbar popup. A toast on the page offers *Add tags*.
+- **Browser extension** (Chrome, Firefox and browsers built on them): right-click an image or selected text → *Add to lompii*; or capture the visible area, the full page, a selected area (`Alt+Shift+S`), the visible area after a 3-second delay, or the selected text, from the toolbar popup. A toast on the page offers *Add tags*.
 - **In the app:** drag and drop image files, or paste an image.
 - Everything from the web keeps its source URL and page title.
 - lompii runs in the tray so the extension can always save.

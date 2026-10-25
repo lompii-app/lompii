@@ -627,7 +627,7 @@ export default function App() {
                   ? 'Try another word, or clear the search and filter.'
                   : steps.length
                     ? 'Two steps and it starts filling itself. You can also drop or paste an image here any time.'
-                    : 'In Chrome, right-click an image or selected text and choose “Add to lompii”, or press Alt+Shift+S to capture part of a page. You can also drop or paste an image here.'}
+                    : 'In your browser, right-click an image or selected text and choose “Add to lompii”, or press Alt+Shift+S to capture part of a page. You can also drop or paste an image here.'}
               </p>
               {!items.length && (
                 <SetupCards steps={steps} onOpen={openSettings} onImport={importFolder} importing={importing} />

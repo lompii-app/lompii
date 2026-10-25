@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in lompii or its Chrome extension doesn't work as it should.
+description: Something in lompii or its browser extension doesn't work as it should.
 labels: [bug]
 body:
   - type: textarea
@@ -42,7 +42,7 @@ body:
   - type: dropdown
     id: extension
     attributes:
-      label: Is the Chrome extension involved?
+      label: Is the browser extension involved?
       options:
         - "No, it's in the app"
         - "Yes"

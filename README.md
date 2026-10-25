@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Brosski224/lompii/releases/latest">Download for Windows</a>
+  <a href="https://github.com/lompii-app/lompii/releases/latest">Download for Windows</a>
   &nbsp;·&nbsp;
   <a href="#features">Features</a>
   &nbsp;·&nbsp;
@@ -31,7 +31,7 @@ it went into. With lompii you don't need to. Type what you remember, *"grainy po
 shadow"*, and it comes back.
 
 lompii is a desktop app for designers, illustrators, photographers, writers and anyone else who
-collects references, with a companion Chrome extension for saving from the web.
+collects references, with a companion browser extension for saving from the web.
 
 - **Save from anywhere.** One right-click saves an image, a piece of text or a capture of the page.
 - **Find it by description.** Local models match what things *look like* and what they *mean*,
@@ -43,7 +43,8 @@ collects references, with a companion Chrome extension for saving from the web.
 
 ### Capture
 
-- **Chrome extension.** Right-click an image or selected text and choose *Add to lompii*. From
+- **Browser extension** for Chrome, Firefox and the browsers built on them. Right-click an
+  image or selected text and choose *Add to lompii*. From
   the toolbar, capture the visible area, the full page, a selected area, or the view after a
   3-second delay for hover menus. `Alt+Shift+S` goes straight to area selection.
 - **Drag and drop** image files onto the window, or **paste** one with `Ctrl+V`.
@@ -95,19 +96,29 @@ collects references, with a companion Chrome extension for saving from the web.
 
 ### 1. Install the app
 
-Download the **lompii Setup** installer (`.exe`) from the [latest release](https://github.com/Brosski224/lompii/releases/latest)
+Download the **lompii Setup** installer (`.exe`) from the [latest release](https://github.com/lompii-app/lompii/releases/latest)
 and run it. The installer isn't code-signed yet, so Windows SmartScreen may warn you the first
 time: choose **More info → Run anyway**.
 
 ### 2. Connect your browser
 
-The extension comes with the app and needs no build step.
+The extension works in Chrome and Firefox, and in the browsers built on them. **Settings →
+Extension** walks you through it.
+
+**Chrome, Edge, Brave, Opera, Vivaldi or Arc.** The extension comes with the app.
 
 1. In lompii, open **Settings → Extension** and click **Show folder**.
-2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and
-   choose that folder.
-3. On the page that opens, click **Connect**. lompii comes forward showing a four-digit code;
-   if it matches the one in the browser, click **Allow**.
+2. Open `chrome://extensions` (or `edge://extensions`, `brave://extensions`…), turn on
+   **Developer mode**, click **Load unpacked** and choose that folder.
+
+**Firefox, Zen, LibreWolf or Floorp.** The extension is signed by Mozilla.
+
+1. Open the [install link](https://github.com/lompii-app/lompii/releases/latest/download/lompii-firefox.xpi)
+   in your browser.
+2. Open the download and click **Add**.
+
+Then, in either kind of browser, click **Connect** on the page that opens. lompii comes forward
+showing a four-digit code; if it matches the one in the browser, click **Allow**.
 
 That's it. Right-click any image and choose **Add to lompii**.
 
@@ -119,7 +130,8 @@ That's it. Right-click any image and choose **Add to lompii**.
 | Toolbar popup | the visible area, full page, a selected area, a delayed capture, or selected text |
 | `Alt+Shift+S` | a selected area (`Enter` takes the whole view, `Esc` cancels) |
 
-You can change the shortcut at `chrome://extensions/shortcuts`.
+You can change the shortcut at `chrome://extensions/shortcuts`, or in Firefox from `about:addons`
+→ ⚙️ → **Manage Extension Shortcuts**.
 
 ### 3. Add an AI provider (optional)
 
@@ -183,7 +195,7 @@ The full policy is in [PRIVACY.md](PRIVACY.md).
 You'll need **Node.js 22** or newer and **Windows**.
 
 ```bash
-git clone https://github.com/Brosski224/lompii.git
+git clone https://github.com/lompii-app/lompii.git
 cd lompii
 npm install      # also builds the native modules for Electron
 npm run dev      # runs the app, reloading as you edit
@@ -198,12 +210,13 @@ npm run dev      # runs the app, reloading as you edit
 | `npm run dist` | Build the Windows installer into `release/` |
 
 After changing anything in `extension/`, click the reload icon on lompii's card in
-`chrome://extensions`.
+`chrome://extensions`. To try it in Firefox, use **Load Temporary Add-on…** in
+`about:debugging#/runtime/this-firefox`; a permanent install needs Mozilla to sign it.
 
 ### How it fits together
 
 ```
-Chrome extension ── HTTP, 127.0.0.1 ──┐
+Browser extension ─ HTTP, 127.0.0.1 ──┐
                                       ▼
 ┌──────────── Electron main process ────────────┐
 │ server.ts  local API for the extension        │
@@ -224,13 +237,13 @@ Chrome extension ── HTTP, 127.0.0.1 ──┐
 | `src/preload/` | the typed bridge between the main process and the window |
 | `src/renderer/` | the React app |
 | `src/shared/` | types and helpers both sides use |
-| `extension/` | the Chrome extension (Manifest V3, plain JavaScript) |
+| `extension/` | the browser extension for Chrome and Firefox (Manifest V3, plain JavaScript) |
 | `test/` | tests for parsing, scoring and the PIN |
 
 ### Contributing
 
 Issues and pull requests are welcome:
-[Report a problem / suggest an idea](https://github.com/Brosski224/lompii/issues/new/choose).
+[Report a problem / suggest an idea](https://github.com/lompii-app/lompii/issues/new/choose).
 A git hook runs the typecheck and tests before every push (`npm install` turns it on), so fix
 what it reports rather than skipping it.
 

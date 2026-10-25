@@ -10,7 +10,7 @@ const STEPS: Record<'extension' | 'ai', Step> = {
   extension: {
     section: 'Extension',
     title: 'Connect your browser',
-    desc: 'Save images, text and whole pages from Chrome with one right-click.',
+    desc: 'Save images, text and whole pages from your browser with one right-click.',
     action: 'Set it up',
     icon: 'M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z'
   },
@@ -79,7 +79,7 @@ export function SetupCards({
   )
 }
 
-export const REPO = 'https://github.com/Brosski224/lompii'
+export const REPO = 'https://github.com/lompii-app/lompii'
 
 // GitHub's mark (Octicons, MIT), on the buttons that open lompii's GitHub page
 export const GitHubMark = ({ className = 'size-4' }: { className?: string }) => (
