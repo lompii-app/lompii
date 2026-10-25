@@ -1,7 +1,7 @@
 import { extname, join, resolve, sep } from 'node:path'
 import { copyFileSync, cpSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-import { app, BrowserWindow, clipboard, ClipboardItem, dialog, ipcMain, net, protocol, shell, type NativeImage } from 'electron'
+import { app, BrowserWindow, clipboard, ClipboardItem, dialog, globalShortcut, ipcMain, net, protocol, shell, type NativeImage } from 'electron'
 import sharp from 'sharp'
 import { isHttpUrl, isText, type ImportAnalysis, type ImportProgress, type Item, type PairRequest, type Stack, type WindowAction, type AiProvider } from '@shared/api'
 import { addTags, DATA, db, deleteTag, removeTag, renameTag, tagCounts } from './db'
@@ -639,6 +639,9 @@ else {
     void indexImages() // backfill same-vibe vectors; downloads the model on first run
     void indexText() // and the text-meaning vectors (another small model, ~23 MB)
     createTray(show, quit)
+    // from anywhere, bring lompii forward; another app holding the keys first just means no shortcut
+    if (!globalShortcut.register('CommandOrControl+Shift+L', show)) console.warn('[lompii] Ctrl+Shift+L is taken by another app')
+    app.on('will-quit', () => globalShortcut.unregisterAll())
     followTaskbarTheme((w, t) => {
       windowIcon = w
       win?.setIcon(w)

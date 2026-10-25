@@ -155,6 +155,7 @@ on older ones.
 
 | Key | Action |
 | --- | --- |
+| `Ctrl+Shift+L` | Bring lompii forward, from any app |
 | `Ctrl+K` | Search |
 | `Enter` in search | Keep the typed word as a chip |
 | `Backspace` in an empty search | Remove the last chip, then the filter |
