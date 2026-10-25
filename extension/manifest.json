@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
   "name": "lompii",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Save images, text and page captures to lompii.",
   "permissions": ["contextMenus", "scripting", "storage", "offscreen"],
   "host_permissions": ["<all_urls>"],
-  "background": { "service_worker": "background.js" },
+  "background": { "service_worker": "background.js", "scripts": ["background.js"] },
   "content_scripts": [
     { "matches": ["<all_urls>"], "js": ["pointer.js"], "all_frames": true, "run_at": "document_start" }
   ],
@@ -21,5 +21,8 @@
     }
   },
   "options_ui": { "page": "options.html", "open_in_tab": true },
-  "icons": { "16": "icons/menu-16.png", "32": "icons/menu-32.png", "48": "icons/48.png", "128": "icons/128.png" }
+  "icons": { "16": "icons/menu-16.png", "32": "icons/menu-32.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "browser_specific_settings": {
+    "gecko": { "id": "lompii@brosski224.github.io", "data_collection_permissions": { "required": ["none"] } }
+  }
 }

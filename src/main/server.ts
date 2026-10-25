@@ -52,14 +52,16 @@ const meta = (source: unknown, title: unknown) => {
   return { source: s && isHttpUrl(s) ? s : null, title: str(title, 300) }
 }
 
-// Pairing: only a browser extension may ask (a web page can't fake its Origin header), one
+// Pairing: only a Chrome or Firefox extension may ask (a web page can't fake its Origin header), one
 // request at a time, and you allow it in lompii after checking the code it shows matches.
 export type AskToPair = (code: string, extensionId: string, signal: AbortSignal) => Promise<boolean>
 let pairing = false
 
 async function pair(req: IncomingMessage, ask: AskToPair): Promise<{ token: string }> {
   const origin = req.headers.origin ?? ''
-  const id = origin.match(/^chrome-extension:\/\/([a-p]{32})$/)?.[1]
+  // Chrome's id, or Firefox's per-install UUID
+  const m = origin.match(/^(?:chrome-extension:\/\/([a-p]{32})|moz-extension:\/\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}))$/)
+  const id = m?.[1] ?? m?.[2]
   if (!id) throw new HttpError(403, 'extensions only')
   const code = str((await json(req)).code, 8)
   if (!code || !/^\d{4}$/.test(code)) throw new HttpError(400, 'bad code')

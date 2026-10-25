@@ -6,7 +6,7 @@ const MESSAGES = {
   badkey: 'lompii disconnected this browser. Connect it again in the options.',
   offline: "Couldn't reach lompii. Is the app open?",
   download: "Couldn't download this image.",
-  capture: "Chrome wouldn't let lompii capture this page.",
+  capture: "Your browser wouldn't let lompii capture this page.",
   'not an image': "That doesn't look like an image.",
   'empty text': 'Select some text first.',
   noimage: "There's no picture under the pointer to save."
@@ -24,9 +24,10 @@ chrome.contextMenus.removeAll(() => {
 
 // The toolbar icon's dark tiles vanish on a dark toolbar, so it swaps to white ones there. Only a
 // page can read prefers-color-scheme; a hidden offscreen page (offscreen.js) reports it to us.
-// Created on every worker start; Chrome refuses a second one, which is fine.
+// Created on every worker start; Chrome refuses a second one, which is fine. Firefox has no
+// offscreen API, so its icon stays light.
 chrome.offscreen
-  .createDocument({ url: 'offscreen.html', reasons: ['MATCH_MEDIA'], justification: 'Match the toolbar icon to light or dark mode' })
+  ?.createDocument({ url: 'offscreen.html', reasons: ['MATCH_MEDIA'], justification: 'Match the toolbar icon to light or dark mode' })
   .catch(() => {})
 
 const ICONS = {
@@ -219,7 +220,7 @@ async function capture(tab, mode) {
     if (mode === 'area') area = await run(tab.id, pickArea)
     if (mode === 'text') area = await run(tab.id, () => getSelection()?.toString())
   } catch {
-    return // Chrome doesn't allow scripts here (chrome:// pages, the Web Store)
+    return // no scripts allowed here (chrome:// and about: pages, the stores); the popup says so
   }
   if (!area) {
     if (mode === 'text') showToast(tab.id, { ok: false, message: MESSAGES['empty text'] })
