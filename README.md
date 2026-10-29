@@ -1,142 +1,230 @@
 <p align="center">
-  <img src="build/icon.png" width="96" alt="lompii logo" />
+  <img src="build/icon.png" width="88" alt="lompii logo" />
 </p>
 
 <h1 align="center">lompii.</h1>
 
 <p align="center">
   <strong>Your mind for what you find.</strong><br />
-  A private visual library for everything that inspires you. Save from anywhere, find it by describing it.
+  Save inspiration from anywhere. Find it again by describing it.
 </p>
 
 <p align="center">
-  <a href="https://github.com/lompii-app/lompii/releases/latest">Download for Windows</a>
-  &nbsp;·&nbsp;
-  <a href="#features">Features</a>
-  &nbsp;·&nbsp;
-  <a href="#getting-started">Getting started</a>
-  &nbsp;·&nbsp;
-  <a href="#privacy">Privacy</a>
+  <a href="https://github.com/lompii-app/lompii/releases/latest"><img src="https://img.shields.io/github/v/release/lompii-app/lompii?label=download&color=ff5a1f" alt="Latest release" /></a>
+  <img src="https://img.shields.io/badge/platform-Windows-1f1f22" alt="Windows" />
+  <img src="https://img.shields.io/badge/extension-Chrome%20%C2%B7%20Firefox-1f1f22" alt="Chrome and Firefox extension" />
+  <img src="https://img.shields.io/badge/account-none%20needed-1f1f22" alt="No account needed" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1f1f22" alt="MIT license" /></a>
 </p>
 
 <p align="center">
-  <img src="docs/images/grid.png" alt="lompii's main grid in light mode: posters, patterns, landscapes and a quote by William Morris" />
+  <a href="https://github.com/lompii-app/lompii/releases/latest"><strong>⬇ Download for Windows</strong></a>
+  &nbsp;·&nbsp;
+  <a href="#a-quick-tour">Tour</a>
+  &nbsp;·&nbsp;
+  <a href="#why-lompii">Why lompii</a>
+  &nbsp;·&nbsp;
+  <a href="#get-started-in-3-steps">Get started</a>
+  &nbsp;·&nbsp;
+  <a href="#questions">FAQ</a>
+</p>
+
+<p align="center">
+  <img src="docs/images/demo.gif" width="900" alt="Typing 'purple hills at dusk', 'big bold letters' and 'lights in the dark' into lompii: each search finds the matching image although none of those words are in its title" />
+  <br />
+  <sub>Type what you remember, not what you named it. <a href="docs/images/demo.mp4">Watch in full quality</a>.</sub>
 </p>
 
 ---
 
-You saved it months ago: a dark site with huge type, a poster in a particular orange, a line
+## What is lompii?
+
+You saved it months ago: a dark website with huge type, a poster in a particular orange, a line
 someone wrote that stuck. You don't remember where it was, what it was called, or which folder
-it went into. With lompii you don't need to. Type what you remember, *"grainy portrait, deep
-shadow"*, and it comes back.
+it went into.
 
-lompii is a desktop app for designers, illustrators, photographers, writers and anyone else who
-collects references, with a companion browser extension for saving from the web.
+**lompii is a desktop app that remembers for you.** Save images, page captures, quotes and
+snippets from your browser with one right-click. lompii looks at each one and works out what it
+shows and what it's about. Later, type what you remember, *"grainy portrait, deep shadow"*, and it
+comes back.
 
-- **Save from anywhere.** One right-click saves an image, a piece of text or a capture of the page.
-- **Find it by description.** Local models match what things *look like* and what they *mean*,
-  not just the words in their titles.
-- **Private by design.** Your library and its search stay on your computer. No account, no cloud.
-- **Free.** Bring your own AI key, or run a local model and keep everything offline.
+It's made for designers, illustrators, photographers, writers, and anyone who collects references.
 
-## Features
+<table>
+  <tr>
+    <td align="center" width="33%"><h3>1 · Save</h3>Right-click an image or text on any site, capture part of a page, or drop in a file.</td>
+    <td align="center" width="33%"><h3>2 · lompii understands</h3>Each save gets a title, a summary, tags and its colours. You file nothing.</td>
+    <td align="center" width="33%"><h3>3 · Find</h3>Describe it in your own words. lompii matches how things <em>look</em> and what they <em>mean</em>.</td>
+  </tr>
+</table>
 
-### Capture
+## Why lompii?
 
-- **Browser extension** for Chrome, Firefox and the browsers built on them. Right-click an
-  image or selected text and choose *Add to lompii*. From
-  the toolbar, capture the visible area, the full page, a selected area, or the view after a
-  3-second delay for hover menus. `Alt+Shift+S` goes straight to area selection.
-- **Drag and drop** image files onto the window, or **paste** one with `Ctrl+V`.
-- Every save from the web keeps its source address and page title.
-- Four kinds: **Images**, **Captures**, **Quotes** and **Snippets**. Text with a quoted span
-  becomes a quote, set in Garamond italic, with its author split out.
+Most places you keep inspiration are good at *storing* it and bad at *giving it back*.
 
-### Understand
+|  | Folders on your computer | Browser bookmarks | Cloud inspiration apps | **lompii** |
+| --- | :---: | :---: | :---: | :---: |
+| Find something by describing it | ✗ | ✗ | some | **✓** |
+| Find images by how they look, not just their words | ✗ | ✗ | some | **✓** |
+| Keeps the image itself, even if the page disappears | ✓ | ✗ | ✓ | **✓** |
+| Save from any website in one click | ✗ | ✓ | ✓ | **✓** |
+| Your library stays on your computer | ✓ | ✓ | ✗ | **✓** |
+| Works without an account | ✓ | ✓ | ✗ | **✓** |
+| Free | ✓ | ✓ | usually paid | **✓** |
+| Choose your own AI, or run one offline | n/a | n/a | rarely | **✓** |
 
-- AI gives each item a **title**, a short **summary**, **search tags** for subject, style, mood,
-  colour and layout, and any **text it can read** in the image. It reuses your existing tags and
-  folds near-duplicates together.
-- **Generate prompt** writes a text-to-image prompt (Midjourney, DALL·E, Stable Diffusion) that
-  would recreate an image.
+What that means in practice:
 
-### Find
+- **Finding beats filing.** No folders to keep tidy. Search by look (*"mountain landscape"*), by
+  meaning (*"an AI meeting assistant"*), or by the words written inside an image.
+- **Private by design.** No account, no lompii server. Search runs on your own computer, and
+  nothing leaves it except the item you send to the AI provider *you* chose. Choose a local model
+  and nothing leaves at all.
+- **Free, with any AI.** Bring a key from Anthropic, OpenAI, Google, OpenRouter, or run Ollama or
+  LM Studio. Search by description works with no AI key at all.
 
-- **Search by description.** *"mountain landscape"* finds images by how they look (CLIP), and
-  *"an AI meeting assistant"* finds anything by what it's about (MiniLM). Both run on your computer.
-- **Keyword search** across titles, tags, summaries, notes, text and the words inside images.
-  Press `Enter` to keep a word as a chip; chips combine.
-- **Same vibe** shows the items most like the one you're looking at, by look, meaning, tags and
-  colour.
-- **Filters** for each kind, a floating search bar once you scroll, and a back-to-top button.
+## A quick tour
 
-### Organise
+### Save from anywhere
 
-- **Stacks**: named, coloured collections you build by hand. Turn any search into a stack in one
-  click.
-- **Tags**: add your own beside the AI's, and rename, merge or delete them across the library.
-- **Notes** on any item, and a **colour palette** you can copy as hex.
-- **Select several** cards to stack, tag, archive or delete them together.
+The browser extension adds **Add to lompii** to the right-click menu on every site. Save an image
+at the largest size the site offers, a quote or snippet of selected text, or a capture of the
+visible area, the full page, or an area you drag over (`Alt+Shift+S`). Each save keeps the
+address it came from. You can also drag image files onto the window, or paste one with `Ctrl+V`.
 
-### Archive
+<p align="center">
+  <img src="docs/images/extension.png" width="760" alt="lompii's Extension settings: connected, with the four ways to save: right-click, capture an area with Alt+Shift+S, the toolbar button, and tagging as you save" />
+</p>
 
-- **Drag a card onto the logo** to put it away. It leaves Everything and Stacks but is kept, with
-  its own search. Drag it onto the logo again from the archive to bring it back.
-- **Optional 6-digit PIN.** Set one in Settings and the archive asks for it each time it opens.
+### Find it by describing it
 
-### Keep it safe
+Type a few words about what you remember. lompii's local models compare your words with what each
+image *looks like* (CLIP) and what each save *means* (MiniLM), alongside titles, tags, notes and
+the text inside images. Press `Enter` to keep a word as a chip and narrow things down.
 
-- **Runs in the tray**, so the extension can always save. Optionally starts when you sign in, and
-  can free its memory while in the tray.
+<p align="center">
+  <img src="docs/images/search.png" width="900" alt="Searching 'a dark website with big type' finds a dark studio homepage capture and a black Big Type poster" />
+</p>
+
+### Every save, explained
+
+Open any card to see it large, with its colour palette (click a swatch to copy the hex), a short
+AI summary, tags, the source link and your notes. **Generate prompt** writes a text-to-image
+prompt (Midjourney, DALL·E, Stable Diffusion) that would recreate the image.
+
+<p align="center">
+  <img src="docs/images/detail.png" width="900" alt="The detail view of a Bauhaus poster: the image on its own colour, a four-colour palette, a TLDR, tags and a notes field" />
+</p>
+
+### Same vibe
+
+Found one thing you like? **Same vibe** lines up everything in your library that's closest to it,
+by look, meaning, tags and colour.
+
+<p align="center">
+  <img src="docs/images/vibe.gif" width="900" alt="Opening a purple mountain landscape and pressing Same vibe: the grid reorders to dunes, a snow peak, a sunset and other landscapes" />
+</p>
+
+### Stacks
+
+Stacks are collections you build by hand: a poster wall, a moodboard for a client, a set of type
+references. Give each one a colour, add cards from anywhere, or turn any search into a stack in
+one click.
+
+<p align="center">
+  <img src="docs/images/stacks.png" width="900" alt="Four stacks: Poster wall, Landscapes, Type and Night, each shown as a fanned pile of its cards" />
+</p>
+
+### The archive, for things you want to keep but not see
+
+> **Where is it?** Click the **lompii logo** at the top left. That's the archive's door.
+
+- **To archive a card:** drag it onto the logo, or select it and press `A`, or click the archive
+  button in its detail view. It leaves Everything and Stacks but is kept, with its own search.
+- **To bring it back:** open the archive and drag the card onto the logo again (or press `A`).
+- **To lock it:** set a 6-digit PIN in **Settings → General**. The archive asks for it each time
+  it opens.
+
+<p align="center">
+  <img src="docs/images/archive.gif" width="900" alt="Clicking the logo opens a PIN prompt, 'The archive is locked.' Entering the six digits opens the archive with four cards and its own search" />
+</p>
+
+### Light and dark
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/grid-dark.png" />
+    <img src="docs/images/grid.png" width="900" alt="lompii's main grid: posters, patterns, landscapes, a studio homepage capture and two quotes" />
+  </picture>
+  <br />
+  <sub>The grid in light or dark mode (this image follows your GitHub theme). Three card sizes.</sub>
+</p>
+
+### And the small things
+
 - **Trash with undo.** Deleted items stay for 30 days and can be restored.
+- **Select several** cards (`Ctrl`/`Shift`-click) to stack, tag, archive or delete them together.
+- **Tags** of your own beside the AI's, and rename, merge or delete them across the library.
+- **Runs in the tray** so the extension can always save, and `Ctrl+Shift+L` brings it forward from
+  any app.
 - **One-click backup** of the whole library to a folder you choose.
-- **Light and dark mode**, and three card sizes.
 
-## Getting started
+## Get started in 3 steps
 
 ### 1. Install the app
 
-Download the **lompii Setup** installer (`.exe`) from the [latest release](https://github.com/lompii-app/lompii/releases/latest)
-and run it. The installer isn't code-signed yet, so Windows SmartScreen may warn you the first
-time: choose **More info → Run anyway**.
+Download **lompii Setup** (`.exe`) from the
+[latest release](https://github.com/lompii-app/lompii/releases/latest) and run it.
+
+> The installer isn't code-signed yet, so Windows SmartScreen may warn you the first time. Choose
+> **More info → Run anyway**.
 
 ### 2. Connect your browser
 
-The extension works in Chrome and Firefox, and in the browsers built on them. **Settings →
-Extension** walks you through it.
+**Settings → Extension** in lompii walks you through it.
 
-**Chrome, Edge, Brave, Opera, Vivaldi or Arc.** The extension comes with the app.
+<details>
+<summary><b>Chrome, Edge, Brave, Opera, Vivaldi or Arc</b></summary>
+
+The extension comes with the app.
 
 1. In lompii, open **Settings → Extension** and click **Show folder**.
 2. Open `chrome://extensions` (or `edge://extensions`, `brave://extensions`…), turn on
    **Developer mode**, click **Load unpacked** and choose that folder.
 
-**Firefox, Zen, LibreWolf or Floorp.** The extension is signed by Mozilla.
+</details>
+
+<details>
+<summary><b>Firefox, Zen, LibreWolf or Floorp</b></summary>
+
+The extension is signed by Mozilla.
 
 1. Open the [install link](https://github.com/lompii-app/lompii/releases/latest/download/lompii-firefox.xpi)
    in your browser.
 2. Open the download and click **Add**.
 
-Then, in either kind of browser, click **Connect** on the page that opens. lompii comes forward
-showing a four-digit code; if it matches the one in the browser, click **Allow**.
+</details>
 
-That's it. Right-click any image and choose **Add to lompii**.
+Then click **Connect** on the page that opens. lompii comes forward showing a four-digit code; if
+it matches the one in the browser, click **Allow**. That's it: right-click any image and choose
+**Add to lompii**.
 
 | How | What it saves |
 | --- | --- |
 | Right-click an image → *Add to lompii* | the image, at the largest size the site offers |
 | Select text, right-click → *Add to lompii* | a quote or a snippet |
 | Right-click the page → *Capture an area…* | part of the page |
-| Toolbar popup | the visible area, full page, a selected area, a delayed capture, or selected text |
+| Toolbar button | the visible area, full page, a selected area, a delayed capture, or selected text |
 | `Alt+Shift+S` | a selected area (`Enter` takes the whole view, `Esc` cancels) |
-
-You can change the shortcut at `chrome://extensions/shortcuts`, or in Firefox from `about:addons`
-→ ⚙️ → **Manage Extension Shortcuts**.
 
 ### 3. Add an AI provider (optional)
 
-Search by description and Same vibe work without any key. AI adds titles, summaries and tags.
-Open **Settings → AI providers** and choose one:
+Search by description and Same vibe work without any key. An AI provider adds titles, summaries
+and tags. Open **Settings → AI providers** and choose one:
+
+<p align="center">
+  <img src="docs/images/settings-ai.png" width="720" alt="Settings, AI providers: the active model, cloud providers with an API key field and a Test connection button, and a tab for local servers" />
+</p>
 
 | Provider | You need | Default model |
 | --- | --- | --- |
@@ -148,10 +236,52 @@ Open **Settings → AI providers** and choose one:
 | OpenAI-compatible server (LM Studio, LiteLLM, vLLM…) | its address, and a key if it asks | any model it serves |
 
 Any model that reads images will do. You pay your provider directly for what you use, or nothing
-with a local model. New saves are analysed automatically; *Analyse* on the main screen catches up
-on older ones.
+with a local model. New saves are analysed automatically; **Analyse now** catches up on older ones.
 
-## Keyboard shortcuts
+## Questions
+
+<details>
+<summary><b>Is it really free?</b></summary>
+
+Yes. lompii is MIT-licensed open source with no paid tier. The only cost is whatever your AI
+provider charges for analysing your saves, and that's zero with a local model like Ollama.
+
+</details>
+
+<details>
+<summary><b>Does anything leave my computer?</b></summary>
+
+Your library, its database and its search never leave. When an item is analysed, that one item (a
+resized image or its text) goes to the AI provider you chose. The search models download once from
+Hugging Face, and the app checks GitHub for updates. That's all. See [Privacy](#privacy).
+
+</details>
+
+<details>
+<summary><b>Do I need an AI key?</b></summary>
+
+No. Search by description, Same vibe, stacks, tags and the archive all work without one. A key (or
+a local model) adds automatic titles, summaries and tags, which make search even better.
+
+</details>
+
+<details>
+<summary><b>Where's the archive?</b></summary>
+
+Click the lompii logo at the top left. Drag cards onto the logo to archive them, and drag them onto
+it again from inside the archive to bring them back. See [The archive](#the-archive-for-things-you-want-to-keep-but-not-see).
+
+</details>
+
+<details>
+<summary><b>Is there a Mac or Linux version?</b></summary>
+
+Not yet. lompii is Windows-only for now; a macOS build is on the [roadmap](#roadmap).
+
+</details>
+
+<details>
+<summary><b>Keyboard shortcuts</b></summary>
 
 | Key | Action |
 | --- | --- |
@@ -166,6 +296,11 @@ on older ones.
 | `Ctrl`-click / `Shift`-click | Select several cards / a run of cards |
 | `Esc` | Close, clear or step back |
 | `Ctrl+V` | Save a pasted image |
+
+You can change the extension's shortcut at `chrome://extensions/shortcuts`, or in Firefox from
+`about:addons` → ⚙️ → **Manage Extension Shortcuts**.
+
+</details>
 
 ## Privacy
 
@@ -193,6 +328,9 @@ The full policy is in [PRIVACY.md](PRIVACY.md).
 
 ## Build from source
 
+<details>
+<summary>For developers: run, test and package lompii</summary>
+
 You'll need **Node.js 22** or newer and **Windows**.
 
 ```bash
@@ -209,6 +347,8 @@ npm run dev      # runs the app, reloading as you edit
 | `npm test` | Run the tests |
 | `npm run build` | Type-check and build to `out/` |
 | `npm run dist` | Build the Windows installer into `release/` |
+
+Set `LOMPII_DATA=<folder>` to run on a separate, throwaway library.
 
 After changing anything in `extension/`, click the reload icon on lompii's card in
 `chrome://extensions`. To try it in Firefox, use **Load Temporary Add-on…** in
@@ -244,9 +384,11 @@ Browser extension ─ HTTP, 127.0.0.1 ──┐
 ### Contributing
 
 Issues and pull requests are welcome:
-[Report a problem / suggest an idea](https://github.com/lompii-app/lompii/issues/new/choose).
+[report a problem or suggest an idea](https://github.com/lompii-app/lompii/issues/new/choose).
 A git hook runs the typecheck and tests before every push (`npm install` turns it on), so fix
 what it reports rather than skipping it.
+
+</details>
 
 ## Known limitations
 
@@ -267,6 +409,7 @@ what it reports rather than skipping it.
 - Search runs [CLIP](https://huggingface.co/Xenova/clip-vit-base-patch32) and
   [MiniLM](https://huggingface.co/Xenova/all-MiniLM-L6-v2) through
   [Transformers.js](https://github.com/huggingface/transformers.js).
+- Screenshots use a throwaway library of generated artwork.
 
 ## License
 
