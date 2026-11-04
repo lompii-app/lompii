@@ -40,6 +40,10 @@ export const loadDensity = (): Density => {
 
 export const saveDensity = (density: Density) => set('lompii.density', density)
 
+// the sidebar's calendar button: cards grouped under a heading per day, newest first
+export const loadByDate = () => get('lompii.byDate') === '1'
+export const saveByDate = (on: boolean) => set('lompii.byDate', on ? '1' : '0')
+
 // Asking for a star on GitHub: the plan screen on first start, then the toast. 'done' once
 // answered for good, else the time "later" was chosen; null if never asked.
 export const loadStarAsk = () => get('lompii.star')

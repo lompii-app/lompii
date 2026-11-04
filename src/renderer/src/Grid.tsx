@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { isText, quoteParts, type Item } from '@shared/api'
 import type { Density } from './prefs'
+import { timeline } from './timeline'
 import { url } from './useItems'
 
 // narrowest column and gap per layout setting (the sidebar's grid button)
@@ -121,27 +122,14 @@ export default function Grid({ scrollRef, items, selected, onSelect, onOpen, den
 
   // ponytail: index arithmetic, not geometric nearest-neighbour. Up/down can land
   // in a different column than the eye expects on very uneven masonry.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement
-      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') return
-
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selected != null) onDelete(selected) // undoable, so no confirm
-        return
-      }
-
-      const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols }[e.key]
-      if (!step || !items.length) return
-      e.preventDefault()
-      const from = items.findIndex((i) => i.id === selected)
-      const next = from < 0 ? 0 : Math.min(items.length - 1, Math.max(0, from + step))
-      onSelect(items[next].id)
-      virtualizer.scrollToIndex(next, { align: 'auto' })
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [items, selected, cols, onSelect, onDelete, virtualizer])
+  useKeys(
+    items,
+    selected,
+    onSelect,
+    onDelete,
+    (from, key) => from + { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols }[key]!,
+    (n) => virtualizer.scrollToIndex(n, { align: 'auto' })
+  )
 
   return (
     <div className="pt-6 pr-20 pb-12 pl-1">
@@ -157,21 +145,7 @@ export default function Grid({ scrollRef, items, selected, onSelect, onOpen, den
                 item={item}
                 selected={item.id === selected}
                 picked={picked.has(item.id)}
-                onClick={(e) =>
-                  e.ctrlKey || e.metaKey || e.shiftKey || picked.size
-                    ? onPick(item.id, e.shiftKey)
-                    : onOpen(item.id)
-                }
-                onDragStart={(e) => {
-                  // a picked card brings the whole selection along
-                  const ids = picked.has(item.id) ? [...picked] : [item.id]
-                  e.dataTransfer.setData(ITEMS_TYPE, JSON.stringify(ids))
-                  e.dataTransfer.effectAllowed = 'move'
-                  const ghost = dragGhost(e.currentTarget, ids.length)
-                  document.body.append(ghost)
-                  e.dataTransfer.setDragImage(ghost, -14, -14) // below-right of the pointer, clear of the logo
-                  setTimeout(() => ghost.remove()) // the browser has its snapshot by then
-                }}
+                {...handlers(item, picked, onPick, onOpen)}
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -187,6 +161,183 @@ export default function Grid({ scrollRef, items, selected, onSelect, onOpen, den
   )
 }
 
+// row height and gap per layout setting in the by-date view
+const ROWS: Record<Density, { height: number; gap: number }> = {
+  large: { height: 380, gap: 12 },
+  medium: { height: 260, gap: 8 },
+  small: { height: 170, gap: 6 }
+}
+const HEAD = 64 // a day's heading, with the space above it
+
+// The by-date view: a heading per day, then justified rows (timeline.ts). Every size is known up
+// front, so nothing is measured.
+export function Timeline({
+  scrollRef,
+  items,
+  date,
+  selected,
+  onSelect,
+  onOpen,
+  density,
+  picked,
+  onPick,
+  onDelete
+}: Props & { date: (i: Item) => number }) {
+  const { height: ROW, gap: GAP } = ROWS[density]
+  const listRef = useRef<HTMLDivElement>(null)
+  const [width, setWidth] = useState(0)
+  const [margin, setMargin] = useState(0)
+
+  useLayoutEffect(() => {
+    const ro = new ResizeObserver(([e]) => setWidth(e.contentRect.width))
+    ro.observe(listRef.current!)
+    return () => ro.disconnect()
+  }, [])
+  useLayoutEffect(() => {
+    const top = listRef.current!.offsetTop
+    if (top !== margin) setMargin(top)
+  })
+
+  const entries = useMemo(() => timeline(items, date, width, ROW, GAP), [items, date, width, ROW, GAP])
+  // each card's place: its row in `entries` and its centre across, for up/down
+  const places = useMemo(() => {
+    const at: { row: number; x: number }[] = []
+    entries.forEach((e, row) => {
+      if ('head' in e) return
+      let x = 0
+      e.widths.forEach((w) => {
+        at.push({ row, x: x + w / 2 })
+        x += w + GAP
+      })
+    })
+    return at
+  }, [entries, GAP])
+
+  const virtualizer = useVirtualizer({
+    count: entries.length,
+    getScrollElement: () => scrollRef.current,
+    scrollMargin: margin,
+    estimateSize: (i) => {
+      const e = entries[i]
+      return 'head' in e ? HEAD : e.height + GAP
+    },
+    getItemKey: (i) => {
+      const e = entries[i]
+      return 'head' in e ? e.head : e.items[0].id
+    },
+    overscan: 4
+  })
+
+  useKeys(
+    items,
+    selected,
+    onSelect,
+    onDelete,
+    (from, key) => {
+      if (key === 'ArrowRight') return from + 1
+      if (key === 'ArrowLeft') return from - 1
+      // up/down: the card in the next row over whose centre is closest
+      const { row, x } = places[from]
+      let to = row + (key === 'ArrowDown' ? 1 : -1)
+      if ('head' in (entries[to] ?? {})) to += key === 'ArrowDown' ? 1 : -1
+      let best = from
+      places.forEach((p, n) => {
+        if (p.row === to && (best === from || Math.abs(p.x - x) < Math.abs(places[best].x - x))) best = n
+      })
+      return best
+    },
+    (n) => virtualizer.scrollToIndex(places[n].row, { align: 'auto' })
+  )
+
+  let first = 0 // index in `items` of each row's first card
+  const starts = entries.map((e) => {
+    const at = first
+    if (!('head' in e)) first += e.items.length
+    return at
+  })
+
+  return (
+    <div className="pt-2 pr-20 pb-12 pl-1">
+      <div ref={listRef} className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+        {width > 0 &&
+          virtualizer.getVirtualItems().map((v) => {
+            const e = entries[v.index]
+            const style = { position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${v.start - margin}px)` } as const
+            if ('head' in e)
+              return (
+                <h2 key={v.key} style={{ ...style, height: HEAD }} className="flex items-end pb-4 text-[14px] font-medium text-fg">
+                  {e.head}
+                </h2>
+              )
+            return (
+              <div key={v.key} style={{ ...style, height: e.height }} className="flex">
+                {e.items.map((item, n) => (
+                  <Tile
+                    key={item.id}
+                    index={starts[v.index] + n}
+                    item={item}
+                    selected={item.id === selected}
+                    picked={picked.has(item.id)}
+                    {...handlers(item, picked, onPick, onOpen)}
+                    fill
+                    style={{ width: e.widths[n], height: e.height, marginLeft: n ? GAP : 0, flex: 'none' }}
+                  />
+                ))}
+              </div>
+            )
+          })}
+      </div>
+    </div>
+  )
+}
+
+// Delete trashes the selected card; the arrows move the selection to the card `move` names
+function useKeys(
+  items: Item[],
+  selected: number | null,
+  onSelect: (id: number) => void,
+  onDelete: (id: number) => void,
+  move: (from: number, key: string) => number,
+  reveal: (index: number) => void
+) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') return
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selected != null) onDelete(selected) // undoable, so no confirm
+        return
+      }
+
+      if (!['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'].includes(e.key) || !items.length) return
+      e.preventDefault()
+      const from = items.findIndex((i) => i.id === selected)
+      const next = from < 0 ? 0 : Math.min(items.length - 1, Math.max(0, move(from, e.key)))
+      onSelect(items[next].id)
+      reveal(next)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+}
+
+// a click opens the card, or with Ctrl/Shift (or while some are picked) picks it; dragging a
+// picked card brings the whole selection along
+const handlers = (item: Item, picked: Set<number>, onPick: Props['onPick'], onOpen: Props['onOpen']) => ({
+  onClick: (e: React.MouseEvent) =>
+    e.ctrlKey || e.metaKey || e.shiftKey || picked.size ? onPick(item.id, e.shiftKey) : onOpen(item.id),
+  onDragStart: (e: React.DragEvent<HTMLElement>) => {
+    const ids = picked.has(item.id) ? [...picked] : [item.id]
+    e.dataTransfer.setData(ITEMS_TYPE, JSON.stringify(ids))
+    e.dataTransfer.effectAllowed = 'move'
+    const ghost = dragGhost(e.currentTarget, ids.length)
+    document.body.append(ghost)
+    e.dataTransfer.setDragImage(ghost, -14, -14) // below-right of the pointer, clear of the logo
+    setTimeout(() => ghost.remove()) // the browser has its snapshot by then
+  }
+})
+
 function Tile({
   item,
   index,
@@ -195,11 +346,13 @@ function Tile({
   picked,
   onClick,
   onDragStart,
+  fill,
   style
 }: {
   item: Item
   index: number
-  measure: (el: Element | null) => void
+  measure?: (el: Element | null) => void
+  fill?: boolean // the by-date view: the card fills the size it's given, with no caption
   selected: boolean
   picked: boolean
   onClick: (e: React.MouseEvent) => void
@@ -207,9 +360,9 @@ function Tile({
   style: React.CSSProperties
 }) {
   const [loaded, setLoaded] = useState(false)
-  const text = caption(item)
+  const text = fill ? null : caption(item)
   const quote = quoteParts(item.body ?? '').text // the author shows only in the overlay
-  const card = `w-full overflow-hidden rounded-[4px] shadow-card transition-shadow duration-200 group-hover:shadow-lift ${
+  const card = `w-full ${fill ? 'h-full' : ''} overflow-hidden rounded-[4px] shadow-card transition-shadow duration-200 group-hover:shadow-lift ${
     selected || picked ? 'outline-2 outline-offset-2 outline-accent' : ''
   }`
   return (

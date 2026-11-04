@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { importNote, type ImportProgress, type Settings, type Stack, type UpdateStatus } from '@shared/api'
+import { importNote, type ImportProgress, type Item, type Settings, type Stack, type UpdateStatus } from '@shared/api'
 import Detail from './Detail'
 import { ArchivePrompt, PairPrompt, PlanPrompt, WelcomeNote } from './Dialogs'
 import { ActiveFilter, buildFilters, FilterRow, STACK_COLORS, TermChip, type Filter, type TagIndex } from './Filters'
-import Grid from './Grid'
+import Grid, { Timeline } from './Grid'
 import Sidebar from './Sidebar'
-import { loadDensity, loadStarAsk, loadTheme, loadWelcomed, NEXT_DENSITY, saveDensity, saveStarAsk, saveTheme, saveWelcomed } from './prefs'
+import { loadByDate, loadDensity, loadStarAsk, loadTheme, loadWelcomed, NEXT_DENSITY, saveByDate, saveDensity, saveStarAsk, saveTheme, saveWelcomed } from './prefs'
 import SelectionBar from './Selection'
 import Stacks from './Stacks'
 import SettingsDialog, { type Section } from './Settings'
@@ -14,6 +14,10 @@ import TagsDialog from './Tags'
 import Trash from './Trash'
 import WindowControls from './WindowControls'
 import { useItems } from './useItems'
+
+// the date the by-date view groups by: when saved, and in the archive (ordered that way) when archived
+const saved = (i: Item) => i.created_at
+const archivedOn = (i: Item) => i.archived_at!
 
 type View = 'everything' | 'stacks' | 'archive' | 'trash' // archive and trash are reached from the sidebar
 
@@ -45,6 +49,7 @@ export default function App() {
   const [dragging, setDragging] = useState(false)
   const [theme, setTheme] = useState(loadTheme)
   const [density, setDensity] = useState(loadDensity)
+  const [byDate, setByDate] = useState(loadByDate)
   // the first start: the founder's note, then the plan screen asking for a GitHub star (and,
   // after a "later", the toast in Setup.tsx)
   const [welcomed, setWelcomed] = useState(loadWelcomed)
@@ -63,6 +68,10 @@ export default function App() {
     const next = NEXT_DENSITY[density]
     saveDensity(next)
     setDensity(next)
+  }
+  const toggleByDate = () => {
+    saveByDate(!byDate)
+    setByDate(!byDate)
   }
   const searchRef = useRef<HTMLInputElement>(null)
   const pillRef = useRef<HTMLInputElement>(null)
@@ -492,6 +501,8 @@ export default function App() {
         onTheme={toggleTheme}
         density={density}
         onDensity={cycleDensity}
+        byDate={byDate}
+        onByDate={toggleByDate}
         onSettings={() => openSettings()}
         onTrash={() => setView((v) => (v === 'trash' ? 'everything' : 'trash'))}
         inTrash={view === 'trash'}
@@ -594,17 +605,33 @@ export default function App() {
             {view === 'everything' && !setupLater && steps.length > 0 && (
               <SetupStrip steps={steps} onOpen={openSettings} onLater={() => setSetupLater(true)} />
             )}
-            <Grid
-              scrollRef={scrollRef}
-              items={visible}
-              selected={selected}
-              onSelect={setSelected}
-              onOpen={openItem}
-              density={density}
-              picked={picked}
-              onPick={pick}
-              onDelete={remove}
-            />
+            {/* a search ranks by match, which date headings would scatter: it shows the plain grid */}
+            {byDate && !phrase && !vibe ? (
+              <Timeline
+                scrollRef={scrollRef}
+                items={visible}
+                date={view === 'archive' ? archivedOn : saved}
+                selected={selected}
+                onSelect={setSelected}
+                onOpen={openItem}
+                density={density}
+                picked={picked}
+                onPick={pick}
+                onDelete={remove}
+              />
+            ) : (
+              <Grid
+                scrollRef={scrollRef}
+                items={visible}
+                selected={selected}
+                onSelect={setSelected}
+                onOpen={openItem}
+                density={density}
+                picked={picked}
+                onPick={pick}
+                onDelete={remove}
+              />
+            )}
           </>
         ) : view === 'archive' && !archived.length ? (
           <div className="grid place-items-center py-32 pr-20">

@@ -22,6 +22,8 @@ export default function Sidebar({
   onTheme,
   density,
   onDensity,
+  byDate,
+  onByDate,
   onSettings,
   onTrash,
   inTrash,
@@ -34,6 +36,8 @@ export default function Sidebar({
   onTheme: () => void
   density: Density
   onDensity: () => void
+  byDate: boolean
+  onByDate: () => void
   onSettings: () => void
   onTrash: () => void
   inTrash: boolean
@@ -152,6 +156,19 @@ export default function Sidebar({
           className={BUTTON}
         >
           <DensityIcon density={density} />
+        </button>
+
+        <button
+          onClick={onByDate}
+          aria-label="Group by date"
+          aria-pressed={byDate}
+          title={byDate ? 'Grouped by date' : 'Group by date'}
+          className={`p-2 transition-colors ${byDate ? 'text-accent' : 'text-dim hover:text-fg'}`}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <rect x="3" y="4.5" width="18" height="16.5" rx="2" />
+            <path d="M3 9.5h18M8 2.5v4M16 2.5v4" />
+          </svg>
         </button>
 
         <button
