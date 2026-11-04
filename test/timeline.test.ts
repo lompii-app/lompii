@@ -33,7 +33,7 @@ test('a very tall capture counts as at most twice its width', () => {
   assert.equal((row as { widths: number[] }).widths[0], 100) // aspect 0.5 at height 200
 })
 
-test('scrubber marks: one a month, the first month named, then the years; crowded labels left off', () => {
+test('scrubber marks: one a month, named, with the year where it changes; crowded labels left off', () => {
   const at = (y: number, m: number, d = 1) => new Date(y, m, d).getTime()
   const heads = [
     { y: 0, at: at(2026, 10, 4) },
@@ -44,5 +44,6 @@ test('scrubber marks: one a month, the first month named, then the years; crowde
   ]
   const out = marks(heads, 1000, 1000)
   assert.deepEqual(out.map((m) => m.f), [0, 0.2, 0.5, 0.51])
-  assert.deepEqual(out.map((m) => m.label), [new Date(at(2026, 10)).toLocaleDateString(undefined, { month: 'short' }), null, '2025', null])
+  const month = (m: number) => new Date(2026, m).toLocaleDateString(undefined, { month: 'short' })
+  assert.deepEqual(out.map((m) => m.label), [month(10), month(9), '2025', null])
 })

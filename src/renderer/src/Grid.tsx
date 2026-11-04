@@ -349,8 +349,8 @@ function Scrubber({
   return (
     <div
       ref={railRef}
-      // the window's right margin, clear of the floating search above and back-to-top below
-      className={`fixed top-28 right-0 bottom-28 z-20 w-20 cursor-row-resize touch-none select-none ${range > 0 ? '' : 'hidden'}`}
+      // the window's right margin, from under the search line to above back-to-top
+      className={`fixed top-44 right-0 bottom-28 z-20 w-20 cursor-row-resize touch-none select-none ${range > 0 ? '' : 'hidden'}`}
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId)
         seek(at(e))
@@ -362,16 +362,21 @@ function Scrubber({
       onPointerLeave={() => setHover(null)}
       aria-hidden // a pointer shortcut; the list scrolls by wheel and keys as before
     >
-      {ticks.map(({ f, label }) => (
-        <div key={f} className="absolute right-4 flex -translate-y-1/2 items-center gap-1.5" style={{ top: f * rail }}>
-          {label && <span className="text-[11px] text-dim">{label}</span>}
-          <span className="size-1 rounded-full bg-dim/60" />
-        </div>
-      ))}
-      <div
-        className="absolute right-3 h-0.5 w-6 -translate-y-1/2 rounded-full bg-accent"
-        style={{ top: Math.min(1, Math.max(0, (offset - margin) / range)) * rail }}
-      />
+      {/* the track: a thin line with a dot a month, labels to its left, and the orange line across it */}
+      <div className="absolute inset-y-0 right-4 w-1">
+        <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-line" />
+        {ticks.map(({ f, label }) => (
+          <div key={f} className="absolute left-0 size-1 -translate-y-1/2 rounded-full bg-dim/60" style={{ top: f * rail }}>
+            {label && (
+              <span className="absolute top-1/2 right-3 -translate-y-1/2 text-[11px] whitespace-nowrap text-dim">{label}</span>
+            )}
+          </div>
+        ))}
+        <div
+          className="absolute left-1/2 h-0.5 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent"
+          style={{ top: Math.min(1, Math.max(0, (offset - margin) / range)) * rail }}
+        />
+      </div>
       {hover != null && (
         <span
           className="absolute right-full -translate-y-1/2 rounded-full bg-card px-2.5 py-1 text-[12px] whitespace-nowrap text-fg shadow-lift"

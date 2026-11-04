@@ -46,8 +46,8 @@ export function timeline(items: Item[], date: (i: Item) => number, width: number
 }
 
 // The scrubber's marks: one per month, where its first heading is. `y` is a heading's place in
-// the list and `f` its place down the rail, 0 to 1. The first mark and each new year carry a
-// label; a label that would crowd the one above it (in px of `rail`) is left off.
+// the list and `f` its place down the rail, 0 to 1. Each is labelled with its month, or its year
+// where the year changes; a label that would crowd the one above it (in px of `rail`) is left off.
 export function marks(heads: { y: number; at: number }[], total: number, rail: number): { f: number; label: string | null }[] {
   const out: { f: number; label: string | null }[] = []
   let month = -1
@@ -59,7 +59,7 @@ export function marks(heads: { y: number; at: number }[], total: number, rail: n
     month = d.getFullYear() * 12 + d.getMonth()
     const f = y / total
     let label: string | null =
-      year === -1 ? d.toLocaleDateString(undefined, { month: 'short' }) : d.getFullYear() !== year ? String(d.getFullYear()) : null
+      year !== -1 && d.getFullYear() !== year ? String(d.getFullYear()) : d.toLocaleDateString(undefined, { month: 'short' })
     year = d.getFullYear()
     if (label && f * rail - above < 20) label = null
     if (label) above = f * rail
