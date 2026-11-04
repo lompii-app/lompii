@@ -30,7 +30,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/demo.gif" width="900" alt="Typing 'purple hills at dusk', 'big bold letters' and 'lights in the dark' into lompii: each search finds the matching image although none of those words are in its title" />
+  <img src="docs/images/lompii-demo.gif" width="930" alt="Typing 'purple hills at dusk', 'big bold letters' and 'lights in the dark' into lompii: each search finds the matching image although none of those words are in its title" />
   <br />
   <sub>Type what you remember, not what you named it. <a href="docs/images/demo.mp4">Watch in full quality</a>.</sub>
 </p>
