@@ -3,7 +3,7 @@
 import { isText, type Item } from '../../shared/api.ts'
 
 export type Entry =
-  | { head: string }
+  | { head: string; at: number } // a day's heading; `at` is the first card's date
   | { items: Item[]; widths: number[]; height: number }
 
 const TALLEST = 2 // height / width, as in the grid: full-page captures show their top
@@ -34,7 +34,7 @@ export function timeline(items: Item[], date: (i: Item) => number, width: number
   items.forEach((item, n) => {
     if (n === 0 || day(date(item)) !== day(date(items[n - 1]))) {
       if (row.length) close(target) // a day's last row keeps the usual height, not stretched
-      out.push({ head: dayLabel(date(item), now) })
+      out.push({ head: dayLabel(date(item), now), at: date(item) })
     }
     row.push(item)
     sum += aspect(item)
@@ -42,5 +42,28 @@ export function timeline(items: Item[], date: (i: Item) => number, width: number
     if (height <= target) close(height)
   })
   if (row.length) close(target)
+  return out
+}
+
+// The scrubber's marks: one per month, where its first heading is. `y` is a heading's place in
+// the list and `f` its place down the rail, 0 to 1. The first mark and each new year carry a
+// label; a label that would crowd the one above it (in px of `rail`) is left off.
+export function marks(heads: { y: number; at: number }[], total: number, rail: number): { f: number; label: string | null }[] {
+  const out: { f: number; label: string | null }[] = []
+  let month = -1
+  let year = -1
+  let above = -Infinity // px down the rail of the last label
+  for (const { y, at } of heads) {
+    const d = new Date(at)
+    if (d.getFullYear() * 12 + d.getMonth() === month) continue
+    month = d.getFullYear() * 12 + d.getMonth()
+    const f = y / total
+    let label: string | null =
+      year === -1 ? d.toLocaleDateString(undefined, { month: 'short' }) : d.getFullYear() !== year ? String(d.getFullYear()) : null
+    year = d.getFullYear()
+    if (label && f * rail - above < 20) label = null
+    if (label) above = f * rail
+    out.push({ f, label })
+  }
   return out
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Item } from '../src/shared/api.ts'
-import { dayLabel, timeline } from '../src/renderer/src/timeline.ts'
+import { dayLabel, marks, timeline } from '../src/renderer/src/timeline.ts'
 
 const now = new Date(2026, 10, 4, 15).getTime()
 const img = (id: number, at: number, width = 100, height = 100) => ({ id, kind: 'image', width, height, created_at: at }) as Item
@@ -31,4 +31,18 @@ test('rows fill the width; a day starts a heading and a new row', () => {
 test('a very tall capture counts as at most twice its width', () => {
   const [, row] = timeline([img(1, now, 100, 1000)], (i) => i.created_at, 1000, 200, 10, now)
   assert.equal((row as { widths: number[] }).widths[0], 100) // aspect 0.5 at height 200
+})
+
+test('scrubber marks: one a month, the first month named, then the years; crowded labels left off', () => {
+  const at = (y: number, m: number, d = 1) => new Date(y, m, d).getTime()
+  const heads = [
+    { y: 0, at: at(2026, 10, 4) },
+    { y: 100, at: at(2026, 10, 2) }, // same month: no mark
+    { y: 200, at: at(2026, 9) },
+    { y: 500, at: at(2025, 11) },
+    { y: 510, at: at(2024, 5) } // a new year, but 10px under the one above
+  ]
+  const out = marks(heads, 1000, 1000)
+  assert.deepEqual(out.map((m) => m.f), [0, 0.2, 0.5, 0.51])
+  assert.deepEqual(out.map((m) => m.label), [new Date(at(2026, 10)).toLocaleDateString(undefined, { month: 'short' }), null, '2025', null])
 })

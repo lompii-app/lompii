@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { isText, quoteParts, type Item } from '@shared/api'
 import type { Density } from './prefs'
-import { timeline } from './timeline'
+import { marks, timeline } from './timeline'
 import { url } from './useItems'
 
 // narrowest column and gap per layout setting (the sidebar's grid button)
@@ -249,6 +249,17 @@ export function Timeline({
     (n) => virtualizer.scrollToIndex(places[n].row, { align: 'auto' })
   )
 
+  // each heading's place in the list, for the scrubber
+  const heads = useMemo(() => {
+    const out: { y: number; at: number; label: string }[] = []
+    let y = 0
+    for (const e of entries) {
+      if ('head' in e) out.push({ y, at: e.at, label: e.head })
+      y += 'head' in e ? HEAD : e.height + GAP
+    }
+    return out
+  }, [entries, GAP])
+
   let first = 0 // index in `items` of each row's first card
   const starts = entries.map((e) => {
     const at = first
@@ -287,6 +298,88 @@ export function Timeline({
             )
           })}
       </div>
+      <Scrubber
+        scrollRef={scrollRef}
+        heads={heads}
+        total={virtualizer.getTotalSize()}
+        margin={margin}
+        offset={virtualizer.scrollOffset ?? 0}
+      />
+    </div>
+  )
+}
+
+// The rail in the right margin: a mark a month, a line where the view is, and the day under the
+// pointer. Pressing or dragging on it jumps there. A place f down the rail (0 to 1) is the list
+// scrolled so that the point f of the way down it sits f of the way down the window: the top at
+// the top, the end at the bottom, and a heading at f shows when the line is on its mark.
+function Scrubber({
+  scrollRef,
+  heads,
+  total,
+  margin,
+  offset
+}: {
+  scrollRef: Props['scrollRef']
+  heads: { y: number; at: number; label: string }[]
+  total: number
+  margin: number // the list's top in the scroller
+  offset: number // the scroller's scrollTop
+}) {
+  const railRef = useRef<HTMLDivElement>(null)
+  const [rail, setRail] = useState(0)
+  const [hover, setHover] = useState<number | null>(null) // f under the pointer
+  useLayoutEffect(() => {
+    const ro = new ResizeObserver(([e]) => setRail(e.contentRect.height))
+    ro.observe(railRef.current!)
+    return () => ro.disconnect()
+  }, [])
+  const view = scrollRef.current?.clientHeight ?? 0
+  const range = total - view
+  const ticks = useMemo(() => marks(heads, total, rail), [heads, total, rail])
+
+  const at = (e: React.PointerEvent) => {
+    const r = railRef.current!.getBoundingClientRect()
+    return Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))
+  }
+  const seek = (f: number) => scrollRef.current?.scrollTo({ top: margin + f * range })
+  // the day at f: the last heading at or above that point of the list
+  const day = (f: number) => heads.filter((h) => h.y <= f * total).at(-1)?.label ?? heads[0]?.label
+
+  return (
+    <div
+      ref={railRef}
+      // the window's right margin, clear of the floating search above and back-to-top below
+      className={`fixed top-28 right-0 bottom-28 z-20 w-20 cursor-row-resize touch-none select-none ${range > 0 ? '' : 'hidden'}`}
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId)
+        seek(at(e))
+      }}
+      onPointerMove={(e) => {
+        setHover(at(e))
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) seek(at(e))
+      }}
+      onPointerLeave={() => setHover(null)}
+      aria-hidden // a pointer shortcut; the list scrolls by wheel and keys as before
+    >
+      {ticks.map(({ f, label }) => (
+        <div key={f} className="absolute right-4 flex -translate-y-1/2 items-center gap-1.5" style={{ top: f * rail }}>
+          {label && <span className="text-[11px] text-dim">{label}</span>}
+          <span className="size-1 rounded-full bg-dim/60" />
+        </div>
+      ))}
+      <div
+        className="absolute right-3 h-0.5 w-6 -translate-y-1/2 rounded-full bg-accent"
+        style={{ top: Math.min(1, Math.max(0, (offset - margin) / range)) * rail }}
+      />
+      {hover != null && (
+        <span
+          className="absolute right-full -translate-y-1/2 rounded-full bg-card px-2.5 py-1 text-[12px] whitespace-nowrap text-fg shadow-lift"
+          style={{ top: hover * rail }}
+        >
+          {day(hover)}
+        </span>
+      )}
     </div>
   )
 }
